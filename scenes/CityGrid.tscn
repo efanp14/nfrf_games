@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://citygrid00001"]
+
+[ext_resource type="Script" path="res://scripts/ui/CityGrid.gd" id="1_cgrid"]
+
+[node name="CityGrid" type="Node2D"]
+script = ExtResource("1_cgrid")
+
+[node name="Links" type="Node2D" parent="."]
+
+[node name="Nodes" type="Node2D" parent="."]

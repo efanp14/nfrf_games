@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://c7chat1pan000"]
+
+[ext_resource type="Script" path="res://scripts/ui/ChatPanel.gd" id="1_chat0"]
+
+[node name="ChatPanel" type="CanvasLayer"]
+layer = 1
+script = ExtResource("1_chat0")
+
+[node name="Window" type="PanelContainer" parent="."]
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_right = 0.0
+offset_top = 50.0
+offset_bottom = -58.0
+
+[node name="MarginContainer" type="MarginContainer" parent="Window"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Window/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HeaderLabel" type="Label" parent="Window/MarginContainer/VBoxContainer"]
+text = "Planner Chat"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 13
+
+[node name="HSeparator" type="HSeparator" parent="Window/MarginContainer/VBoxContainer"]
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Window/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="MessagesBox" type="VBoxContainer" parent="Window/MarginContainer/VBoxContainer/ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6

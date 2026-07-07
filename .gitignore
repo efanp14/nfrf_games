@@ -15,3 +15,7 @@
 # Temporary files created by some OS or editors
 .tmp/
 *.tmp
+
+# Claude Code local files — not part of the project
+CLAUDE.md
+.claude/

@@ -1,0 +1,64 @@
+[gd_scene format=3 uid="uid://beffb2sgupm77"]
+
+[ext_resource type="Script" path="res://scripts/ui/UpgradePopup.gd" id="1_upop0"]
+
+[node name="UpgradePopup" type="CanvasLayer"]
+layer = 2
+script = ExtResource("1_upop0")
+
+[node name="Overlay" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.5)
+mouse_filter = 0
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
+custom_minimum_size = Vector2(420, 0)
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+text = "Upgrade Infrastructure"
+horizontal_alignment = 1
+
+[node name="LinkInfoLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = ""
+autowrap_mode = 3
+
+[node name="CurrentLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = ""
+
+[node name="HSeparator" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="PaintedButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Painted Lane  —  $10"
+
+[node name="ProtectedButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Protected Track  —  $30"
+
+[node name="RemoveButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+visible = false
+text = "Remove Upgrade"
+
+[node name="HSeparator2" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="CancelButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Cancel"

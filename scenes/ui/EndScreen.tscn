@@ -1,0 +1,74 @@
+[gd_scene format=3 uid="uid://d2endscr00000"]
+
+[ext_resource type="Script" path="res://scripts/ui/EndScreen.gd" id="1_ends0"]
+
+[node name="EndScreen" type="CanvasLayer"]
+layer = 3
+script = ExtResource("1_ends0")
+
+[node name="Overlay" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.75)
+mouse_filter = 0
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
+custom_minimum_size = Vector2(420, 0)
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+text = "Game Complete!"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+text = "CycleCity: The Commuter's Dilemma"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 12
+
+[node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="FinalTimeLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Final commute:   — min"
+
+[node name="SavedLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = ""
+autowrap_mode = 3
+
+[node name="SafetyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Final safety score:   —"
+
+[node name="CoverageLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Network coverage:   —%"
+
+[node name="HSep2" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="StrategyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 13
+
+[node name="HSep3" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="FinishButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Finish & Submit Results"

@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://b24rt30so6eqq"]
+
+[ext_resource type="Script" path="res://scripts/ui/NodeMarker.gd" id="1_ndmrkr"]
+
+[node name="NodeMarker" type="Node2D"]
+script = ExtResource("1_ndmrkr")
+
+[node name="Label" type="Label" parent="."]
+visible = false
+offset_left = 9.0
+offset_top = -9.0

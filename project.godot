@@ -10,9 +10,23 @@ config_version=5
 
 [application]
 
-config/name="Template Game Setup"
+config/name="Transport Game"
+config/description="No Description"
+run/main_scene="uid://dba6hsvgna6cd"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameManager="*uid://oe1oq80b8d0c"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=3
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [physics]
 

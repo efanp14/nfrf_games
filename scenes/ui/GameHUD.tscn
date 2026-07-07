@@ -1,0 +1,89 @@
+[gd_scene format=3 uid="uid://ce7ivsgrgs5aa"]
+
+[ext_resource type="Script" path="res://scripts/ui/GameHUD.gd" id="1_ghud0"]
+[ext_resource type="Script" path="res://scripts/ui/MapLegend.gd" id="2_legend"]
+
+[node name="GameHUD" type="CanvasLayer"]
+layer = 1
+script = ExtResource("1_ghud0")
+
+[node name="HUDRoot" type="Control" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="LeftSidebar" type="PanelContainer" parent="HUDRoot"]
+anchor_bottom = 1.0
+offset_right = 240.0
+
+[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/LeftSidebar"]
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUDRoot/LeftSidebar/MarginContainer"]
+theme_override_constants/separation = 10
+
+[node name="RoundLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Round ? / 6"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 26
+
+[node name="HSep1" type="HSeparator" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+
+[node name="BudgetLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Budget: $--"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+
+[node name="HSep2" type="HSeparator" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+
+[node name="PersonalHeader" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+text = "Your Route"
+theme_override_font_sizes/font_size = 14
+
+[node name="TimeLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Time: -- min"
+theme_override_font_sizes/font_size = 16
+
+[node name="SafetyLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Safety: --"
+theme_override_font_sizes/font_size = 16
+
+[node name="CityPanel" type="VBoxContainer" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+visible = false
+theme_override_constants/separation = 6
+
+[node name="HSep3" type="HSeparator" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer/CityPanel"]
+
+[node name="CityHeader" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer/CityPanel"]
+text = "City-wide"
+theme_override_font_sizes/font_size = 14
+
+[node name="CityTimeLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer/CityPanel"]
+unique_name_in_owner = true
+text = "City: -- min"
+theme_override_font_sizes/font_size = 16
+
+[node name="CoverageLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer/CityPanel"]
+unique_name_in_owner = true
+text = "Cover: 0%"
+theme_override_font_sizes/font_size = 16
+
+[node name="MapLegend" type="Control" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+script = ExtResource("2_legend")
+
+[node name="Spacer" type="Control" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+size_flags_vertical = 3
+
+[node name="EndRoundButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+text = "End Round"
+theme_override_font_sizes/font_size = 16
