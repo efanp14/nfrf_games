@@ -47,7 +47,7 @@ theme_override_font_sizes/font_size = 12
 [node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 
 [node name="IntroLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
-text = "You are a citizen-planner with $100 per round to upgrade roads with bike lanes ($10) or protected cycle tracks ($30). Manage congestion and help shape a city that works for everyone."
+text = "You are a citizen-planner with $600 per round to upgrade roads with painted bike lanes ($100) or protected cycle tracks ($300). Help shape a city that works for everyone."
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 12
 

@@ -12,6 +12,10 @@ var _markers: Dictionary = {}
 const LinkSegmentScene := preload("res://scenes/components/LinkSegment.tscn")
 const NodeMarkerScene  := preload("res://scenes/components/NodeMarker.tscn")
 
+## Round-end "moving bikes" animation — one bike per human player, traced
+## along their newly-recalculated route. Cosmetic only.
+const ROUND_END_ANIM_DURATION := 3.3
+
 
 func _ready() -> void:
 	GameManager.round_started.connect(_on_game_ready, CONNECT_ONE_SHOT)
@@ -127,6 +131,48 @@ func set_link_points(link_id: String, points: PackedVector2Array) -> void:
 
 func _on_segment_clicked(link_id: String) -> void:
 	link_clicked.emit(link_id)
+
+
+## Spawns a bike per human player and tweens it along their current route,
+## then resolves once the longest one finishes. Called by main.gd right
+## before the round summary is shown, so players see the effect of their
+## upgrade before reading the numbers.
+func play_round_end_animation() -> void:
+	var last_tween: Tween = null
+	for i in range(GameManager.human_players.size()):
+		var p: Player = GameManager.human_players[i]
+		var path: Array = p.current_route.get("path", [])
+		var col: Color = GameManager.PLAYER_COLORS[i % GameManager.PLAYER_COLORS.size()]
+		var t := _spawn_bike(path, col)
+		if t:
+			last_tween = t
+	if last_tween:
+		await last_tween.finished
+
+
+func _spawn_bike(path: Array, bike_color: Color) -> Tween:
+	if path.size() < 2:
+		return null
+	var points: Array = []
+	for node_vec in path:
+		points.append(GameManager.network.node_positions.get(node_vec, Vector2.ZERO))
+
+	var icon := BikeIcon.new()
+	icon.bike_color = bike_color
+	icon.position = points[0]
+	# NodeMarker (the home/work/intersection circles) sets z_index = 1, which
+	# overrides normal tree-order drawing — the bike needs a higher z_index
+	# or it renders underneath every node circle it passes through.
+	icon.z_index = 2
+	add_child(icon)
+
+	var tween := create_tween()
+	var seg_count := points.size() - 1
+	var seg_dur := ROUND_END_ANIM_DURATION / float(seg_count)
+	for i in range(seg_count):
+		tween.tween_property(icon, "position", points[i + 1], seg_dur)
+	tween.finished.connect(icon.queue_free)
+	return tween
 
 
 func _on_route_updated(player_id: String, route: Dictionary) -> void:

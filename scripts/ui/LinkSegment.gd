@@ -38,22 +38,25 @@ const CAR_WINDOW      := Color(0.65, 0.82, 0.92)
 
 const ROAD_WIDTH     := 24.0
 const EDGE_BORDER    := 1.5
-const LANE_W         := 6.0
 const ROUTE_WIDTH    := 32.0
 const HOVER_WIDTH    := 36.0
 const CENTER_LINE_W  := 1.5
-const LANE_DIV_W     := 1.0
 const BIKE_PAINT_W   := 4.0
 const DIVIDER_W      := 1.5
 const HIT_RADIUS     := 18.0
 const NODE_RADIUS    := 8.5   # roads extend to this depth inside the node circle (18.0 radius) so ends are hidden
 
-const DASH_LEN       := 5.0
-const DASH_GAP       := 5.0
 const BARRIER_SPACE  := 10.0
 const BARRIER_MARK   := 3.0
-const CAR_LENGTH     := 6.0
-const CAR_WIDTH_HALF := 1.8
+# Cars must stay within the plain road fill (the "black") on every upgrade
+# level. On painted/protected roads the outer BIKE_PAINT_W strip on each
+# side narrows that to ROAD_WIDTH/2 - BIKE_PAINT_W = 8.0, so
+# CAR_LANE_OFFSET + CAR_WIDTH_HALF must stay comfortably under 8.0.
+const CAR_LENGTH      := 10.0
+const CAR_WIDTH_HALF  := 2.5
+const CAR_LANE_OFFSET := 4.0
+const CAR_OUTLINE     := Color(0.25, 0.1, 0.08, 0.9)
+const CAR_OUTLINE_W   := 1.0
 
 
 func setup(id: String, points: PackedVector2Array, upgrade_level: int = 0, stress: float = 0.5) -> void:
@@ -144,10 +147,19 @@ func _draw() -> void:
 	elif _route_players.size() > 1:
 		_draw_striped_route()
 
-	_draw_thick_line(ROAD_EDGE, ROAD_WIDTH + EDGE_BORDER * 2.0)
+	# No Bike Lane roads have no curb — a plain, informal street; upgraded
+	# (painted/protected) roads get a defined edge to read as "built".
+	if _display_level() > 0:
+		_draw_thick_line(ROAD_EDGE, ROAD_WIDTH + EDGE_BORDER * 2.0)
 	_draw_thick_line(ROAD_FILL, ROAD_WIDTH)
 	_draw_road_markings()
 	_draw_cars()
+
+
+## The level to visually render as — the pending upgrade if one is staged
+## and higher than the current level, otherwise the current level.
+func _display_level() -> int:
+	return _pending_level if _pending_level > _upgrade_level else _upgrade_level
 
 
 func _draw_thick_line(color: Color, width: float) -> void:
@@ -175,39 +187,24 @@ func _draw_striped_route() -> void:
 			ci += 1
 
 
-# --- Center / lane dashes ---
-
-func _draw_dashes(offset_dist: float, color: Color, width: float, dash: float, gap: float) -> void:
-	for i in range(_draw_points.size() - 1):
-		var a := _draw_points[i]
-		var b := _draw_points[i + 1]
-		var dir := (b - a).normalized()
-		var perp := dir.rotated(PI / 2.0)
-		var oa := a + perp * offset_dist
-		var length := a.distance_to(b)
-		var pos := gap / 2.0
-		while pos < length:
-			var end_pos := minf(pos + dash, length)
-			draw_line(oa + dir * pos, oa + dir * end_pos, color, width, true)
-			pos += dash + gap
 
 
 # --- Upgrade visuals (painted lanes / protected barriers) ---
 
 func _draw_road_markings() -> void:
-	var display_level := _upgrade_level
+	var display_level := _display_level()
 	var alpha_mult := 1.0
 	if _pending_level > _upgrade_level:
-		display_level = _pending_level
 		alpha_mult = 0.5
 	elif _pending_level == 0 and _upgrade_level > 0:
 		alpha_mult = 0.25
 
 	_draw_offset_line(0.0, YELLOW_CENTER, CENTER_LINE_W)
 
-	if display_level <= 0:
-		_draw_dashes(LANE_W, WHITE_MARKING, LANE_DIV_W, DASH_LEN, DASH_GAP)
-		_draw_dashes(-LANE_W, WHITE_MARKING, LANE_DIV_W, DASH_LEN, DASH_GAP)
+	if display_level == 0:
+		# No Bike Lane: a single clean street line, no lane dividers or
+		# other clutter.
+		pass
 	elif display_level == 1:
 		var pc := Color(BIKE_PAINT, alpha_mult)
 		var po := ROAD_WIDTH / 2.0 - BIKE_PAINT_W / 2.0
@@ -271,8 +268,8 @@ func _draw_cars() -> void:
 		for j in range(num_cars):
 			var pos := spacing * (j + 1)
 			var center := a + dir * pos
-			# Alternate cars slightly left/right of center
-			var side := LANE_W * 0.5 if j % 2 == 0 else -(LANE_W * 0.5)
+			# Alternate cars slightly left/right of center, one per direction of travel
+			var side := CAR_LANE_OFFSET if j % 2 == 0 else -CAR_LANE_OFFSET
 			center += perp * side
 			_draw_car(center, angle)
 
@@ -280,22 +277,29 @@ func _draw_cars() -> void:
 func _draw_car(center: Vector2, angle: float) -> void:
 	var half_l := CAR_LENGTH / 2.0
 	var hw := CAR_WIDTH_HALF
-	# Car body
+	# Chamfered corners give a car-like silhouette instead of a plain rectangle.
+	var cl := half_l * 0.55
+	var cw := hw * 0.65
 	var body_corners := PackedVector2Array([
-		center + Vector2(-half_l, -hw).rotated(angle),
-		center + Vector2(half_l, -hw).rotated(angle),
-		center + Vector2(half_l, hw).rotated(angle),
-		center + Vector2(-half_l, hw).rotated(angle),
+		center + Vector2(-half_l, -cw).rotated(angle),
+		center + Vector2(-cl, -hw).rotated(angle),
+		center + Vector2(cl, -hw).rotated(angle),
+		center + Vector2(half_l, -cw).rotated(angle),
+		center + Vector2(half_l, cw).rotated(angle),
+		center + Vector2(cl, hw).rotated(angle),
+		center + Vector2(-cl, hw).rotated(angle),
+		center + Vector2(-half_l, cw).rotated(angle),
 	])
 	draw_colored_polygon(body_corners, CAR_BODY)
-	# Windshield stripe
-	var ws_off := half_l * 0.3
-	var ws_hw := hw * 0.6
+	draw_polyline(body_corners + PackedVector2Array([body_corners[0]]), CAR_OUTLINE, CAR_OUTLINE_W, true)
+	# Windshield, biased toward the front so travel direction reads at a glance
+	var ws_off := half_l * 0.35
+	var ws_hw := hw * 0.55
 	var ws_corners := PackedVector2Array([
-		center + Vector2(ws_off - 1.0, -ws_hw).rotated(angle),
-		center + Vector2(ws_off + 1.0, -ws_hw).rotated(angle),
-		center + Vector2(ws_off + 1.0, ws_hw).rotated(angle),
-		center + Vector2(ws_off - 1.0, ws_hw).rotated(angle),
+		center + Vector2(ws_off - 2.0, -ws_hw).rotated(angle),
+		center + Vector2(ws_off + 2.0, -ws_hw).rotated(angle),
+		center + Vector2(ws_off + 2.0, ws_hw).rotated(angle),
+		center + Vector2(ws_off - 2.0, ws_hw).rotated(angle),
 	])
 	draw_colored_polygon(ws_corners, CAR_WINDOW)
 

@@ -11,15 +11,31 @@ signal end_round_pressed
 @onready var city_time_label: Label     = %CityTimeLabel
 @onready var coverage_label: Label      = %CoverageLabel
 @onready var end_round_button: Button   = %EndRoundButton
+@onready var debug_button: Button       = %DebugButton
+
+## Cached so toggling debug mode can re-render immediately without waiting
+## for the next GameManager signal.
+var _last_round_results: Dictionary = {}
+var _last_city_metrics: Dictionary = {}
 
 
 func _ready() -> void:
 	end_round_button.pressed.connect(func(): end_round_pressed.emit())
+	debug_button.pressed.connect(_on_debug_pressed)
 	GameManager.round_started.connect(_on_round_started)
 	GameManager.round_ended.connect(_on_round_ended)
 	GameManager.city_metrics_updated.connect(_on_city_metrics_updated)
 	GameManager.game_over.connect(_on_game_over)
 	_sync_initial_state()
+
+
+func _on_debug_pressed() -> void:
+	SafetyDisplay.debug_mode = not SafetyDisplay.debug_mode
+	debug_button.text = "Debug: ON" if SafetyDisplay.debug_mode else "Debug: OFF"
+	if not _last_round_results.is_empty():
+		_render_personal(_last_round_results)
+	if not _last_city_metrics.is_empty():
+		_render_city(_last_city_metrics)
 
 
 func _sync_initial_state() -> void:
@@ -38,25 +54,44 @@ func _on_round_started(round_num: int, budget: int) -> void:
 
 
 func _on_round_ended(_round_num: int, results: Dictionary) -> void:
+	_last_round_results = results
+	_render_personal(results)
+	end_round_button.disabled = true
+
+
+## Time stays a raw number (travel time + money are the only raw numbers
+## shown to participants); safety is emoji-only unless debug mode is on
+## (SafetyDisplay.format handles that).
+func _render_personal(results: Dictionary) -> void:
 	var players_data: Array = results.get("players", [])
 	if players_data.size() <= 1:
 		time_label.text   = "Time: %.1f min" % results.get("personal_time", 0.0)
-		safety_label.text = "Safety: %d"     % int(results.get("personal_safety", 0.0))
+		safety_label.text = "Safety: " + SafetyDisplay.format(results.get("personal_safety", 0.0))
 	else:
 		var time_parts: PackedStringArray = []
 		var safety_parts: PackedStringArray = []
 		for i in range(players_data.size()):
 			var pd: Dictionary = players_data[i]
 			time_parts.append("P%d: %.1f" % [i + 1, pd.get("time", 0.0)])
-			safety_parts.append("P%d: %d" % [i + 1, int(pd.get("safety", 0.0))])
+			safety_parts.append("P%d: %s" % [i + 1, SafetyDisplay.format(pd.get("safety", 0.0))])
 		time_label.text   = "Time  " + "  ".join(time_parts)
 		safety_label.text = "Safety  " + "  ".join(safety_parts)
-	end_round_button.disabled = true
 
 
 func _on_city_metrics_updated(metrics: Dictionary) -> void:
-	city_time_label.text = "City: %.1f min" % metrics.get("avg_time",  0.0)
-	coverage_label.text  = "Cover: %d%%"    % int(metrics.get("coverage", 0.0))
+	_last_city_metrics = metrics
+	_render_city(metrics)
+
+
+## City averages/coverage are backend metrics — hidden from participants,
+## only shown when debug mode is on.
+func _render_city(metrics: Dictionary) -> void:
+	if SafetyDisplay.debug_mode:
+		city_time_label.text = "[debug] City: %.1f min" % metrics.get("avg_time", 0.0)
+		coverage_label.text  = "[debug] Cover: %d%%"     % int(metrics.get("coverage", 0.0))
+	else:
+		city_time_label.text = ""
+		coverage_label.text  = ""
 
 
 func _on_game_over(_final: Dictionary) -> void:

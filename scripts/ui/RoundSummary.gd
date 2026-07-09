@@ -57,7 +57,7 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 		else:
 			delta_label.text = "No change from last round"
 			delta_label.remove_theme_color_override("font_color")
-		safety_label.text = "Safety score:   %.0f / 100" % safety
+		safety_label.text = "Safety: " + SafetyDisplay.format(safety)
 	else:
 		time_label.visible = false
 		delta_label.visible = false
@@ -76,15 +76,20 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 				delta_str = " (▲%.1f)" % absf(delta_val)
 			var player_lbl := Label.new()
 			player_lbl.add_theme_font_size_override("font_size", 16)
-			player_lbl.text = "P%d:  %.1f min  Safety: %d%s" % [i + 1, time_val, int(safety_val), delta_str]
+			player_lbl.text = "P%d:  %.1f min  Safety: %s%s" % [i + 1, time_val, SafetyDisplay.format(safety_val), delta_str]
 			var col: Color = GameManager.PLAYER_COLORS[i % GameManager.PLAYER_COLORS.size()]
 			player_lbl.add_theme_color_override("font_color", col)
 			_players_box.add_child(player_lbl)
 
 	city_section.visible = treatment != GameManager.Treatment.INDIVIDUAL
 	if city_section.visible:
-		city_time_label.text = "City avg time:   %.1f min" % results.get("city_avg_time", 0.0)
-		coverage_label.text  = "Network coverage:   %.0f%%" % results.get("city_coverage", 0.0)
+		# Backend metrics — hidden from participants, debug-only.
+		if SafetyDisplay.debug_mode:
+			city_time_label.text = "[debug] City avg time:   %.1f min" % results.get("city_avg_time", 0.0)
+			coverage_label.text  = "[debug] Network coverage:   %.0f%%" % results.get("city_coverage", 0.0)
+		else:
+			city_time_label.text = ""
+			coverage_label.text  = ""
 
 	next_button.text = "See Final Results" if is_last_round else "Next Round  →"
 	visible = true

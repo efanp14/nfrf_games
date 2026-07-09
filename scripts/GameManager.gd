@@ -140,10 +140,13 @@ func _recalculate_and_end_round() -> void:
 			"player_id": p.player_id,
 			"alpha": p.alpha,
 			"time": p.current_route.get("total_time", 0.0),
+			"time_before": _round_start_player_data[i]["time"],
 			"safety": p.safety_score,
 			"safety_before": _round_start_player_data[i]["safety"],
 			"safety_delta": p.safety_score - _round_start_player_data[i]["safety"],
 			"time_delta": p.time_delta_from_baseline(),
+			"own_route_upgrade_share": Player.own_route_share(p.round_log.back()),
+			"cumulative_own_route_upgrade_share": p.cumulative_own_route_share(),
 		})
 
 	var results: Dictionary = {
@@ -151,6 +154,7 @@ func _recalculate_and_end_round() -> void:
 		"alpha":             human_player.alpha,
 		"group_mode":        treatment == Treatment.COLLECTIVE_CHAT,
 		"personal_time":     human_player.current_route.get("total_time", 0.0),
+		"personal_time_before": _round_start_player_data[0]["time"],
 		"personal_safety":   human_player.safety_score,
 		"safety_before":     _round_start_player_data[0]["safety"],
 		"safety_delta":      human_player.safety_score - _round_start_player_data[0]["safety"],
@@ -158,16 +162,23 @@ func _recalculate_and_end_round() -> void:
 		"credits_spent":     human_player.round_log.back().get("credits_spent", 0),
 		"credits_remaining": human_player.credits_remaining,
 		"upgrades":          human_player.round_log.back().get("upgrades", []),
+		"own_route_upgrade_share": Player.own_route_share(human_player.round_log.back()),
+		"cumulative_own_route_upgrade_share": human_player.cumulative_own_route_share(),
 		"players":           players_data,
 	}
 
 	if treatment != Treatment.INDIVIDUAL:
 		var city_metrics = _compute_city_metrics()
-		results["city_avg_time"]        = city_metrics["avg_time"]
-		results["city_coverage"]        = city_metrics["coverage"]
-		results["city_avg_time_before"] = _round_start_city_metrics.get("avg_time", null)
+		results["city_avg_time"]          = city_metrics["avg_time"]
+		results["city_avg_safety"]        = city_metrics["avg_safety"]
+		results["city_coverage"]          = city_metrics["coverage"]
+		results["city_avg_time_before"]   = _round_start_city_metrics.get("avg_time", null)
+		results["city_avg_safety_before"] = _round_start_city_metrics.get("avg_safety", null)
+		results["city_coverage_before"]   = _round_start_city_metrics.get("coverage", null)
 		if _round_start_city_metrics.has("avg_time"):
 			results["city_avg_time_delta"] = city_metrics["avg_time"] - _round_start_city_metrics["avg_time"]
+		if _round_start_city_metrics.has("avg_safety"):
+			results["city_avg_safety_delta"] = city_metrics["avg_safety"] - _round_start_city_metrics["avg_safety"]
 		emit_signal("city_metrics_updated", city_metrics)
 
 	emit_signal("round_ended", current_round, results)
@@ -192,6 +203,7 @@ func _end_game() -> void:
 			"total_time_saved": p.initial_baseline_time - ft,
 			"final_safety": p.safety_score,
 			"alpha": p.alpha,
+			"cumulative_own_route_upgrade_share": p.cumulative_own_route_share(),
 			"log": p.export_log(),
 		})
 	var final_time: float = human_player.current_route.get("total_time", 0.0)
@@ -203,6 +215,7 @@ func _end_game() -> void:
 		"final_safety":     human_player.safety_score,
 		"city_coverage":    network.coverage_percent(),
 		"alpha":            human_player.alpha,
+		"cumulative_own_route_upgrade_share": human_player.cumulative_own_route_share(),
 		"log":              human_player.export_log(),
 		"players":          players_data,
 	}
@@ -229,17 +242,21 @@ func _seed_ai_commuters(count: int) -> void:
 
 func _compute_city_metrics() -> Dictionary:
 	var total_time: float = 0.0
+	var total_safety: float = 0.0
 	for commuter in ai_commuters:
 		var route = network.find_route(commuter["start"], commuter["goal"], commuter["alpha"])
 		total_time += route.get("total_time", 0.0)
+		total_safety += Player.route_safety(route, network, commuter["alpha"])
 
 	for p: Player in human_players:
 		total_time += p.current_route.get("total_time", 0.0)
-	var avg_time = total_time / float(ai_commuters.size() + human_players.size())
+		total_safety += p.safety_score
 
+	var count: float = float(ai_commuters.size() + human_players.size())
 	return {
-		"avg_time": avg_time,
-		"coverage": network.coverage_percent(),
+		"avg_time":   total_time / count,
+		"avg_safety": total_safety / count,
+		"coverage":   network.coverage_percent(),
 	}
 
 

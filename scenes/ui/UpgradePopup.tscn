@@ -46,11 +46,11 @@ text = ""
 
 [node name="PaintedButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
-text = "Painted Lane  —  $10"
+text = "Painted Lane  —  $100"
 
 [node name="ProtectedButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
-text = "Protected Track  —  $30"
+text = "Protected Track  —  $300"
 
 [node name="RemoveButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true

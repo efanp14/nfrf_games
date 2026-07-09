@@ -1,33 +1,36 @@
 [gd_scene format=3 uid="uid://dba6hsvgna6cd"]
 
 [ext_resource type="Script" uid="uid://cl6g570ixseu4" path="res://scenes/main.gd" id="1_o5qli"]
-[ext_resource type="PackedScene" path="res://scenes/CityGrid.tscn" id="2_cgrid0"]
-[ext_resource type="PackedScene" path="res://scenes/ui/GameHUD.tscn" id="3_ghud00"]
-[ext_resource type="PackedScene" path="res://scenes/ui/UpgradePopup.tscn" id="4_upop00"]
-[ext_resource type="PackedScene" path="res://scenes/ui/RoundSummary.tscn" id="5_rsum0"]
-[ext_resource type="PackedScene" path="res://scenes/ui/EndScreen.tscn" id="6_ends0"]
-[ext_resource type="PackedScene" path="res://scenes/ui/PostSurvey.tscn" id="6_psurvey"]
-[ext_resource type="PackedScene" path="res://scenes/ui/ChatPanel.tscn" id="7_chat0"]
-[ext_resource type="PackedScene" path="res://scenes/ui/PreSurvey.tscn" id="8_presv0"]
-[ext_resource type="PackedScene" path="res://scenes/ui/MainMenu.tscn" id="9_menu0"]
+[ext_resource type="PackedScene" uid="uid://citygrid00001" path="res://scenes/CityGrid.tscn" id="2_cgrid0"]
+[ext_resource type="PackedScene" uid="uid://ce7ivsgrgs5aa" path="res://scenes/ui/GameHUD.tscn" id="3_ghud00"]
+[ext_resource type="PackedScene" uid="uid://beffb2sgupm77" path="res://scenes/ui/UpgradePopup.tscn" id="4_upop00"]
+[ext_resource type="PackedScene" uid="uid://b8rsum1cy0000" path="res://scenes/ui/RoundSummary.tscn" id="5_rsum0"]
+[ext_resource type="PackedScene" uid="uid://d2endscr00000" path="res://scenes/ui/EndScreen.tscn" id="6_ends0"]
+[ext_resource type="PackedScene" uid="uid://b4pstsurvey00" path="res://scenes/ui/PostSurvey.tscn" id="6_psurvey"]
+[ext_resource type="PackedScene" uid="uid://c7chat1pan000" path="res://scenes/ui/ChatPanel.tscn" id="7_chat0"]
+[ext_resource type="PackedScene" uid="uid://b3presurv0000" path="res://scenes/ui/PreSurvey.tscn" id="8_presv0"]
+[ext_resource type="PackedScene" uid="uid://b5mainmenu000" path="res://scenes/ui/MainMenu.tscn" id="9_menu0"]
+[ext_resource type="PackedScene" uid="uid://c0nsentscr000" path="res://scenes/ui/ConsentScreen.tscn" id="10_consent0"]
 
-[node name="GameScene" type="Node2D"]
+[node name="GameScene" type="Node2D" unique_id=1895432736]
 script = ExtResource("1_o5qli")
 
-[node name="CityGrid" parent="." instance=ExtResource("2_cgrid0")]
+[node name="CityGrid" parent="." unique_id=964075038 instance=ExtResource("2_cgrid0")]
 
-[node name="GameHUD" parent="." instance=ExtResource("3_ghud00")]
+[node name="GameHUD" parent="." unique_id=15283848 instance=ExtResource("3_ghud00")]
 
-[node name="UpgradePopup" parent="." instance=ExtResource("4_upop00")]
+[node name="UpgradePopup" parent="." unique_id=1948789287 instance=ExtResource("4_upop00")]
 
-[node name="RoundSummary" parent="." instance=ExtResource("5_rsum0")]
+[node name="RoundSummary" parent="." unique_id=7026467 instance=ExtResource("5_rsum0")]
 
-[node name="EndScreen" parent="." instance=ExtResource("6_ends0")]
+[node name="EndScreen" parent="." unique_id=738695471 instance=ExtResource("6_ends0")]
 
-[node name="PostSurvey" parent="." instance=ExtResource("6_psurvey")]
+[node name="PostSurvey" parent="." unique_id=2075328632 instance=ExtResource("6_psurvey")]
 
-[node name="ChatPanel" parent="." instance=ExtResource("7_chat0")]
+[node name="ChatPanel" parent="." unique_id=1673930565 instance=ExtResource("7_chat0")]
 
-[node name="PreSurvey" parent="." instance=ExtResource("8_presv0")]
+[node name="PreSurvey" parent="." unique_id=27505123 instance=ExtResource("8_presv0")]
 
-[node name="MainMenu" parent="." instance=ExtResource("9_menu0")]
+[node name="MainMenu" parent="." unique_id=1749891332 instance=ExtResource("9_menu0")]
+
+[node name="ConsentScreen" parent="." instance=ExtResource("10_consent0")]

@@ -1,7 +1,7 @@
 class_name PreSurvey
 extends CanvasLayer
 
-signal survey_completed(alpha: float)
+signal survey_completed(alpha: float, responses: Dictionary)
 
 const QUESTIONS: Array = [
 	["q1", "When cycling, I am willing to use busy roads even without a bike lane",  false],
@@ -9,12 +9,6 @@ const QUESTIONS: Array = [
 	["q3", "I would choose a faster cycling route even if it felt less comfortable",  false],
 	["q4", "I feel confident cycling alongside moving motor traffic",                 false],
 ]
-
-const THRESHOLD_CAUTIOUS:  float = 2.3
-const THRESHOLD_CONFIDENT: float = 3.6
-const ALPHA_CAUTIOUS:      float = 3.0
-const ALPHA_AVERAGE:       float = 1.5
-const ALPHA_CONFIDENT:     float = 0.4
 
 var _responses: Dictionary = {}
 var _player_label: Label
@@ -104,7 +98,7 @@ func _on_response(key: String, buttons: Array[Button]) -> void:
 
 
 func _on_begin_pressed() -> void:
-	survey_completed.emit(_calculate_alpha())
+	survey_completed.emit(_calculate_alpha(), _responses.duplicate())
 
 
 func _calculate_alpha() -> float:
@@ -115,9 +109,4 @@ func _calculate_alpha() -> float:
 		var score: int    = _responses.get(key, 3)
 		total += (6 - score) if reverse else score
 	var avg: float = total / float(QUESTIONS.size())
-
-	if avg <= THRESHOLD_CAUTIOUS:
-		return ALPHA_CAUTIOUS
-	elif avg > THRESHOLD_CONFIDENT:
-		return ALPHA_CONFIDENT
-	return ALPHA_AVERAGE
+	return PersonalityConfig.alpha_for_survey_mean(avg)

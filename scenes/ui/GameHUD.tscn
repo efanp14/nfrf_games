@@ -79,6 +79,12 @@ theme_override_font_sizes/font_size = 16
 [node name="MapLegend" type="Control" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
 script = ExtResource("2_legend")
 
+[node name="DebugButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+text = "Debug: OFF"
+theme_override_font_sizes/font_size = 12
+
 [node name="Spacer" type="Control" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
 size_flags_vertical = 3
 

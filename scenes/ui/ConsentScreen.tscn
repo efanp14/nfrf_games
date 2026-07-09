@@ -1,0 +1,79 @@
+[gd_scene format=3 uid="uid://c0nsentscr000"]
+
+[ext_resource type="Script" path="res://scripts/ui/ConsentScreen.gd" id="1_consent0"]
+
+[node name="ConsentScreen" type="CanvasLayer"]
+layer = 4
+script = ExtResource("1_consent0")
+
+[node name="Overlay" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.12, 0.94)
+mouse_filter = 0
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
+custom_minimum_size = Vector2(600, 0)
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+text = "Consent to Participate in Research"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+text = "[PLACEHOLDER — replace with your REB/IRB-approved study title]"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 12
+
+[node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="BodyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+text = "⚠ PLACEHOLDER TEXT — DO NOT USE FOR A REAL SESSION UNTIL REPLACED ⚠
+
+[Purpose] This study investigates how people allocate infrastructure investment decisions, individually and as a group. [Replace with REB/IRB-approved purpose statement.]
+
+[What's involved] You will complete a short pre-survey, play a city-planning game across several rounds (~15-20 minutes), and complete a short post-survey. [Add condition-specific detail, e.g. audio/video recording in group sessions, if applicable.]
+
+[Voluntary participation] Your participation is completely voluntary. You may withdraw at any time without penalty by informing the researcher, and may decline to answer any question.
+
+[Confidentiality] Your responses are recorded under a session ID, not your name. [Replace with your institution's actual data handling/storage/retention statement.]
+
+[Contact] Questions about this study can be directed to [researcher name/email]. Questions about your rights as a participant can be directed to [REB/IRB contact]."
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 12
+
+[node name="HSep2" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="AckCheckBox" type="CheckBox" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "I have read and understood the above, and I agree to participate."
+
+[node name="HSep3" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+theme_override_constants/separation = 10
+
+[node name="DeclineButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+text = "I Do Not Consent"
+
+[node name="AgreeButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+text = "I Agree — Begin"
+disabled = true

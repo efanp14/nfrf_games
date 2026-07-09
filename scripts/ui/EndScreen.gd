@@ -55,7 +55,7 @@ func show_results(final_results: Dictionary) -> void:
 			saved_label.text = "Same time as your first commute (%.1f min)" % baseline
 			saved_label.remove_theme_color_override("font_color")
 
-		safety_label.text = "Final safety score:   %.0f / 100" % safety
+		safety_label.text = "Final safety: " + SafetyDisplay.format(safety)
 	else:
 		final_time_label.visible = false
 		saved_label.visible = false
@@ -76,12 +76,13 @@ func show_results(final_results: Dictionary) -> void:
 				saved_str = "+%.1f min slower" % absf(saved)
 			else:
 				saved_str = "no change"
-			player_lbl.text = "P%d:  %.1f min  Safety: %d  (%s)" % [i + 1, ft, int(safety), saved_str]
+			player_lbl.text = "P%d:  %.1f min  Safety: %s  (%s)" % [i + 1, ft, SafetyDisplay.format(safety), saved_str]
 			var col: Color = GameManager.PLAYER_COLORS[i % GameManager.PLAYER_COLORS.size()]
 			player_lbl.add_theme_color_override("font_color", col)
 			_players_box.add_child(player_lbl)
 
-	coverage_label.text = "Network coverage:   %.0f%%" % coverage
+	# Network coverage is a backend metric — debug-only.
+	coverage_label.text = "[debug] Network coverage:   %.0f%%" % coverage if SafetyDisplay.debug_mode else ""
 	strategy_label.text = _strategy_flavour(coverage, final_results.get("total_time_saved", 0.0))
 
 	visible = true

@@ -42,7 +42,7 @@ theme_override_font_sizes/font_size = 12
 [node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 
 [node name="IntroLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
-text = "You are a citizen-planner in CycleCity. Each round you receive $100 to upgrade roads with painted bike lanes ($10) or protected cycle tracks ($30). Your upgrades are permanent — choose carefully."
+text = "You are a citizen-planner in CycleCity. Each round you receive $600 to upgrade roads with painted bike lanes ($100) or protected cycle tracks ($300). Your upgrades are permanent — choose carefully."
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 12
 

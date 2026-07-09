@@ -60,7 +60,7 @@ func _draw() -> void:
 
 	# ── Road types ──────────────────────────────────────────────────────────
 	_road_swatch(0, y)
-	_label("Unimproved road", y, font); y += ROW_H
+	_label("No Bike Lane", y, font); y += ROW_H
 
 	_road_swatch(1, y)
 	_label("Painted lane", y, font); y += ROW_H
@@ -108,7 +108,6 @@ func _road_swatch(level: int, y: float) -> void:
 	var w  := SWATCH_W
 	var h  := SWATCH_H
 	var cy := y + h * 0.5
-	var q  := h * 0.25  # one lane = quarter of road height
 
 	draw_rect(Rect2(0, y, w, h), ROAD_FILL)
 	draw_rect(Rect2(0, y, w, h), ROAD_EDGE, false, 1.0)
@@ -125,19 +124,10 @@ func _road_swatch(level: int, y: float) -> void:
 			draw_line(Vector2(0, y + 2.5),     Vector2(w, y + 2.5),     WHITE_MARKING, 1.0)
 			draw_line(Vector2(0, y + h - 2.5), Vector2(w, y + h - 2.5), WHITE_MARKING, 1.0)
 		_:
-			# Unimproved: white dashed lane dividers
-			_swatch_dashes(y + q, w)
-			_swatch_dashes(y + h - q, w)
+			pass  # No Bike Lane: plain road, no lane dividers (matches LinkSegment.gd)
 
 	# Yellow centre line (all levels)
 	draw_line(Vector2(0, cy), Vector2(w, cy), YELLOW_CENTER, 1.5)
-
-
-func _swatch_dashes(dy: float, w: float) -> void:
-	var x := 2.0
-	while x < w - 2:
-		draw_line(Vector2(x, dy), Vector2(minf(x + 5.0, w - 2), dy), WHITE_MARKING, 1.0)
-		x += 9.0
 
 
 func _car_swatch(y: float) -> void:

@@ -12,7 +12,6 @@ class Link:
 	var to_node: Vector2i
 	var base_time: float
 	var stress_score: float
-	var beta: float
 	var upgrade_level: int
 	func _init(fid: String, fn: Vector2i, tn: Vector2i, bt: float, ss: float) -> void:
 		id = fid
@@ -20,11 +19,21 @@ class Link:
 		to_node = tn
 		base_time = bt
 		stress_score = ss
-		beta = 1.0
 		upgrade_level = 0
 
+	## Infrastructure relief factor (β).
+	## Painted relief is stress-derived (spec gives it as a flat 0.5-0.8 range).
+	## Protected relief depends on the rider's personality, not the road —
+	## so it's computed per-caller from their alpha rather than stored on the link.
+	func effective_beta(alpha: float) -> float:
+		match upgrade_level:
+			0: return 1.0
+			1: return 0.8 - 0.3 * stress_score
+			2: return PersonalityConfig.beta_protected_for_alpha(alpha)
+			_: return 1.0
+
 	func impedance(alpha: float) -> float:
-		return base_time * (1.0 + alpha * beta * stress_score)
+		return base_time * (1.0 + alpha * effective_beta(alpha) * stress_score)
 
 
 # --- Network State ---
@@ -372,10 +381,6 @@ func _set_initial_upgrade(a: Vector2i, b: Vector2i, level: int) -> void:
 		if links.has(lid):
 			var link: Link = links[lid]
 			link.upgrade_level = level
-			if level == 1:
-				link.beta = 0.8 - 0.3 * link.stress_score
-			else:
-				link.beta = 0.6 - 0.5 * link.stress_score
 
 
 # --- Graph Building ---
@@ -398,13 +403,11 @@ func downgrade_link(link_id: String) -> bool:
 	if link.upgrade_level == 0:
 		return false
 	link.upgrade_level = 0
-	link.beta          = 1.0
 	var parts      := link_id.split("-")
 	var reverse_id := "%s-%s" % [parts[1], parts[0]]
 	if links.has(reverse_id):
 		var rev: Link = links[reverse_id]
 		rev.upgrade_level = 0
-		rev.beta          = 1.0
 	return true
 
 
@@ -416,16 +419,11 @@ func upgrade_link(link_id: String, upgrade_level: int) -> bool:
 	if link.upgrade_level >= upgrade_level:
 		return false
 	link.upgrade_level = upgrade_level
-	if upgrade_level == 1:
-		link.beta = 0.8 - 0.3 * link.stress_score
-	else:
-		link.beta = 0.6 - 0.5 * link.stress_score
 	var parts = link_id.split("-")
 	var reverse_id = "%s-%s" % [parts[1], parts[0]]
 	if links.has(reverse_id):
 		var reverse_link: Link = links[reverse_id]
 		reverse_link.upgrade_level = upgrade_level
-		reverse_link.beta = link.beta
 	return true
 
 
@@ -454,7 +452,7 @@ func coverage_percent() -> float:
 	var counted: Dictionary = {}
 	for link_id in links:
 		var link: Link = links[link_id]
-		var canonical = _canonical_link_id(link.from_node, link.to_node)
+		var canonical = canonical_link_id(link.from_node, link.to_node)
 		if counted.has(canonical):
 			continue
 		counted[canonical] = true
@@ -470,8 +468,8 @@ func link_display_name(link_id: String) -> String:
 	var parts := link_id.split("-")
 	if parts.size() != 2:
 		return link_id
-	var a := _parse_vec(parts[0])
-	var b := _parse_vec(parts[1])
+	var a := CityNetwork.parse_node(parts[0])
+	var b := CityNetwork.parse_node(parts[1])
 	var name_a: String = node_names.get(a, parts[0])
 	var name_b: String = node_names.get(b, parts[1])
 	return "%s → %s" % [name_a, name_b]
@@ -490,12 +488,16 @@ func get_bounds() -> Rect2:
 	return Rect2(min_pos, max_pos - min_pos)
 
 
-func _canonical_link_id(a: Vector2i, b: Vector2i) -> String:
+## Undirected link ID — same string regardless of which direction the link
+## is stored/traversed in. Used to de-duplicate the two directional Link
+## entries a<->b, and to compare a route's traversal direction against an
+## upgrade's link_id regardless of direction.
+static func canonical_link_id(a: Vector2i, b: Vector2i) -> String:
 	if a.x < b.x or (a.x == b.x and a.y < b.y):
 		return "%d,%d-%d,%d" % [a.x, a.y, b.x, b.y]
 	return "%d,%d-%d,%d" % [b.x, b.y, a.x, a.y]
 
 
-func _parse_vec(s: String) -> Vector2i:
+static func parse_node(s: String) -> Vector2i:
 	var p := s.split(",")
 	return Vector2i(int(p[0]), int(p[1]))

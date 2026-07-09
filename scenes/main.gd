@@ -10,14 +10,23 @@ extends Node2D
 @onready var chat_panel          = $ChatPanel as ChatPanel
 @onready var pre_survey          = $PreSurvey as PreSurvey
 @onready var main_menu           = $MainMenu as MainMenu
+@onready var consent_screen      = $ConsentScreen as ConsentScreen
 
 var _pending_upgrades: Array = []
 var _logger: DataLogger = null
 var _pending_treatment: int = 0
 var _num_players: int = 1
 var _player_alphas: Array[float] = []
+var _player_survey_responses: Array = []
 var _current_survey_player: int = 0
 var _round_summary_active: bool = false
+var _consent_timestamp_s: float = -1.0
+
+## Temporarily disabled at the user's request — flip to true to bring the
+## T3 "Planner Chat" panel back. ChatPanel defaults to hidden on its own
+## (ChatPanel.gd:_ready), so leaving this false is enough to fully turn it
+## off: it never becomes visible and never receives messages.
+const CHAT_PANEL_ENABLED := false
 
 
 func _enter_tree() -> void:
@@ -42,18 +51,34 @@ func _ready() -> void:
 	post_survey.survey_completed.connect(_on_post_survey_completed)
 	pre_survey.survey_completed.connect(_on_survey_completed)
 	main_menu.game_starting.connect(_on_game_starting)
+	consent_screen.consent_given.connect(_on_consent_given)
+	consent_screen.consent_declined.connect(_on_consent_declined)
 
 
 func _on_game_starting(treatment: int, num_players: int) -> void:
 	_pending_treatment = treatment
 	_num_players = num_players
 	_player_alphas.clear()
+	_player_survey_responses.clear()
 	_current_survey_player = 1
+	consent_screen.show_consent()
+
+
+func _on_consent_given() -> void:
+	# Treatment isn't known to the logger yet (set below, once pre-surveys
+	# finish), so the timestamp is captured now and the actual log entry is
+	# written later — same deferral pattern as pre-survey responses.
+	_consent_timestamp_s = Time.get_ticks_msec() / 1000.0
 	pre_survey.show_for_player(1, _num_players)
 
 
-func _on_survey_completed(alpha: float) -> void:
+func _on_consent_declined() -> void:
+	main_menu.show()
+
+
+func _on_survey_completed(alpha: float, responses: Dictionary) -> void:
 	_player_alphas.append(alpha)
+	_player_survey_responses.append(responses)
 	if _player_alphas.size() < _num_players:
 		_current_survey_player += 1
 		pre_survey.show_for_player(_current_survey_player, _num_players)
@@ -62,8 +87,11 @@ func _on_survey_completed(alpha: float) -> void:
 	pre_survey.hide()
 	GameManager.start_game(_player_alphas, _pending_treatment)
 	_logger.treatment = int(GameManager.treatment)
+	_logger.on_consent_given(_consent_timestamp_s)
+	for i in range(_player_alphas.size()):
+		_logger.on_pre_survey_completed(i + 1, _player_survey_responses[i], _player_alphas[i])
 	_center_grid()
-	if GameManager.treatment == GameManager.Treatment.COLLECTIVE_CHAT:
+	if CHAT_PANEL_ENABLED and GameManager.treatment == GameManager.Treatment.COLLECTIVE_CHAT:
 		chat_panel.visible = true
 		GameManager.chat_message_received.connect(chat_panel.add_message)
 
@@ -71,7 +99,7 @@ func _on_survey_completed(alpha: float) -> void:
 func _on_link_clicked(link_id: String) -> void:
 	if _round_summary_active:
 		return
-	upgrade_popup.show_for_link(link_id, _credits_remaining(), _get_pending_level(link_id))
+	upgrade_popup.show_for_link(link_id, _credits_remaining(), GameManager.human_player.alpha, _get_pending_level(link_id))
 
 
 func _on_upgrade_chosen(link_id: String, level: int) -> void:
@@ -101,6 +129,7 @@ func _on_downgrade_requested(link_id: String) -> void:
 func _on_round_ended(round_num: int, results: Dictionary) -> void:
 	_round_summary_active = true
 	var is_last := round_num >= GameManager.total_rounds
+	await city_grid.play_round_end_animation()
 	round_summary.show_results(results, int(GameManager.treatment), is_last)
 
 

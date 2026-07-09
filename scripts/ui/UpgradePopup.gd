@@ -23,16 +23,24 @@ func _ready() -> void:
 	cancel_button.pressed.connect(func(): cancelled.emit(); hide())
 
 
-func show_for_link(link_id: String, credits_remaining: int, pending_level: int = -1) -> void:
+func show_for_link(link_id: String, credits_remaining: int, alpha: float, pending_level: int = -1) -> void:
 	_current_link_id = link_id
 	var link: CityNetwork.Link = GameManager.network.links[link_id]
 
-	var friendly_name := GameManager.network.link_display_name(link_id)
-	var link_safety := int(100.0 * (1.0 - link.beta * link.stress_score))
-	link_info_label.text = "%s\nTime: %.1f min  |  Stress: %.2f  |  Safety: %d" % [
-		friendly_name, link.base_time, link.stress_score, link_safety]
+	var link_safety := 100.0 * (1.0 - link.effective_beta(alpha) * link.stress_score)
+	if SafetyDisplay.debug_mode:
+		link_info_label.text = "Time: %.1f min  |  Stress: %.2f  |  Safety: %d" % [
+			link.base_time, link.stress_score, int(link_safety)]
+	else:
+		link_info_label.text = "Time: %.1f min  |  Safety: %s" % [
+			link.base_time, SafetyDisplay.format(link_safety)]
 
-	var level_names := ["Unimproved", "Painted Lane", "Protected Track"]
+	# Abstract effect arrows instead of raw stress/time deltas — protected
+	# relief is always stronger than painted, hence the extra ↓.
+	painted_button.text   = "Painted Lane  —  $%d   (stress ↓  time ↓)" % Player.COST_PAINTED_LANE
+	protected_button.text = "Protected Track  —  $%d   (stress ↓↓  time ↓)" % Player.COST_PROTECTED_TRACK
+
+	var level_names := ["No Bike Lane", "Painted Lane", "Protected Track"]
 	var effective_level := pending_level if pending_level >= 0 else link.upgrade_level
 
 	if pending_level > 0 and pending_level != link.upgrade_level:

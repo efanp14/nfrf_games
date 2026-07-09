@@ -39,13 +39,15 @@ func _ready() -> void:
 
 func _on_treatment_changed(index: int) -> void:
 	var treatment_id := treatment_option.get_item_id(index)
-	_player_count_row.visible = treatment_id != 0
+	# Adjustable player count is T3-only. T1 and T2 are strictly
+	# single-player — this control must not appear for T2.
+	_player_count_row.visible = treatment_id == 2
 
 
 func _on_start_pressed() -> void:
 	var treatment := treatment_option.get_selected_id()
 	var num_players := 1
-	if treatment != 0:
+	if treatment == 2:
 		num_players = int(_player_count_spin.value)
 	game_starting.emit(treatment, num_players)
 	hide()
