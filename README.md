@@ -77,19 +77,4 @@ GameManager.round_ended.connect(func(round_num, results):
 )
 ```
 
----
-
-## Key Design Decisions
-
-**No hardcoded routes.** `CityNetwork.find_route()` runs Dijkstra fresh every round. Upgrade a link → its `beta` drops → impedance drops → Dijkstra may switch routes automatically. This is the core research mechanic.
-
-**Impedance formula:** `base_time × (1 + α × base_stress × β)` where:
-- `α` = player personality (from pre-survey, never changes)
-- `β` = infrastructure quality (player upgrades this, starts at 1.0)
-- `base_stress` = LTS-derived road stress (never changes)
-
-**Treatment flag controls UI, not logic.** All three treatments run identical routing and budgeting. The treatment flag only gates which metrics are *shown* to the player.
-
-**DataLogger is signal-driven.** GameManager emits signals; DataLogger listens. Neither knows about the other's internals.
-
 **Simulated residents use fixed seed 42.** Research validity requires the same city every session so results across participants are comparable.
