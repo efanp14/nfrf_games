@@ -20,7 +20,7 @@ GameManager (Node, autoload or scene root)
 | File | What it does |
 |---|---|
 | `GameManager.gd` | State machine: rounds, treatments, AI bots, signal bus |
-| `CityNetwork.gd` | Downtown Calgary road graph, Link data, Dijkstra routing, city metrics |
+| `CityNetwork.gd` | Fictional downtown road graph, Link data, Dijkstra routing, city metrics |
 | `Player.gd` | Budget, upgrade actions, per-round log, Prospect Theory helpers |
 | `DataLogger.gd` | Connects to GameManager signals, writes session JSON |
 
@@ -52,7 +52,7 @@ gm.start_game(
     1.2,                                   # alpha from survey (stress sensitivity)
     GameManager.Treatment.COLLECTIVE_INFO   # T2
 )
-# Home (Eau Claire) and Work (Stampede Park) are set by the map.
+# Home (Mill Quarter) and Work (Fairground Park) are set by the map.
 ```
 
 ### 3. Player submits upgrades (from your grid UI)

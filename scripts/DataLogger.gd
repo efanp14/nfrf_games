@@ -11,6 +11,12 @@ var treatment: int
 var log_entries: Array = []
 var start_time: float
 
+## One participant_id per human player, index-aligned with GameManager's
+## human_players / results["players"] (i.e. participant_ids[0] is the
+## primary player, "player_0"). Set once via set_participant_ids() after all
+## pre-surveys in the session are complete — see main.gd.
+var participant_ids: Array[String] = []
+
 
 func _ready() -> void:
 	# Generate a unique session ID per run (timestamp-based for easy sorting)
@@ -18,11 +24,34 @@ func _ready() -> void:
 	start_time = Time.get_ticks_msec() / 1000.0
 
 
+## Called once, after every player's pre-survey is in, with one ID per
+## player in human_players order. IDs are opaque (session_id + player
+## index) — not derived from any personally identifying info — but let a
+## researcher join pre-survey, round, and post-survey rows for the same
+## individual without needing a name.
+func set_participant_ids(ids: Array) -> void:
+	participant_ids = []
+	for id in ids:
+		participant_ids.append(str(id))
+
+
 ## Connect this to GameManager.round_ended
 func on_round_ended(round_num: int, results: Dictionary) -> void:
+	# Stamp each per-player row with its participant_id (index-aligned with
+	# participant_ids) without mutating the shared results dict other
+	# listeners (round summary UI) also read from.
+	var players_raw: Array = results.get("players", [])
+	var players_enriched: Array = []
+	for i in range(players_raw.size()):
+		var pd: Dictionary = (players_raw[i] as Dictionary).duplicate()
+		if i < participant_ids.size():
+			pd["participant_id"] = participant_ids[i]
+		players_enriched.append(pd)
+
 	var entry: Dictionary = {
 		# -- identity --
 		"session_id":             session_id,
+		"participant_id":         participant_ids[0] if participant_ids.size() > 0 else null,
 		"treatment":              treatment,   # 0=T1, 1=T2, 2=T3
 		"round":                  round_num,
 		"timestamp_s":            (Time.get_ticks_msec() / 1000.0) - start_time,
@@ -35,6 +64,8 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 		"personal_safety":        results.get("personal_safety", 0.0),
 		"safety_before":          results.get("safety_before", null),
 		"safety_delta":           results.get("safety_delta", null),
+		# -- final route: ordered list of "x,y" node IDs actually ridden --
+		"final_route":            results.get("final_route", []),
 		# -- budget --
 		"credits_spent":          results.get("credits_spent", 0),
 		"credits_remaining":      results.get("credits_remaining", 0),
@@ -43,8 +74,9 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 		# -- behavioral: selfish vs. community-minded investment (research question) --
 		"own_route_upgrade_share":            results.get("own_route_upgrade_share", null),
 		"cumulative_own_route_upgrade_share": results.get("cumulative_own_route_upgrade_share", null),
-		# -- other players (T3 group mode; empty in T1/T2) --
-		"players":                results.get("players", []),
+		# -- other players (T3 group mode; empty in T1/T2) — each item now
+		# also carries participant_id and its own "route" (see GameManager) --
+		"players":                players_enriched,
 		# -- city (null in T1) --
 		"city_avg_time":          results.get("city_avg_time", null),
 		"city_avg_time_before":   results.get("city_avg_time_before", null),
@@ -62,6 +94,7 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 func on_game_over(final_results: Dictionary) -> void:
 	var summary: Dictionary = {
 		"session_id":       session_id,
+		"participant_id":   participant_ids[0] if participant_ids.size() > 0 else null,
 		"treatment":        treatment,
 		"round":            "FINAL",
 		"alpha":            final_results.get("alpha", null),
@@ -91,9 +124,10 @@ func on_consent_given(timestamp_s: float) -> void:
 
 ## Connect this to PreSurvey.survey_completed (once per player, called from
 ## main.gd after treatment is known so the entry is tagged correctly).
-func on_pre_survey_completed(player_num: int, responses: Dictionary, alpha: float) -> void:
+func on_pre_survey_completed(player_num: int, responses: Dictionary, alpha: float, participant_id: String = "") -> void:
 	log_entries.append({
 		"session_id": session_id,
+		"participant_id": participant_id,
 		"treatment":  treatment,
 		"round":      "PRE_SURVEY",
 		"player_num": player_num,
@@ -102,17 +136,21 @@ func on_pre_survey_completed(player_num: int, responses: Dictionary, alpha: floa
 	})
 
 
-## Connect this to PostSurvey.survey_completed.
-## Appends post-survey responses then rewrites the file with complete session data.
-func on_post_survey_completed(responses: Dictionary) -> void:
+## Connect this to PostSurvey.survey_completed. Called once per player in the
+## session (T3 groups complete one each); only the last player's call
+## triggers the file write, since that's when the session is truly done.
+func on_post_survey_completed(player_num: int, total_players: int, participant_id: String, responses: Dictionary) -> void:
 	log_entries.append({
 		"session_id": session_id,
+		"participant_id": participant_id,
 		"treatment":  treatment,
 		"round":      "POST_SURVEY",
+		"player_num": player_num,
 		"responses":  responses,
 	})
-	_write_to_disk()
-	_write_session_summary()
+	if player_num >= total_players:
+		_write_to_disk()
+		_write_session_summary()
 
 
 ## Rolls up the per-round/pre-survey/post-survey/final entries already in
@@ -122,7 +160,7 @@ func on_post_survey_completed(responses: Dictionary) -> void:
 ## every piece of data is available by then.
 func _build_session_summary() -> Dictionary:
 	var final_entry: Dictionary = {}
-	var post_survey_entry: Dictionary = {}
+	var post_survey_entries: Array = []
 	var pre_survey_entries: Array = []
 	var round_entries: Array = []
 	var consent_timestamp_s: Variant = null
@@ -137,7 +175,7 @@ func _build_session_summary() -> Dictionary:
 		elif round_val == "FINAL":
 			final_entry = entry
 		elif round_val == "POST_SURVEY":
-			post_survey_entry = entry
+			post_survey_entries.append(entry)
 		elif round_val == "PRE_SURVEY":
 			pre_survey_entries.append(entry)
 		elif round_val == "CONSENT":
@@ -153,8 +191,17 @@ func _build_session_summary() -> Dictionary:
 		round1_safety_before = round_entries[0].get("safety_before")
 		group_mode = round_entries[0].get("group_mode", false)
 
+	var post_survey_by_player: Array = []
+	for e: Dictionary in post_survey_entries:
+		post_survey_by_player.append({
+			"player_num":     e.get("player_num"),
+			"participant_id": e.get("participant_id"),
+			"responses":      e.get("responses", {}),
+		})
+
 	return {
 		"session_id":            session_id,
+		"participant_ids":       participant_ids,
 		"treatment":             treatment,
 		"group_mode":            group_mode,
 		"num_players":           pre_survey_entries.size(),
@@ -169,7 +216,7 @@ func _build_session_summary() -> Dictionary:
 		"final_safety":          final_entry.get("final_safety"),
 		"city_coverage_pct":     final_entry.get("city_coverage_pct"),
 		"cumulative_own_route_upgrade_share": final_entry.get("cumulative_own_route_upgrade_share"),
-		"post_survey_responses": post_survey_entry.get("responses", {}),
+		"post_survey_responses": post_survey_by_player,
 	}
 
 

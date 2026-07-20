@@ -32,7 +32,7 @@ func _build() -> void:
 	var net    := GameManager.network
 	var num_players: int = GameManager.human_players.size()
 
-	# --- Draw the Bow River behind everything ---
+	# --- Draw the Alder River behind everything ---
 	if net.river_points.size() > 1:
 		var river := Line2D.new()
 		river.points        = net.river_points
@@ -63,6 +63,16 @@ func _build() -> void:
 		seg.clicked.connect(_on_segment_clicked)
 		_segments[canonical] = seg
 
+	# --- Simulated-resident home/work nodes (deduplicated) ---
+	# Purely a visual cue for where the city-wide averages come from; never
+	# read by routing or metric logic, and drawn beneath the player's own
+	# HOME/WORK markers wherever the two coincide.
+	var npc_homes: Dictionary = {}
+	var npc_works: Dictionary = {}
+	for commuter in GameManager.ai_commuters:
+		npc_homes[commuter["start"]] = true
+		npc_works[commuter["goal"]] = true
+
 	# --- Node markers ---
 	for node_vec: Vector2i in net.adjacency.keys():
 		var node_id := _vec_to_id(node_vec)
@@ -72,16 +82,25 @@ func _build() -> void:
 
 		var mtype := NodeMarker.MarkerType.NORMAL
 		var pidx := 0
+		var is_player_marker := false
 		for i in range(num_players):
 			var p: Player = GameManager.human_players[i]
 			if node_vec == p.home:
 				mtype = NodeMarker.MarkerType.HOME
 				pidx = i
+				is_player_marker = true
 				break
 			elif node_vec == p.work:
 				mtype = NodeMarker.MarkerType.WORK
 				pidx = i
+				is_player_marker = true
 				break
+
+		if not is_player_marker:
+			if npc_homes.has(node_vec):
+				mtype = NodeMarker.MarkerType.NPC_HOME
+			elif npc_works.has(node_vec):
+				mtype = NodeMarker.MarkerType.NPC_WORK
 
 		var display_label: String = ""
 		marker.setup(node_id, mtype, display_label, pidx, num_players)

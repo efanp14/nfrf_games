@@ -1,7 +1,7 @@
 class_name NodeMarker
 extends Node2D
 
-enum MarkerType { NORMAL, HOME, WORK }
+enum MarkerType { NORMAL, HOME, WORK, NPC_HOME, NPC_WORK }
 
 var node_id: String = ""
 var marker_type: MarkerType = MarkerType.NORMAL
@@ -20,10 +20,16 @@ const PLAYER_COLORS: Array = [
 	Color(0.85, 0.68, 0.25),   # amber
 ]
 const RADII := {
-	MarkerType.NORMAL: 18.0,
-	MarkerType.HOME:   16.0,
-	MarkerType.WORK:   16.0,
+	MarkerType.NORMAL:   18.0,
+	MarkerType.HOME:     16.0,
+	MarkerType.WORK:     16.0,
+	MarkerType.NPC_HOME: 6.0,
+	MarkerType.NPC_WORK: 6.0,
 }
+## Simulated-resident markers: small and muted so they read as background
+## texture, not competing with the player's own HOME/WORK markers.
+const NPC_HOME_COLOR := Color(0.55, 0.58, 0.52, 0.55)
+const NPC_WORK_COLOR := Color(0.45, 0.50, 0.55, 0.55)
 
 
 func setup(id: String, type: MarkerType = MarkerType.NORMAL, location_name: String = "", player_index: int = 0, num_players: int = 1) -> void:
@@ -56,7 +62,8 @@ func _get_color() -> Color:
 
 
 func _apply_type() -> void:
-	if marker_type == MarkerType.NORMAL or _num_players <= 1:
+	var is_player_marker := marker_type == MarkerType.HOME or marker_type == MarkerType.WORK
+	if not is_player_marker or _num_players <= 1:
 		label.text = ""
 		label.visible = false
 		return
@@ -84,6 +91,10 @@ func _draw() -> void:
 	elif marker_type == MarkerType.WORK:
 		draw_circle(Vector2.ZERO, RADII[MarkerType.NORMAL], LinkSegment.ROAD_FILL)
 		_draw_briefcase(col)
+	elif marker_type == MarkerType.NPC_HOME:
+		draw_circle(Vector2.ZERO, RADII[MarkerType.NPC_HOME], NPC_HOME_COLOR)
+	elif marker_type == MarkerType.NPC_WORK:
+		draw_circle(Vector2.ZERO, RADII[MarkerType.NPC_WORK], NPC_WORK_COLOR)
 	else:
 		draw_circle(Vector2.ZERO, RADII[MarkerType.NORMAL], col)
 

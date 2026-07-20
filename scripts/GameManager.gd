@@ -147,6 +147,7 @@ func _recalculate_and_end_round() -> void:
 			"time_delta": p.time_delta_from_baseline(),
 			"own_route_upgrade_share": Player.own_route_share(p.round_log.back()),
 			"cumulative_own_route_upgrade_share": p.cumulative_own_route_share(),
+			"route": _path_to_ids(p.current_route.get("path", [])),
 		})
 
 	var results: Dictionary = {
@@ -165,6 +166,7 @@ func _recalculate_and_end_round() -> void:
 		"own_route_upgrade_share": Player.own_route_share(human_player.round_log.back()),
 		"cumulative_own_route_upgrade_share": human_player.cumulative_own_route_share(),
 		"players":           players_data,
+		"final_route":       _path_to_ids(human_player.current_route.get("path", [])),
 	}
 
 	if treatment != Treatment.INDIVIDUAL:
@@ -182,6 +184,16 @@ func _recalculate_and_end_round() -> void:
 		emit_signal("city_metrics_updated", city_metrics)
 
 	emit_signal("round_ended", current_round, results)
+
+
+## Converts a Dijkstra path (Array[Vector2i]) into JSON-serializable "x,y"
+## node IDs — Vector2i isn't natively JSON-encodable, and this matches the
+## link_id format used elsewhere (CityGrid._vec_to_id, CityNetwork link IDs).
+func _path_to_ids(path: Array) -> Array:
+	var ids: Array = []
+	for node_vec: Vector2i in path:
+		ids.append("%d,%d" % [node_vec.x, node_vec.y])
+	return ids
 
 
 func advance_round() -> void:
@@ -226,18 +238,11 @@ func _end_game() -> void:
 # --- AI Commuters ---
 
 func _seed_ai_commuters(count: int) -> void:
-	var rng = RandomNumberGenerator.new()
-	rng.seed = 42
-
 	ai_commuters.clear()
-	var node_count: int = network.all_nodes.size()
-	for i in range(count):
-		var start: Vector2i = network.all_nodes[rng.randi_range(0, node_count - 1)]
-		var goal: Vector2i  = network.all_nodes[rng.randi_range(0, node_count - 1)]
-		while goal == start:
-			goal = network.all_nodes[rng.randi_range(0, node_count - 1)]
-
-		ai_commuters.append({ "start": start, "goal": goal, "alpha": 1.5 })
+	var pairs: Array = CityNetwork.RESIDENT_COMMUTE_PAIRS
+	var n: int = mini(count, pairs.size())
+	for i in range(n):
+		ai_commuters.append({ "start": pairs[i][0], "goal": pairs[i][1], "alpha": 1.5 })
 
 
 func _compute_city_metrics() -> Dictionary:

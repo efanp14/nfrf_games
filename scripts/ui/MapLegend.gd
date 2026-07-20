@@ -25,6 +25,8 @@ const PLAYER_COLORS     := [
 	Color(0.62, 0.42, 0.78),
 	Color(0.85, 0.68, 0.25),
 ]
+const NPC_HOME_COLOR := Color(0.55, 0.58, 0.52, 0.55)
+const NPC_WORK_COLOR := Color(0.45, 0.50, 0.55, 0.55)
 
 
 func _ready() -> void:
@@ -45,6 +47,7 @@ func _total_height() -> float:
 	if n > 1:
 		h += (ROW_H - 4) * n + 16
 	h += ROW_H * 2               # home + work
+	h += ROW_H * 2               # NPC home + work
 	return h
 
 
@@ -90,7 +93,13 @@ func _draw() -> void:
 	_label("Home", y, font); y += ROW_H
 
 	_briefcase_mini(y, PLAYER_COLORS[0])
-	_label("Work destination", y, font)
+	_label("Work destination", y, font); y += ROW_H
+
+	_dot_mini(y, NPC_HOME_COLOR)
+	_label("Simulated resident home", y, font); y += ROW_H
+
+	_dot_mini(y, NPC_WORK_COLOR)
+	_label("Simulated resident work", y, font)
 
 
 # ── Drawing helpers ──────────────────────────────────────────────────────────
@@ -152,6 +161,12 @@ func _house_mini(y: float, col: Color) -> void:
 		Vector2(cx + s * 0.85, by + s * 0.75),
 	]), col)
 	draw_rect(Rect2(cx - s * 0.6, by + s * 0.7, s * 1.2, s * 0.9), col)
+
+
+func _dot_mini(y: float, col: Color) -> void:
+	var cx := SWATCH_W * 0.5
+	var cy := y + SWATCH_H * 0.6
+	draw_circle(Vector2(cx, cy), 4.0, col)
 
 
 func _briefcase_mini(y: float, col: Color) -> void:

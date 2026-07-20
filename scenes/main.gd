@@ -18,6 +18,7 @@ var _pending_treatment: int = 0
 var _num_players: int = 1
 var _player_alphas: Array[float] = []
 var _player_survey_responses: Array = []
+var _participant_ids: Array[String] = []
 var _current_survey_player: int = 0
 var _round_summary_active: bool = false
 var _consent_timestamp_s: float = -1.0
@@ -60,6 +61,7 @@ func _on_game_starting(treatment: int, num_players: int) -> void:
 	_num_players = num_players
 	_player_alphas.clear()
 	_player_survey_responses.clear()
+	_participant_ids.clear()
 	_current_survey_player = 1
 	consent_screen.show_consent()
 
@@ -79,6 +81,11 @@ func _on_consent_declined() -> void:
 func _on_survey_completed(alpha: float, responses: Dictionary) -> void:
 	_player_alphas.append(alpha)
 	_player_survey_responses.append(responses)
+	# Opaque per-participant ID (session_id + player index) — lets research
+	# data join pre-survey, round, and post-survey rows for one person
+	# without needing a name. Generated here since this is the first point
+	# each player is individually distinguished.
+	_participant_ids.append("%s_p%d" % [_logger.session_id, _player_alphas.size()])
 	if _player_alphas.size() < _num_players:
 		_current_survey_player += 1
 		pre_survey.show_for_player(_current_survey_player, _num_players)
@@ -88,8 +95,9 @@ func _on_survey_completed(alpha: float, responses: Dictionary) -> void:
 	GameManager.start_game(_player_alphas, _pending_treatment)
 	_logger.treatment = int(GameManager.treatment)
 	_logger.on_consent_given(_consent_timestamp_s)
+	_logger.set_participant_ids(_participant_ids)
 	for i in range(_player_alphas.size()):
-		_logger.on_pre_survey_completed(i + 1, _player_survey_responses[i], _player_alphas[i])
+		_logger.on_pre_survey_completed(i + 1, _player_survey_responses[i], _player_alphas[i], _participant_ids[i])
 	_center_grid()
 	if CHAT_PANEL_ENABLED and GameManager.treatment == GameManager.Treatment.COLLECTIVE_CHAT:
 		chat_panel.visible = true
@@ -144,12 +152,19 @@ func _on_game_over(final_results: Dictionary) -> void:
 
 
 func _on_end_screen_finished() -> void:
-	post_survey.show_survey(int(GameManager.treatment))
+	post_survey.show_survey(int(GameManager.treatment), 1, _num_players)
 
 
-func _on_post_survey_completed(responses: Dictionary) -> void:
-	_logger.on_post_survey_completed(responses)
-	get_tree().reload_current_scene()
+## In T3, each group member completes their own post-survey in turn (same
+## pattern as the pre-survey loop) so DQI responses stay attributable to an
+## individual rather than one shared submission for the whole group.
+func _on_post_survey_completed(player_num: int, responses: Dictionary) -> void:
+	var pid: String = _participant_ids[player_num - 1] if player_num - 1 < _participant_ids.size() else ""
+	_logger.on_post_survey_completed(player_num, _num_players, pid, responses)
+	if player_num < _num_players:
+		post_survey.show_survey(int(GameManager.treatment), player_num + 1, _num_players)
+	else:
+		get_tree().reload_current_scene()
 
 
 func _on_end_round() -> void:

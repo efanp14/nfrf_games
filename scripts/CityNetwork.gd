@@ -1,7 +1,8 @@
 class_name CityNetwork
 ## CityNetwork.gd
-## Represents central Calgary's road network as a graph.
-## The Bow River divides north from south; bridges are the only crossings.
+## Represents a fictional city's downtown road network, laid out as an
+## organic hub-and-spoke shape (a European-style old-town core, a river
+## bend, and a handful of residential districts) rather than a rigid grid.
 ## Routing delegates to Dijkstra.gd; the game never hardcodes routes.
 
 # --- Data Structures ---
@@ -49,111 +50,115 @@ var work_node: Vector2i
 var river_points: PackedVector2Array  # cosmetic curve drawn by CityGrid
 
 const HOME_WORK_PAIRS: Array = [
-	[Vector2i(1, 0), Vector2i(7, 8), "Kensington → Stampede Park"],
-	[Vector2i(7, 0), Vector2i(2, 9), "Bridgeland → 17 Ave SW"],
-	[Vector2i(5, 0), Vector2i(2, 8), "North Hill → Beltline"],
-	[Vector2i(1, 1), Vector2i(7, 7), "Sunnyside → Victoria Park"],
-	[Vector2i(0, 1), Vector2i(5, 9), "Crowchild → 17 Ave & Centre"],
+	[Vector2i(2, 0), Vector2i(1, 0), "Village Green → Harbor Quay"],
+	[Vector2i(3, 0), Vector2i(0, 1), "Eastwick Square → Market Row"],
+	[Vector2i(4, 0), Vector2i(0, 4), "Southmere Green → Clocktower"],
+	[Vector2i(5, 0), Vector2i(0, 5), "Westhaven Square → Riverside Plaza"],
+	[Vector2i(2, 3), Vector2i(1, 1), "Hilltop Row → Old Mill"],
+]
+
+## Fixed set of resident commute pairs (home node → destination node).
+## Homes are drawn from the four residential districts; destinations are
+## mostly the Downtown Core hub with a smaller share going to the Harbor
+## District, so many residents share the same handful of spoke/bridge
+## roads into the hub — regardless of which specific route the player
+## themself commutes on. Same 30 pairs every session, for reproducibility.
+const RESIDENT_COMMUTE_PAIRS: Array = [
+	[Vector2i(2, 0), Vector2i(0, 0)],
+	[Vector2i(2, 1), Vector2i(0, 1)],
+	[Vector2i(2, 2), Vector2i(0, 2)],
+	[Vector2i(2, 3), Vector2i(0, 3)],
+	[Vector2i(2, 4), Vector2i(0, 4)],
+	[Vector2i(2, 0), Vector2i(1, 0)],
+	[Vector2i(2, 1), Vector2i(0, 5)],
+	[Vector2i(2, 2), Vector2i(1, 1)],
+	[Vector2i(3, 0), Vector2i(0, 0)],
+	[Vector2i(3, 1), Vector2i(0, 1)],
+	[Vector2i(3, 2), Vector2i(0, 2)],
+	[Vector2i(3, 3), Vector2i(1, 0)],
+	[Vector2i(3, 4), Vector2i(0, 4)],
+	[Vector2i(3, 0), Vector2i(0, 5)],
+	[Vector2i(3, 1), Vector2i(1, 1)],
+	[Vector2i(3, 2), Vector2i(0, 3)],
+	[Vector2i(4, 0), Vector2i(0, 0)],
+	[Vector2i(4, 1), Vector2i(0, 1)],
+	[Vector2i(4, 2), Vector2i(1, 0)],
+	[Vector2i(4, 3), Vector2i(0, 3)],
+	[Vector2i(4, 4), Vector2i(0, 4)],
+	[Vector2i(4, 0), Vector2i(0, 5)],
+	[Vector2i(4, 1), Vector2i(1, 2)],
+	[Vector2i(5, 0), Vector2i(0, 0)],
+	[Vector2i(5, 1), Vector2i(0, 1)],
+	[Vector2i(5, 2), Vector2i(0, 2)],
+	[Vector2i(5, 3), Vector2i(1, 1)],
+	[Vector2i(5, 4), Vector2i(0, 4)],
+	[Vector2i(5, 0), Vector2i(0, 5)],
+	[Vector2i(5, 1), Vector2i(1, 2)],
 ]
 
 
 func _init(pair_index: int = 0) -> void:
-	_build_calgary(pair_index)
+	_build_network(pair_index)
 
 
-# --- Calgary Central Map (51 nodes, ~93 edges) ---
+# --- Fictional Downtown Map (29 nodes, ~45 edges) ---
 #
-# Columns (north-south streets, west to east):
-#   0: Crowchild Trail       4: 1 St SW             (HOME = Kensington, col 1 row 0)
-#   1: 10 St NW/SW           5: Centre Street        (WORK = Stampede Park, col 7 row 8)
-#   2: 5 St SW               6: 1 St SE
-#   3: 2 St SW (cycle track) 7: Macleod Trail / Edmonton Trail
+# Clusters (Vector2i node IDs are "cluster, index within cluster" — not a
+# screen grid; actual screen layout comes from node_positions):
+#   0: Downtown Core   — the old-town hub, 6 tightly-linked nodes (HOME/WORK for T2/T3 city metrics land here most often)
+#   1: Harbor District — a smaller secondary hub, 3 nodes
+#   2: Northgate Village — residential district, north bank across the river, 5 nodes
+#   3: Eastwick         — residential district, east side, 5 nodes
+#   4: Southmere        — residential district, south side, 5 nodes
+#   5: Westhaven        — residential district, west side (limited road access), 5 nodes
 #
-# Rows (east-west avenues / features, north to south):
-#   0: North residential (Kensington, Bridgeland)
-#   1: Memorial Drive (north bank of Bow River)
-#   2: Bow River crossings — bridges & pathway
-#   3: 4th Avenue (north downtown / Eau Claire)
-#   4: 7th Avenue (C-Train corridor)
-#   5: 8th Avenue (Stephen Avenue pedestrian mall)
-#   6: 9th Avenue (one-way arterial)
-#   7: 11th Avenue
-#   8: 12th Avenue (Beltline)
-#   9: 17th Avenue (Red Mile)
+# The river runs roughly west-to-east north of the Core, so Northgate is the
+# only district that needs a bridge; the other three districts are already
+# south of the river and connect to the Core via arterial "spokes."
 
-func _build_calgary(pair_index: int = 0) -> void:
+func _build_network(pair_index: int = 0) -> void:
 	# --- Node definitions: [ID, screen_pos, full_name, map_label] ---
 	var nodes: Array = [
-		# Row 0 — North residential
-		[Vector2i(1, 0), Vector2(140.0,  22.0),  "Kensington Rd & 10 St NW",     "Kensington"],
-		[Vector2i(5, 0), Vector2(540.0,  18.0),  "Centre St N & 16 Ave",          "North Hill"],
-		[Vector2i(7, 0), Vector2(800.0,  25.0),  "1 Ave NE & Edmonton Trail",     "Bridgeland"],
+		# Downtown Core — old-town plaza cluster
+		[Vector2i(0, 0), Vector2(420.0, 300.0), "Old Square",              "Old Square"],
+		[Vector2i(0, 1), Vector2(475.0, 285.0), "Market Row",              "Market Row"],
+		[Vector2i(0, 2), Vector2(460.0, 345.0), "Guildhall",               "Guildhall"],
+		[Vector2i(0, 3), Vector2(390.0, 340.0), "Cathedral Steps",         "Cathedral Steps"],
+		[Vector2i(0, 4), Vector2(405.0, 385.0), "Clocktower",              "Clocktower"],
+		[Vector2i(0, 5), Vector2(485.0, 390.0), "Riverside Plaza",         "Riverside Plaza"],
 
-		# Row 1 — Memorial Drive (north bank)
-		[Vector2i(0, 1), Vector2(30.0,   95.0),  "Crowchild Tr & Memorial Dr",    "Crowchild"],
-		[Vector2i(1, 1), Vector2(140.0, 100.0),  "10 St NW & Memorial Dr",        "Sunnyside"],
-		[Vector2i(2, 1), Vector2(265.0, 100.0),  "5 St NW & Memorial Dr",         ""],
-		[Vector2i(5, 1), Vector2(540.0,  95.0),  "Centre St N & Memorial Dr",     ""],
-		[Vector2i(6, 1), Vector2(640.0, 100.0),  "4 St NE & Memorial Dr",         ""],
-		[Vector2i(7, 1), Vector2(800.0, 100.0),  "Edmonton Tr & Memorial Dr",     ""],
+		# Harbor District — secondary hub
+		[Vector2i(1, 0), Vector2(610.0, 400.0), "Harbor Quay",             "Harbor Quay"],
+		[Vector2i(1, 1), Vector2(645.0, 445.0), "Old Mill",                "Old Mill"],
+		[Vector2i(1, 2), Vector2(585.0, 455.0), "Warehouse Row",           "Warehouse Row"],
 
-		# Row 2 — Bow River crossings & pathway
-		[Vector2i(0, 2), Vector2(30.0,  190.0),  "Bow River Path West",           ""],
-		[Vector2i(1, 2), Vector2(148.0, 182.0),  "10 St Bridge (Louise)",         "Louise Br."],
-		[Vector2i(2, 2), Vector2(270.0, 176.0),  "Peace Bridge",                  "Peace Bridge"],
-		[Vector2i(4, 2), Vector2(445.0, 180.0),  "Prince's Island Park",          "Prince's Isl."],
-		[Vector2i(5, 2), Vector2(540.0, 185.0),  "Centre Street Bridge",          "Centre St Br."],
-		[Vector2i(6, 2), Vector2(645.0, 188.0),  "Reconciliation Bridge",         "Reconciliation"],
-		[Vector2i(7, 2), Vector2(800.0, 195.0),  "Zoo Bridge",                    "Zoo Bridge"],
+		# Northgate Village — across the river, north
+		[Vector2i(2, 0), Vector2(330.0,  55.0), "Village Green",           "Village Green"],
+		[Vector2i(2, 1), Vector2(385.0,  90.0), "Northgate Cross",         "Northgate Cross"],
+		[Vector2i(2, 2), Vector2(290.0, 105.0), "Millpond Lane",           "Millpond Lane"],
+		[Vector2i(2, 3), Vector2(430.0,  50.0), "Hilltop Row",             "Hilltop Row"],
+		[Vector2i(2, 4), Vector2(355.0, 150.0), "Orchard Path",            ""],
 
-		# Row 3 — 4th Avenue (north downtown / Eau Claire)
-		[Vector2i(1, 3), Vector2(140.0, 265.0),  "4 Ave & 10 St SW",             ""],
-		[Vector2i(2, 3), Vector2(265.0, 265.0),  "4 Ave & 5 St SW",              ""],
-		[Vector2i(3, 3), Vector2(365.0, 265.0),  "4 Ave & 2 St SW",              "2 St SW"],
-		[Vector2i(4, 3), Vector2(450.0, 265.0),  "Eau Claire (4 Ave & 1 St SW)", "Eau Claire"],
-		[Vector2i(5, 3), Vector2(540.0, 265.0),  "4 Ave & Centre St",            ""],
-		[Vector2i(6, 3), Vector2(640.0, 265.0),  "4 Ave & 1 St SE",              ""],
-		[Vector2i(7, 3), Vector2(800.0, 265.0),  "4 Ave & Macleod Trail",        "Macleod Tr"],
+		# Eastwick — east side, same bank as the Core
+		[Vector2i(3, 0), Vector2(700.0, 295.0), "Eastwick Square",         "Eastwick Square"],
+		[Vector2i(3, 1), Vector2(745.0, 340.0), "Ropewalk",                "Ropewalk"],
+		[Vector2i(3, 2), Vector2(665.0, 250.0), "Chapel Fields",           "Chapel Fields"],
+		[Vector2i(3, 3), Vector2(725.0, 390.0), "Foundry Row",             "Foundry Row"],
+		[Vector2i(3, 4), Vector2(640.0, 415.0), "Riverbend East",          ""],
 
-		# Row 4 — 7th Avenue (C-Train corridor)
-		[Vector2i(1, 4), Vector2(140.0, 340.0),  "7 Ave & 10 St SW",             "Sunalta"],
-		[Vector2i(2, 4), Vector2(265.0, 340.0),  "7 Ave & 5 St SW",              "Kerby"],
-		[Vector2i(3, 4), Vector2(365.0, 340.0),  "7 Ave & 2 St SW",              ""],
-		[Vector2i(4, 4), Vector2(450.0, 340.0),  "7 Ave & 1 St SW",              ""],
-		[Vector2i(5, 4), Vector2(540.0, 340.0),  "7 Ave & Centre St",            "City Hall"],
-		[Vector2i(6, 4), Vector2(640.0, 340.0),  "7 Ave & 1 St SE",              ""],
-		[Vector2i(7, 4), Vector2(800.0, 340.0),  "7 Ave & Macleod Trail",        ""],
+		# Southmere — south side, same bank as the Core
+		[Vector2i(4, 0), Vector2(345.0, 580.0), "Southmere Green",         "Southmere Green"],
+		[Vector2i(4, 1), Vector2(390.0, 555.0), "Mill Race",               "Mill Race"],
+		[Vector2i(4, 2), Vector2(295.0, 615.0), "Cobble Lane",             "Cobble Lane"],
+		[Vector2i(4, 3), Vector2(420.0, 620.0), "Fisher's Row",            "Fisher's Row"],
+		[Vector2i(4, 4), Vector2(380.0, 495.0), "Lower Bridge Road",       ""],
 
-		# Row 5 — Stephen Avenue / 8th Ave (pedestrian mall — low stress)
-		[Vector2i(2, 5), Vector2(265.0, 395.0),  "Stephen Ave & 5 St SW",        "Stephen Ave"],
-		[Vector2i(4, 5), Vector2(450.0, 395.0),  "Stephen Ave & 1 St SW",        ""],
-		[Vector2i(5, 5), Vector2(540.0, 395.0),  "Stephen Ave & Centre St",      ""],
-		[Vector2i(6, 5), Vector2(640.0, 395.0),  "Stephen Ave & 1 St SE",        ""],
-
-		# Row 6 — 9th Avenue (one-way arterial, high stress)
-		[Vector2i(2, 6), Vector2(265.0, 445.0),  "9 Ave & 5 St SW",              "9 Ave"],
-		[Vector2i(4, 6), Vector2(450.0, 445.0),  "9 Ave & 1 St SW",              ""],
-		[Vector2i(5, 6), Vector2(540.0, 445.0),  "9 Ave & Centre St",            ""],
-		[Vector2i(6, 6), Vector2(640.0, 445.0),  "9 Ave & 1 St SE",              ""],
-		[Vector2i(7, 6), Vector2(800.0, 445.0),  "9 Ave & Macleod Trail",        ""],
-
-		# Row 7 — 11th Avenue
-		[Vector2i(1, 7), Vector2(140.0, 515.0),  "11 Ave & 10 St SW",            "11 Ave"],
-		[Vector2i(4, 7), Vector2(450.0, 515.0),  "11 Ave & 1 St SW",             ""],
-		[Vector2i(5, 7), Vector2(540.0, 515.0),  "11 Ave & Centre St",           ""],
-		[Vector2i(7, 7), Vector2(800.0, 520.0),  "Victoria Park",                "Victoria Park"],
-
-		# Row 8 — 12th Avenue (Beltline)
-		[Vector2i(2, 8), Vector2(265.0, 585.0),  "12 Ave & 5 St SW",             "12 Ave"],
-		[Vector2i(4, 8), Vector2(450.0, 585.0),  "12 Ave & 1 St SW",             ""],
-		[Vector2i(5, 8), Vector2(540.0, 585.0),  "12 Ave & Centre St",           ""],
-		[Vector2i(7, 8), Vector2(800.0, 590.0),  "Stampede Park",                "Stampede Park"],
-
-		# Row 9 — 17th Avenue (Red Mile)
-		[Vector2i(2, 9), Vector2(265.0, 650.0),  "17 Ave & 4 St SW",             "17 Ave SW"],
-		[Vector2i(4, 9), Vector2(450.0, 650.0),  "17 Ave & 1 St SW",             ""],
-		[Vector2i(5, 9), Vector2(540.0, 650.0),  "17 Ave & Centre St",           ""],
-		[Vector2i(7, 9), Vector2(800.0, 655.0),  "17 Ave & Macleod Trail",       ""],
+		# Westhaven — west side, reached by only a couple of roads
+		[Vector2i(5, 0), Vector2(65.0,  300.0), "Westhaven Square",        "Westhaven Sq."],
+		[Vector2i(5, 1), Vector2(110.0, 345.0), "Weaver's Lane",           "Weaver's Lane"],
+		[Vector2i(5, 2), Vector2(45.0,  245.0), "Old Toll Road",           "Old Toll Rd"],
+		[Vector2i(5, 3), Vector2(135.0, 255.0), "Greengate",               "Greengate"],
+		[Vector2i(5, 4), Vector2(165.0, 385.0), "Ferry Point",             ""],
 	]
 
 	for entry: Array in nodes:
@@ -168,188 +173,110 @@ func _build_calgary(pair_index: int = 0) -> void:
 	home_node = HOME_WORK_PAIRS[idx][0]
 	work_node = HOME_WORK_PAIRS[idx][1]
 
-	# --- Bow River visual curve (drawn by CityGrid, no gameplay effect) ---
+	# --- River visual curve (drawn by CityGrid, no gameplay effect) ---
+	# Runs roughly west-to-east, dipping and rising organically, north of the
+	# Core — only Northgate Village sits on the far bank.
 	river_points = PackedVector2Array([
-		Vector2(-20.0, 138.0), Vector2(80.0, 140.0), Vector2(170.0, 139.0),
-		Vector2(260.0, 141.0), Vector2(350.0, 143.0), Vector2(440.0, 145.0),
-		Vector2(530.0, 148.0), Vector2(620.0, 151.0), Vector2(710.0, 155.0),
-		Vector2(820.0, 160.0),
+		Vector2(-20.0, 175.0), Vector2(90.0, 168.0), Vector2(190.0, 178.0),
+		Vector2(300.0, 198.0), Vector2(400.0, 212.0), Vector2(500.0, 202.0),
+		Vector2(600.0, 188.0), Vector2(700.0, 178.0), Vector2(820.0, 168.0),
 	])
 
 	# --- Edge definitions: [from, to, base_time (min), stress (0.0–1.0)] ---
 	var edges: Array = [
 
 		# ===================================================================
-		#  BOW RIVER PATHWAY (east-west along south bank, multi-use trail)
+		#  RIVER CROSSINGS — Northgate Village ↔ Downtown Core
 		# ===================================================================
-		[Vector2i(0, 2), Vector2i(1, 2), 2.5, 0.10],  # Path West → Louise Bridge
-		[Vector2i(1, 2), Vector2i(2, 2), 2.0, 0.10],  # Louise Bridge → Peace Bridge
-		[Vector2i(2, 2), Vector2i(4, 2), 3.0, 0.10],  # Peace Bridge → Prince's Island
-		[Vector2i(4, 2), Vector2i(5, 2), 2.0, 0.10],  # Prince's Island → Centre St Br.
-		[Vector2i(5, 2), Vector2i(6, 2), 2.5, 0.12],  # Centre St Br. → Reconciliation
-		[Vector2i(6, 2), Vector2i(7, 2), 3.0, 0.15],  # Reconciliation → Zoo Bridge
+		[Vector2i(2, 4), Vector2i(0, 3), 3.0, 0.55],  # Orchard Path — Cathedral Steps (direct bridge)
+		[Vector2i(2, 1), Vector2i(0, 0), 3.5, 0.65],  # Northgate Cross — Old Square (busier arterial bridge)
+		[Vector2i(2, 3), Vector2i(0, 1), 4.2, 0.25],  # Hilltop Row — Market Row (quiet footbridge, longer)
 
 		# ===================================================================
-		#  BRIDGES: North bank (row 1) → River crossings (row 2)
+		#  SPOKES — Downtown Core ↔ Eastwick
 		# ===================================================================
-		[Vector2i(0, 1), Vector2i(0, 2), 2.5, 0.80],  # Crowchild overpass (highway bridge)
-		[Vector2i(1, 1), Vector2i(1, 2), 1.5, 0.35],  # Louise Bridge / 10 St (moderate, has sidewalks)
-		[Vector2i(1, 1), Vector2i(2, 2), 2.5, 0.18],  # Sunnyside residential walk to Peace Bridge
-		[Vector2i(2, 1), Vector2i(2, 2), 1.5, 0.15],  # 5 St NW direct to Peace Bridge (dedicated ped/cycle!)
-		[Vector2i(5, 1), Vector2i(5, 2), 2.5, 0.65],  # Centre St Bridge (busy 4-lane arterial)
-		[Vector2i(6, 1), Vector2i(6, 2), 2.0, 0.40],  # Reconciliation Bridge (has cycling lane)
-		[Vector2i(7, 1), Vector2i(7, 2), 2.5, 0.50],  # Zoo / Edmonton Trail bridge
+		[Vector2i(0, 1), Vector2i(3, 2), 3.0, 0.75],  # Market Row — Chapel Fields (busy arterial)
+		[Vector2i(0, 5), Vector2i(3, 4), 2.8, 0.45],  # Riverside Plaza — Riverbend East (quieter riverside path)
 
 		# ===================================================================
-		#  BRIDGES: River crossings (row 2) → Downtown (row 3)
+		#  SPOKES — Downtown Core ↔ Southmere
 		# ===================================================================
-		[Vector2i(1, 2), Vector2i(1, 3), 1.5, 0.35],  # Louise Bridge south → 4 Ave & 10 St
-		[Vector2i(2, 2), Vector2i(2, 3), 1.5, 0.20],  # Peace Bridge south → 4 Ave & 5 St
-		[Vector2i(2, 2), Vector2i(3, 3), 2.0, 0.15],  # Peace Bridge → 2 St SW cycle track start
-		[Vector2i(4, 2), Vector2i(4, 3), 1.5, 0.20],  # Prince's Island → Eau Claire (parkland paths)
-		[Vector2i(5, 2), Vector2i(5, 3), 2.0, 0.55],  # Centre St Bridge south → 4 Ave & Centre
-		[Vector2i(6, 2), Vector2i(6, 3), 2.0, 0.45],  # Reconciliation south → 4 Ave & 1 St SE
-		[Vector2i(7, 2), Vector2i(7, 3), 2.5, 0.55],  # Zoo Bridge south → 4 Ave & Macleod
+		[Vector2i(0, 4), Vector2i(4, 4), 2.2, 0.70],  # Clocktower — Lower Bridge Road (main arterial)
+		[Vector2i(0, 2), Vector2i(4, 1), 3.0, 0.50],  # Guildhall — Mill Race (secondary, moderate)
 
 		# ===================================================================
-		#  MEMORIAL DRIVE (east-west along north bank, busy arterial)
+		#  SPOKES — Downtown Core ↔ Westhaven (limited access district)
 		# ===================================================================
-		[Vector2i(0, 1), Vector2i(1, 1), 2.5, 0.70],  # Crowchild → Sunnyside
-		[Vector2i(1, 1), Vector2i(2, 1), 2.0, 0.65],  # Sunnyside → 5 St NW
-		[Vector2i(2, 1), Vector2i(5, 1), 3.5, 0.70],  # 5 St NW → Centre St N
-		[Vector2i(5, 1), Vector2i(6, 1), 2.0, 0.72],  # Centre St N → 4 St NE
-		[Vector2i(6, 1), Vector2i(7, 1), 2.5, 0.75],  # 4 St NE → Edmonton Trail
+		[Vector2i(0, 3), Vector2i(5, 1), 4.0, 0.80],  # Cathedral Steps — Weaver's Lane (the main busy route in)
+		[Vector2i(0, 4), Vector2i(5, 4), 4.8, 0.30],  # Clocktower — Ferry Point (longer, scenic, low-stress)
 
 		# ===================================================================
-		#  NORTH RESIDENTIAL (row 0 ↔ row 1)
+		#  SPOKES — Downtown Core ↔ Harbor District
 		# ===================================================================
-		[Vector2i(1, 0), Vector2i(1, 1), 2.5, 0.60],  # Kensington → Sunnyside (10 St residential)
-		[Vector2i(1, 0), Vector2i(2, 1), 2.0, 0.55],  # Kensington back streets → 5 St NW
-		[Vector2i(5, 0), Vector2i(5, 1), 3.0, 0.78],  # North Hill → Memorial (Centre St, busy)
-		[Vector2i(7, 0), Vector2i(7, 1), 2.5, 0.68],  # Bridgeland → Memorial (Edmonton Trail)
+		[Vector2i(0, 5), Vector2i(1, 0), 2.0, 0.40],  # Riverside Plaza — Harbor Quay (waterfront promenade)
+		[Vector2i(0, 2), Vector2i(1, 2), 2.5, 0.60],  # Guildhall — Warehouse Row (industrial back street)
 
 		# ===================================================================
-		#  NORTH RESIDENTIAL EAST-WEST (row 0)
+		#  RING ROADS — residential districts connecting directly, bypassing the Core
 		# ===================================================================
-		[Vector2i(1, 0), Vector2i(5, 0), 4.0, 0.70],  # Kensington → North Hill (16 Ave)
-		[Vector2i(5, 0), Vector2i(7, 0), 3.5, 0.68],  # North Hill → Bridgeland
+		[Vector2i(3, 3), Vector2i(4, 3), 4.5, 0.60],  # Foundry Row — Fisher's Row (outskirts connector)
+		[Vector2i(4, 2), Vector2i(5, 2), 5.0, 0.55],  # Cobble Lane — Old Toll Road (outskirts connector)
+		[Vector2i(3, 4), Vector2i(1, 1), 2.0, 0.45],  # Riverbend East — Old Mill (short Eastwick/Harbor link)
 
 		# ===================================================================
-		#  4TH AVENUE (east-west, row 3 — moderate, some bike infra)
+		#  DOWNTOWN CORE — internal plaza streets (dense, pedestrian-scaled)
 		# ===================================================================
-		[Vector2i(1, 3), Vector2i(2, 3), 2.0, 0.70],  # 10 St → 5 St
-		[Vector2i(2, 3), Vector2i(3, 3), 1.5, 0.65],  # 5 St → 2 St
-		[Vector2i(3, 3), Vector2i(4, 3), 1.5, 0.65],  # 2 St → Eau Claire
-		[Vector2i(4, 3), Vector2i(5, 3), 2.0, 0.68],  # Eau Claire → Centre
-		[Vector2i(5, 3), Vector2i(6, 3), 2.0, 0.70],  # Centre → 1 St SE
-		[Vector2i(6, 3), Vector2i(7, 3), 2.5, 0.75],  # 1 St SE → Macleod
+		[Vector2i(0, 0), Vector2i(0, 1), 1.2, 0.35],  # Old Square — Market Row
+		[Vector2i(0, 0), Vector2i(0, 3), 1.0, 0.30],  # Old Square — Cathedral Steps
+		[Vector2i(0, 0), Vector2i(0, 2), 1.5, 0.38],  # Old Square — Guildhall
+		[Vector2i(0, 1), Vector2i(0, 2), 1.3, 0.35],  # Market Row — Guildhall
+		[Vector2i(0, 2), Vector2i(0, 3), 1.5, 0.40],  # Guildhall — Cathedral Steps
+		[Vector2i(0, 2), Vector2i(0, 5), 1.2, 0.35],  # Guildhall — Riverside Plaza
+		[Vector2i(0, 3), Vector2i(0, 4), 1.0, 0.30],  # Cathedral Steps — Clocktower
+		[Vector2i(0, 4), Vector2i(0, 5), 1.4, 0.40],  # Clocktower — Riverside Plaza
 
 		# ===================================================================
-		#  7TH AVENUE / C-TRAIN (east-west, row 4 — busy, LRT shares road)
+		#  HARBOR DISTRICT — internal streets
 		# ===================================================================
-		[Vector2i(1, 4), Vector2i(2, 4), 2.0, 0.70],  # Sunalta → Kerby
-		[Vector2i(2, 4), Vector2i(3, 4), 1.5, 0.65],  # Kerby → 2 St
-		[Vector2i(3, 4), Vector2i(4, 4), 1.5, 0.65],  # 2 St → 1 St
-		[Vector2i(4, 4), Vector2i(5, 4), 2.0, 0.70],  # 1 St → City Hall
-		[Vector2i(5, 4), Vector2i(6, 4), 2.0, 0.70],  # City Hall → 1 St SE
-		[Vector2i(6, 4), Vector2i(7, 4), 2.5, 0.80],  # 1 St SE → Macleod
+		[Vector2i(1, 0), Vector2i(1, 1), 1.3, 0.45],  # Harbor Quay — Old Mill
+		[Vector2i(1, 1), Vector2i(1, 2), 1.2, 0.50],  # Old Mill — Warehouse Row
+		[Vector2i(1, 0), Vector2i(1, 2), 1.5, 0.48],  # Harbor Quay — Warehouse Row
 
 		# ===================================================================
-		#  STEPHEN AVENUE / 8TH AVE (east-west, row 5 — pedestrian mall, low stress)
+		#  NORTHGATE VILLAGE — internal streets
 		# ===================================================================
-		[Vector2i(2, 5), Vector2i(4, 5), 2.5, 0.20],  # 5 St → 1 St (through the mall)
-		[Vector2i(4, 5), Vector2i(5, 5), 1.5, 0.20],  # 1 St → Centre
-		[Vector2i(5, 5), Vector2i(6, 5), 1.5, 0.25],  # Centre → 1 St SE
+		[Vector2i(2, 0), Vector2i(2, 1), 1.5, 0.40],  # Village Green — Northgate Cross
+		[Vector2i(2, 0), Vector2i(2, 2), 1.3, 0.38],  # Village Green — Millpond Lane
+		[Vector2i(2, 1), Vector2i(2, 3), 1.4, 0.42],  # Northgate Cross — Hilltop Row
+		[Vector2i(2, 1), Vector2i(2, 4), 1.6, 0.45],  # Northgate Cross — Orchard Path
+		[Vector2i(2, 2), Vector2i(2, 4), 1.8, 0.40],  # Millpond Lane — Orchard Path
 
 		# ===================================================================
-		#  9TH AVENUE (east-west, row 6 — one-way arterial, high stress)
+		#  EASTWICK — internal streets
 		# ===================================================================
-		[Vector2i(2, 6), Vector2i(4, 6), 2.5, 0.82],  # 5 St → 1 St
-		[Vector2i(4, 6), Vector2i(5, 6), 2.0, 0.85],  # 1 St → Centre
-		[Vector2i(5, 6), Vector2i(6, 6), 2.0, 0.85],  # Centre → 1 St SE
-		[Vector2i(6, 6), Vector2i(7, 6), 2.5, 0.90],  # 1 St SE → Macleod
+		[Vector2i(3, 0), Vector2i(3, 2), 1.4, 0.42],  # Eastwick Square — Chapel Fields
+		[Vector2i(3, 0), Vector2i(3, 1), 1.3, 0.45],  # Eastwick Square — Ropewalk
+		[Vector2i(3, 0), Vector2i(3, 3), 1.6, 0.48],  # Eastwick Square — Foundry Row
+		[Vector2i(3, 3), Vector2i(3, 4), 1.5, 0.45],  # Foundry Row — Riverbend East
+		[Vector2i(3, 1), Vector2i(3, 3), 1.4, 0.50],  # Ropewalk — Foundry Row
 
 		# ===================================================================
-		#  11TH AVENUE (east-west, row 7)
+		#  SOUTHMERE — internal streets
 		# ===================================================================
-		[Vector2i(1, 7), Vector2i(4, 7), 3.5, 0.75],  # 10 St → 1 St
-		[Vector2i(4, 7), Vector2i(5, 7), 2.0, 0.75],  # 1 St → Centre
-		[Vector2i(5, 7), Vector2i(7, 7), 3.5, 0.78],  # Centre → Victoria Park
+		[Vector2i(4, 0), Vector2i(4, 1), 1.3, 0.40],  # Southmere Green — Mill Race
+		[Vector2i(4, 0), Vector2i(4, 2), 1.5, 0.42],  # Southmere Green — Cobble Lane
+		[Vector2i(4, 1), Vector2i(4, 4), 1.4, 0.45],  # Mill Race — Lower Bridge Road
+		[Vector2i(4, 2), Vector2i(4, 3), 1.6, 0.42],  # Cobble Lane — Fisher's Row
+		[Vector2i(4, 1), Vector2i(4, 3), 1.5, 0.44],  # Mill Race — Fisher's Row
 
 		# ===================================================================
-		#  12TH AVENUE (east-west, row 8 — Beltline)
+		#  WESTHAVEN — internal streets
 		# ===================================================================
-		[Vector2i(2, 8), Vector2i(4, 8), 2.5, 0.75],  # 5 St → 1 St
-		[Vector2i(4, 8), Vector2i(5, 8), 2.0, 0.75],  # 1 St → Centre
-		[Vector2i(5, 8), Vector2i(7, 8), 3.5, 0.78],  # Centre → Stampede
-
-		# ===================================================================
-		#  17TH AVENUE (east-west, row 9 — Red Mile)
-		# ===================================================================
-		[Vector2i(2, 9), Vector2i(4, 9), 2.5, 0.72],  # 4 St → 1 St
-		[Vector2i(4, 9), Vector2i(5, 9), 2.0, 0.70],  # 1 St → Centre
-		[Vector2i(5, 9), Vector2i(7, 9), 3.5, 0.75],  # Centre → Macleod
-
-		# ===================================================================
-		#  NORTH-SOUTH: 10 St NW/SW (column 1 — residential, moderate)
-		# ===================================================================
-		[Vector2i(1, 3), Vector2i(1, 4), 2.5, 0.68],  # 4 Ave → 7 Ave
-		[Vector2i(1, 4), Vector2i(1, 7), 4.0, 0.68],  # 7 Ave → 11 Ave (long block)
-
-		# ===================================================================
-		#  NORTH-SOUTH: 5 St SW (column 2 — quieter side street)
-		# ===================================================================
-		[Vector2i(2, 3), Vector2i(2, 4), 2.0, 0.68],  # 4 Ave → 7 Ave
-		[Vector2i(2, 4), Vector2i(2, 5), 1.5, 0.65],  # 7 Ave → Stephen Ave
-		[Vector2i(2, 5), Vector2i(2, 6), 1.5, 0.68],  # Stephen Ave → 9 Ave
-		[Vector2i(2, 6), Vector2i(2, 8), 3.0, 0.72],  # 9 Ave → 12 Ave
-		[Vector2i(2, 8), Vector2i(2, 9), 2.5, 0.68],  # 12 Ave → 17 Ave
-
-		# ===================================================================
-		#  NORTH-SOUTH: 2 St SW cycle track (column 3 — key cycling corridor)
-		# ===================================================================
-		[Vector2i(3, 3), Vector2i(3, 4), 1.5, 0.60],  # 4 Ave → 7 Ave (quiet minor street, pre-upgraded)
-
-		# ===================================================================
-		#  NORTH-SOUTH: 1 St SW (column 4 — through-street, moderate)
-		# ===================================================================
-		[Vector2i(4, 3), Vector2i(4, 4), 1.5, 0.70],  # 4 Ave → 7 Ave
-		[Vector2i(4, 4), Vector2i(4, 5), 1.0, 0.65],  # 7 Ave → Stephen Ave (1 block)
-		[Vector2i(4, 5), Vector2i(4, 6), 1.0, 0.68],  # Stephen Ave → 9 Ave (1 block)
-		[Vector2i(4, 6), Vector2i(4, 7), 2.5, 0.72],  # 9 Ave → 11 Ave
-		[Vector2i(4, 7), Vector2i(4, 8), 2.5, 0.72],  # 11 Ave → 12 Ave
-		[Vector2i(4, 8), Vector2i(4, 9), 2.5, 0.68],  # 12 Ave → 17 Ave
-
-		# ===================================================================
-		#  NORTH-SOUTH: Centre Street (column 5 — busy arterial)
-		# ===================================================================
-		[Vector2i(5, 3), Vector2i(5, 4), 2.0, 0.78],  # 4 Ave → 7 Ave
-		[Vector2i(5, 4), Vector2i(5, 5), 1.0, 0.75],  # 7 Ave → Stephen Ave
-		[Vector2i(5, 5), Vector2i(5, 6), 1.0, 0.78],  # Stephen Ave → 9 Ave
-		[Vector2i(5, 6), Vector2i(5, 7), 2.5, 0.80],  # 9 Ave → 11 Ave
-		[Vector2i(5, 7), Vector2i(5, 8), 2.5, 0.78],  # 11 Ave → 12 Ave
-		[Vector2i(5, 8), Vector2i(5, 9), 2.5, 0.75],  # 12 Ave → 17 Ave
-
-		# ===================================================================
-		#  NORTH-SOUTH: 1 St SE (column 6 — moderate)
-		# ===================================================================
-		[Vector2i(6, 3), Vector2i(6, 4), 2.0, 0.68],  # 4 Ave → 7 Ave
-		[Vector2i(6, 4), Vector2i(6, 5), 1.0, 0.65],  # 7 Ave → Stephen Ave
-		[Vector2i(6, 5), Vector2i(6, 6), 1.0, 0.68],  # Stephen Ave → 9 Ave
-
-		# ===================================================================
-		#  NORTH-SOUTH: Macleod Trail (column 7 — high-stress arterial)
-		# ===================================================================
-		[Vector2i(7, 3), Vector2i(7, 4), 2.5, 0.85],  # 4 Ave → 7 Ave
-		[Vector2i(7, 4), Vector2i(7, 6), 3.0, 0.85],  # 7 Ave → 9 Ave (no Stephen Ave node)
-		[Vector2i(7, 6), Vector2i(7, 7), 2.5, 0.80],  # 9 Ave → Victoria Park
-		[Vector2i(7, 7), Vector2i(7, 8), 2.5, 0.80],  # Victoria Park → Stampede
-		[Vector2i(7, 8), Vector2i(7, 9), 2.5, 0.75],  # Stampede → 17 Ave
-
-		# ===================================================================
-		#  NON-GRID / DIAGONAL
-		# ===================================================================
-		[Vector2i(6, 6), Vector2i(7, 7), 2.5, 0.75],  # Olympic Way: 1 St SE at 9th → Victoria Park
+		[Vector2i(5, 0), Vector2i(5, 1), 1.3, 0.40],  # Westhaven Square — Weaver's Lane
+		[Vector2i(5, 0), Vector2i(5, 2), 1.4, 0.38],  # Westhaven Square — Old Toll Road
+		[Vector2i(5, 0), Vector2i(5, 3), 1.2, 0.42],  # Westhaven Square — Greengate
+		[Vector2i(5, 1), Vector2i(5, 4), 1.5, 0.45],  # Weaver's Lane — Ferry Point
+		[Vector2i(5, 3), Vector2i(5, 2), 1.3, 0.40],  # Greengate — Old Toll Road
 	]
 
 	for edge: Array in edges:
@@ -359,19 +286,12 @@ func _build_calgary(pair_index: int = 0) -> void:
 
 
 func _apply_initial_infrastructure() -> void:
-	# 2 St SW cycle track — Calgary's signature protected bike lane
-	_set_initial_upgrade(Vector2i(3, 3), Vector2i(3, 4), 2)
-	# Peace Bridge approach — dedicated ped/cycle bridge
-	_set_initial_upgrade(Vector2i(2, 1), Vector2i(2, 2), 2)
-	# Reconciliation Bridge — has a cycling lane
-	_set_initial_upgrade(Vector2i(6, 1), Vector2i(6, 2), 1)
-	# Bow River pathway — protected multi-use trail along the river
-	_set_initial_upgrade(Vector2i(0, 2), Vector2i(1, 2), 2)
-	_set_initial_upgrade(Vector2i(1, 2), Vector2i(2, 2), 2)
-	_set_initial_upgrade(Vector2i(2, 2), Vector2i(4, 2), 2)
-	_set_initial_upgrade(Vector2i(4, 2), Vector2i(5, 2), 2)
-	_set_initial_upgrade(Vector2i(5, 2), Vector2i(6, 2), 2)
-	_set_initial_upgrade(Vector2i(6, 2), Vector2i(7, 2), 2)
+	# Cathedral Steps — Clocktower: the city's flagship protected bike lane
+	_set_initial_upgrade(Vector2i(0, 3), Vector2i(0, 4), 2)
+	# Hilltop Row — Market Row: dedicated ped/cycle footbridge over the river
+	_set_initial_upgrade(Vector2i(2, 3), Vector2i(0, 1), 2)
+	# Riverside Plaza — Harbor Quay: waterfront promenade, already has a painted lane
+	_set_initial_upgrade(Vector2i(0, 5), Vector2i(1, 0), 1)
 
 
 func _set_initial_upgrade(a: Vector2i, b: Vector2i, level: int) -> void:
