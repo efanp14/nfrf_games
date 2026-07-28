@@ -51,7 +51,7 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 	var entry: Dictionary = {
 		# -- identity --
 		"session_id":             session_id,
-		"participant_id":         participant_ids[0] if participant_ids.size() > 0 else null,
+		"participant_id":         (participant_ids[0] as Variant) if participant_ids.size() > 0 else null,
 		"treatment":              treatment,   # 0=T1, 1=T2, 2=T3
 		"round":                  round_num,
 		"timestamp_s":            (Time.get_ticks_msec() / 1000.0) - start_time,
@@ -94,7 +94,7 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 func on_game_over(final_results: Dictionary) -> void:
 	var summary: Dictionary = {
 		"session_id":       session_id,
-		"participant_id":   participant_ids[0] if participant_ids.size() > 0 else null,
+		"participant_id":   (participant_ids[0] as Variant) if participant_ids.size() > 0 else null,
 		"treatment":        treatment,
 		"round":            "FINAL",
 		"alpha":            final_results.get("alpha", null),
@@ -220,11 +220,20 @@ func _build_session_summary() -> Dictionary:
 	}
 
 
+## One subfolder per session, under a top-level directory of our own
+## (distinct from Godot's own user://logs/, which the engine uses for its
+## own log files — sharing that folder made it easy to mistake engine logs
+## for research data). All 3 files for a session live together here, so a
+## researcher can just zip/copy one folder per participant/group.
+func _session_dir() -> String:
+	return "user://research_sessions/%s/" % session_id
+
+
 func _write_session_summary() -> void:
 	var summary := _build_session_summary()
-	DirAccess.make_dir_recursive_absolute("user://logs/")
+	DirAccess.make_dir_recursive_absolute(_session_dir())
 
-	var json_path: String = "user://logs/%s_summary.json" % session_id
+	var json_path: String = _session_dir() + "summary.json"
 	var json_file: FileAccess = FileAccess.open(json_path, FileAccess.WRITE)
 	if json_file:
 		json_file.store_string(JSON.stringify(summary, "\t"))
@@ -237,7 +246,7 @@ func _write_session_summary() -> void:
 	# researcher can drop it straight into a spreadsheet without parsing
 	# JSON. Nested values (e.g. post_survey_responses) are JSON-encoded
 	# into a single quoted cell so the row still parses as one line.
-	var csv_path: String = "user://logs/%s_summary.csv" % session_id
+	var csv_path: String = _session_dir() + "summary.csv"
 	var csv_file: FileAccess = FileAccess.open(csv_path, FileAccess.WRITE)
 	if csv_file:
 		var header: PackedStringArray = []
@@ -265,8 +274,8 @@ func _csv_cell(value: Variant) -> String:
 
 
 func _write_to_disk() -> void:
-	var path: String = "user://logs/%s.json" % session_id
-	DirAccess.make_dir_recursive_absolute("user://logs/")
+	var path: String = _session_dir() + "events.json"
+	DirAccess.make_dir_recursive_absolute(_session_dir())
 	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(log_entries, "\t"))
