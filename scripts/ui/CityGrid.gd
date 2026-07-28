@@ -124,15 +124,16 @@ func _build() -> void:
 		seg.clicked.connect(_on_segment_clicked)
 		_segments[canonical] = seg
 
-	# --- Simulated-resident home/work nodes (deduplicated) ---
+	# --- Simulated-resident home/work nodes ---
 	# Purely a visual cue for where the city-wide averages come from; never
 	# read by routing or metric logic, and drawn beneath the player's own
-	# HOME/WORK markers wherever the two coincide.
-	var npc_homes: Dictionary = {}
-	var npc_works: Dictionary = {}
+	# HOME/WORK markers wherever the two coincide. All markers render at the
+	# same fixed icon size (NodeMarker.ICON_PX) — no population-based scaling.
+	var npc_home_nodes: Dictionary = {}
+	var npc_work_nodes: Dictionary = {}
 	for commuter in GameManager.ai_commuters:
-		npc_homes[commuter["start"]] = true
-		npc_works[commuter["goal"]] = true
+		npc_home_nodes[commuter["start"]] = true
+		npc_work_nodes[commuter["goal"]] = true
 
 	# --- Node markers ---
 	for node_vec: Vector2i in net.adjacency.keys():
@@ -157,14 +158,16 @@ func _build() -> void:
 				is_player_marker = true
 				break
 
+		var work_icon_key := ""
 		if not is_player_marker:
-			if npc_homes.has(node_vec):
+			if npc_home_nodes.has(node_vec):
 				mtype = NodeMarker.MarkerType.NPC_HOME
-			elif npc_works.has(node_vec):
+			elif npc_work_nodes.has(node_vec):
 				mtype = NodeMarker.MarkerType.NPC_WORK
+				work_icon_key = net.WORK_NODE_ICONS.get(node_vec, "")
 
 		var display_label: String = ""
-		marker.setup(node_id, mtype, display_label, pidx, num_players)
+		marker.setup(node_id, mtype, display_label, pidx, num_players, work_icon_key)
 		_markers[node_id] = marker
 
 

@@ -7,12 +7,12 @@ const ROW_H    := SWATCH_H + 10.0
 const LABEL_X  := SWATCH_W + 8.0
 const FS       := 11
 
-const ROAD_FILL         := Color("#494949")
-const ROAD_EDGE         := Color("#1a1a1a")
-const YELLOW_CENTER     := Color(0.85, 0.75, 0.20)
+const ROAD_FILL         := Color("#3E3D42")
+const ROAD_EDGE         := Color("#18171B")
+const YELLOW_CENTER     := Color(0.95, 0.78, 0.18)
 const WHITE_MARKING     := Color(0.95, 0.95, 0.90)
-const BIKE_PAINT        := Color(0.22, 0.62, 0.28)
-const PROTECTED_ASPHALT := Color("#9E948A")
+const BIKE_PAINT        := Color(0.18, 0.66, 0.34)
+const PROTECTED_ASPHALT := Color("#A79C87")
 const CAR_BODY          := Color(0.82, 0.35, 0.30)
 const CAR_WINDOW        := Color(0.65, 0.82, 0.92, 0.85)
 const TEXT_COL          := Color(0.28, 0.26, 0.24)
@@ -28,10 +28,45 @@ const PLAYER_COLORS     := [
 const NPC_HOME_COLOR := Color(0.55, 0.58, 0.52, 0.55)
 const NPC_WORK_COLOR := Color(0.45, 0.50, 0.55, 0.55)
 
+## Legend marker icons match the actual in-game ones (NodeMarker.gd) instead
+## of separate hand-drawn glyphs, so this stays accurate as those icons
+## change. Workplaces show the generic building — the real map varies that
+## icon per cluster (school, café, ...; see CityNetwork.WORK_NODE_ICONS).
+## All markers render at the same fixed size (see NodeMarker.ICON_PX).
+const ICON_TINT_SHADER   := preload("res://assets/shaders/icon_tint.gdshader")
+const ICON_HOME          := preload("res://assets/images/home.svg")
+const ICON_BRIEFCASE     := preload("res://assets/images/briefcase.svg")
+const ICON_NEIGHBOURHOOD := preload("res://assets/images/threepeoplehome.svg")
+const ICON_WORK_DEFAULT  := preload("res://assets/images/workbuildings.svg")
+const ICON_PX: float = 18.0
+
+var _home_icon: Sprite2D
+var _work_icon: Sprite2D
+var _neighbourhood_icon: Sprite2D
+var _workplace_icon: Sprite2D
+
 
 func _ready() -> void:
+	_home_icon          = _make_icon(ICON_HOME, PLAYER_COLORS[0])
+	_work_icon          = _make_icon(ICON_BRIEFCASE, PLAYER_COLORS[0])
+	_neighbourhood_icon = _make_icon(ICON_NEIGHBOURHOOD, Color(NPC_HOME_COLOR, 1.0))
+	_workplace_icon     = _make_icon(ICON_WORK_DEFAULT, Color(NPC_WORK_COLOR, 1.0))
+
 	_refresh_size()
 	GameManager.round_started.connect(func(_r, _b): _refresh_size(); queue_redraw())
+
+
+func _make_icon(tex: Texture2D, tint: Color) -> Sprite2D:
+	var icon := Sprite2D.new()
+	icon.texture = tex
+	icon.centered = true
+	icon.scale = Vector2.ONE * (ICON_PX / maxf(tex.get_width(), 1.0))
+	var mat := ShaderMaterial.new()
+	mat.shader = ICON_TINT_SHADER
+	mat.set_shader_parameter("tint_color", tint)
+	icon.material = mat
+	add_child(icon)
+	return icon
 
 
 func _refresh_size() -> void:
@@ -89,17 +124,17 @@ func _draw() -> void:
 		_sep(y); y += 8
 
 	# ── Markers ─────────────────────────────────────────────────────────────
-	_house_mini(y, PLAYER_COLORS[0])
+	_place_icon(_home_icon, y)
 	_label("Home", y, font); y += ROW_H
 
-	_briefcase_mini(y, PLAYER_COLORS[0])
+	_place_icon(_work_icon, y)
 	_label("Work destination", y, font); y += ROW_H
 
-	_dot_mini(y, NPC_HOME_COLOR)
-	_label("Simulated resident home", y, font); y += ROW_H
+	_place_icon(_neighbourhood_icon, y)
+	_label("Neighbourhood", y, font); y += ROW_H
 
-	_dot_mini(y, NPC_WORK_COLOR)
-	_label("Simulated resident work", y, font)
+	_place_icon(_workplace_icon, y)
+	_label("Workplace", y, font)
 
 
 # ── Drawing helpers ──────────────────────────────────────────────────────────
@@ -151,29 +186,6 @@ func _car_swatch(y: float) -> void:
 		draw_rect(Rect2(cx - 0.5, cy - 1.5, 2.5, 3), CAR_WINDOW)
 
 
-func _house_mini(y: float, col: Color) -> void:
-	var cx := SWATCH_W * 0.5
-	var s  := 7.0
-	var by := y + SWATCH_H * 0.15
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(cx, by),
-		Vector2(cx - s * 0.85, by + s * 0.75),
-		Vector2(cx + s * 0.85, by + s * 0.75),
-	]), col)
-	draw_rect(Rect2(cx - s * 0.6, by + s * 0.7, s * 1.2, s * 0.9), col)
-
-
-func _dot_mini(y: float, col: Color) -> void:
-	var cx := SWATCH_W * 0.5
-	var cy := y + SWATCH_H * 0.6
-	draw_circle(Vector2(cx, cy), 4.0, col)
-
-
-func _briefcase_mini(y: float, col: Color) -> void:
-	var cx := SWATCH_W * 0.5
-	var s  := 7.0
-	var by := y + SWATCH_H * 0.2
-	draw_rect(Rect2(cx - s * 0.75, by + s * 0.3, s * 1.5, s * 1.0), col)
-	draw_line(Vector2(cx - s * 0.28, by + s * 0.3), Vector2(cx - s * 0.28, by), col, 1.5)
-	draw_line(Vector2(cx - s * 0.28, by), Vector2(cx + s * 0.28, by), col, 1.5)
-	draw_line(Vector2(cx + s * 0.28, by), Vector2(cx + s * 0.28, by + s * 0.3), col, 1.5)
+func _place_icon(icon: Sprite2D, y: float) -> void:
+	icon.position = Vector2(SWATCH_W * 0.5, y + SWATCH_H * 0.5)
+	icon.visible = true
