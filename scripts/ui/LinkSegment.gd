@@ -11,6 +11,8 @@ var _is_hovered: bool = false
 var _path_points: PackedVector2Array = []
 var _draw_points: PackedVector2Array = []
 var _stress_score: float = 0.5
+var _anim_t: float = 0.0
+var _total_length: float = 0.0
 
 # Legacy Line2D children are hidden — all rendering is via _draw().
 @onready var stress_outline: Line2D  = $StressOutline
@@ -19,12 +21,15 @@ var _stress_score: float = 0.5
 @onready var route_highlight: Line2D = $RouteHighlight
 @onready var hover_highlight: Line2D = $HoverHighlight
 
-const ROAD_FILL         := Color("#494949")
-const ROAD_EDGE         := Color("#1a1a1a")
-const YELLOW_CENTER     := Color(0.85, 0.75, 0.20)
+## Slightly warmer/richer than the original flat monochrome grey, so the
+## road reads as asphalt rather than a wireframe line, while staying inside
+## the flat-vector style (no textures, no gradients).
+const ROAD_FILL         := Color("#3E3D42")
+const ROAD_EDGE         := Color("#18171B")
+const YELLOW_CENTER     := Color(0.95, 0.78, 0.18)
 const WHITE_MARKING     := Color(0.95, 0.95, 0.90)
-const BIKE_PAINT        := Color(0.22, 0.62, 0.28)
-const PROTECTED_ASPHALT := Color("#9E948A")
+const BIKE_PAINT        := Color(0.18, 0.66, 0.34)
+const PROTECTED_ASPHALT := Color("#A79C87")
 const ROUTE_COLORS: Array = [
 	Color(0.42, 0.64, 0.84, 0.45),
 	Color(0.88, 0.47, 0.32, 0.45),
@@ -33,18 +38,34 @@ const ROUTE_COLORS: Array = [
 	Color(0.85, 0.68, 0.25, 0.45),
 ]
 const HOVER_GLOW      := Color(0.95, 0.75, 0.25, 0.45)
-const CAR_BODY        := Color(0.82, 0.35, 0.30)
+## Cars cycle through a small palette instead of all being identical, so
+## the "traffic = stress" cue reads as an actual street, not repeated clones.
+const CAR_COLORS: Array = [
+	Color(0.82, 0.35, 0.30),
+	Color(0.30, 0.46, 0.74),
+	Color(0.86, 0.65, 0.22),
+	Color(0.42, 0.52, 0.36),
+]
 const CAR_WINDOW      := Color(0.65, 0.82, 0.92)
+const CAR_SHADOW      := Color(0.0, 0.0, 0.0, 0.20)
+
+## Soft offset shadow drawn under every road for a touch of depth — still
+## flat-shaded (a single translucent color, no blur/gradient), just enough
+## to lift the road off the background.
+const ROAD_SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.15)
+const ROAD_SHADOW_OFFSET := Vector2(2.5, 3.0)
 
 const ROAD_WIDTH     := 24.0
 const EDGE_BORDER    := 1.5
 const ROUTE_WIDTH    := 32.0
 const HOVER_WIDTH    := 36.0
-const CENTER_LINE_W  := 1.5
+const CENTER_LINE_W  := 1.8
+const CENTER_DASH_LEN := 11.0
+const CENTER_DASH_GAP := 8.0
 const BIKE_PAINT_W   := 4.0
 const DIVIDER_W      := 1.5
 const HIT_RADIUS     := 18.0
-const NODE_RADIUS    := 8.5   # roads extend to this depth inside the node circle (18.0 radius) so ends are hidden
+const NODE_RADIUS    := 6.5   # roads extend to this depth inside the node circle (14.0 radius, NodeMarker.RADII.NORMAL) so ends are hidden
 
 const BARRIER_SPACE  := 10.0
 const BARRIER_MARK   := 3.0
@@ -55,8 +76,19 @@ const BARRIER_MARK   := 3.0
 const CAR_LENGTH      := 10.0
 const CAR_WIDTH_HALF  := 2.5
 const CAR_LANE_OFFSET := 4.0
-const CAR_OUTLINE     := Color(0.25, 0.1, 0.08, 0.9)
-const CAR_OUTLINE_W   := 1.0
+## Cars drift along their lane over time — cosmetic only (stress/routing
+## still comes purely from the model), just enough motion that the street
+## reads as alive rather than a static illustration. Speed scales with the
+## road's effective stress (owner request, 4 Aug 2026: "high stress roads
+## have faster cars"; widened: "increase the speed difference... by making
+## the stressful cars drive even faster"; then tuned down: "slow the
+## calmest by 3 and the fastest by 7" — measured against the network's
+## actual endpoints, the calmest protected road at ~13.94px/s -> ~10.94,
+## the fastest unimproved road at ~47.6px/s -> ~40.6). Solving for a new
+## floor/scale that hits both those exact targets gives the values below —
+## not independently chosen, derived from the two requested numbers.
+const CAR_SPEED_MIN          := 5.71
+const CAR_SPEED_STRESS_SCALE := 39.65
 
 
 func setup(id: String, points: PackedVector2Array, upgrade_level: int = 0, stress: float = 0.5) -> void:
@@ -75,6 +107,7 @@ func set_points(points: PackedVector2Array) -> void:
 func _compute_draw_points() -> void:
 	if _path_points.size() < 2:
 		_draw_points = PackedVector2Array(_path_points)
+		_total_length = 0.0
 		return
 	_draw_points = PackedVector2Array(_path_points)
 	var dir_s := (_draw_points[1] - _draw_points[0]).normalized()
@@ -82,6 +115,9 @@ func _compute_draw_points() -> void:
 	var last := _draw_points.size() - 1
 	var dir_e := (_draw_points[last] - _draw_points[last - 1]).normalized()
 	_draw_points[last] = _draw_points[last] - dir_e * NODE_RADIUS
+	_total_length = 0.0
+	for i in range(_draw_points.size() - 1):
+		_total_length += _draw_points[i].distance_to(_draw_points[i + 1])
 
 
 func set_upgrade_level(level: int) -> void:
@@ -116,6 +152,14 @@ func _ready() -> void:
 			child.visible = false
 
 
+## Advances the cosmetic traffic/route-pulse animation. Purely visual —
+## nothing here feeds back into stress, impedance, or routing.
+func _process(delta: float) -> void:
+	_anim_t += delta
+	if _num_cars() > 0 or not _route_players.is_empty():
+		queue_redraw()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var was := _is_hovered
@@ -138,12 +182,17 @@ func _draw() -> void:
 	if _draw_points.size() < 2:
 		return
 
+	_draw_shadow()
+
 	if _is_hovered:
 		_draw_thick_line(HOVER_GLOW, HOVER_WIDTH)
 
+	# Route highlight breathes gently (± a couple px) instead of sitting
+	# perfectly static, so an active route reads as "selected" at a glance.
+	var pulse: float = sin(_anim_t * 2.0) * 2.0
 	if _route_players.size() == 1:
 		var col: Color = ROUTE_COLORS[_route_players[0] % ROUTE_COLORS.size()]
-		_draw_thick_line(col, ROUTE_WIDTH)
+		_draw_thick_line(col, ROUTE_WIDTH + pulse)
 	elif _route_players.size() > 1:
 		_draw_striped_route()
 
@@ -164,6 +213,15 @@ func _display_level() -> int:
 
 func _draw_thick_line(color: Color, width: float) -> void:
 	draw_polyline(_draw_points, color, width, true)
+
+
+## Soft offset shadow under the whole road, drawn first (furthest back) so
+## the road reads as slightly raised off the background.
+func _draw_shadow() -> void:
+	var shifted := PackedVector2Array()
+	for p in _draw_points:
+		shifted.append(p + ROAD_SHADOW_OFFSET)
+	draw_polyline(shifted, ROAD_SHADOW_COLOR, ROAD_WIDTH + 3.0, true)
 
 
 func _draw_striped_route() -> void:
@@ -199,7 +257,7 @@ func _draw_road_markings() -> void:
 	elif _pending_level == 0 and _upgrade_level > 0:
 		alpha_mult = 0.25
 
-	_draw_offset_line(0.0, YELLOW_CENTER, CENTER_LINE_W)
+	_draw_dashed_center_line()
 
 	if display_level == 0:
 		# No Bike Lane: a single clean street line, no lane dividers or
@@ -220,6 +278,23 @@ func _draw_road_markings() -> void:
 		var div_off := ROAD_WIDTH / 2.0 - BIKE_PAINT_W - DIVIDER_W / 2.0
 		_draw_offset_line(div_off, dc, DIVIDER_W)
 		_draw_offset_line(-div_off, dc, DIVIDER_W)
+
+
+## Static dashed centre line (small dash + gap) instead of a solid ruled
+## line — reads more like an actual street marking than a wiring-diagram
+## line. Not animated: a scrolling dash was tried and turned out distracting
+## rather than lively, so the dash positions are fixed per-road.
+func _draw_dashed_center_line() -> void:
+	for i in range(_draw_points.size() - 1):
+		var a := _draw_points[i]
+		var b := _draw_points[i + 1]
+		var dir := (b - a).normalized()
+		var length := a.distance_to(b)
+		var pos := 0.0
+		while pos < length:
+			var seg_end := minf(pos + CENTER_DASH_LEN, length)
+			draw_line(a + dir * pos, a + dir * seg_end, YELLOW_CENTER, CENTER_LINE_W, true)
+			pos += CENTER_DASH_LEN + CENTER_DASH_GAP
 
 
 func _draw_offset_line(offset_dist: float, color: Color, width: float) -> void:
@@ -248,13 +323,51 @@ func _draw_barrier_marks(offset_dist: float, color: Color) -> void:
 			pos += BARRIER_SPACE
 
 
-# --- Stress cars (car count reflects effective road stress, decreases when upgraded) ---
+# --- Stress cars (count + speed both reflect effective road stress, both
+#     decrease when upgraded) ---
+
+## Raw stress reduced by however much this road's current infrastructure
+## relieves it — a cheap per-level estimate (not the real personality-
+## dependent beta_protected from CityNetwork.gd, which needs a rider alpha
+## this purely-visual layer doesn't have and shouldn't need). Shared by both
+## car count and car speed so the two cues move together as a road is
+## upgraded, instead of drifting independently.
+func _effective_stress() -> float:
+	var beta_est: float = [1.0, 0.65, 0.3][clampi(_upgrade_level, 0, 2)]
+	return _stress_score * beta_est
+
+## Cars per 100px of road, before the effective-stress multiplier. Car count
+## used to be a flat function of stress alone (stress * beta * 6), so a
+## short and a long road at the same stress showed the SAME number of cars
+## — packed much tighter on the short one, reading as "way busier" even
+## though the underlying stress was identical (owner report, 4 Aug 2026).
+## Fixed by scaling with the road's actual on-screen length instead, so cars
+## reflect a consistent per-100px DENSITY: num_cars = density * length/100.
+## Lowered from 2.5 to 1.5 (owner, 4 Aug 2026 — "reduce the amount of cars
+## overall... with so many cars the screen looks too cluttery") — a flat
+## 40% cut applied after the length fix above, so the relative pattern
+## (short roads still show fewer cars than long ones at the same stress)
+## is unchanged, just the whole network reads less busy.
+const CARS_PER_100PX := 1.5
+
+func _num_cars() -> int:
+	var density: float = _effective_stress() * CARS_PER_100PX
+	# Every road gets at least one car — zero cars reads as "broken/empty
+	# map" rather than "calm street." Count above that floor still scales
+	# with stress and length, so upgrading a road (or a road simply being
+	# short) visibly thins its traffic.
+	return maxi(1, int(round(density * _total_length / 100.0)))
+
+
+func _car_speed() -> float:
+	return CAR_SPEED_MIN + _effective_stress() * CAR_SPEED_STRESS_SCALE
+
 
 func _draw_cars() -> void:
-	var beta_est: float = [1.0, 0.65, 0.3][clampi(_upgrade_level, 0, 2)]
-	var num_cars := int(_stress_score * beta_est * 6.0)
+	var num_cars := _num_cars()
 	if num_cars == 0:
 		return
+	var speed := _car_speed()
 	for i in range(_draw_points.size() - 1):
 		var a := _draw_points[i]
 		var b := _draw_points[i + 1]
@@ -266,17 +379,23 @@ func _draw_cars() -> void:
 		var spacing := length / float(num_cars + 1)
 		var angle := dir.angle()
 		for j in range(num_cars):
-			var pos := spacing * (j + 1)
-			var center := a + dir * pos
-			# Alternate cars slightly left/right of center, one per direction of travel
-			var side := CAR_LANE_OFFSET if j % 2 == 0 else -CAR_LANE_OFFSET
-			center += perp * side
-			_draw_car(center, angle)
+			var base_pos := spacing * (j + 1)
+			# Alternate cars slightly left/right of center, one per direction of
+			# travel — and each lane drifts along its own direction over time,
+			# looping back to the start. Cosmetic only; never read by routing.
+			var side: float = CAR_LANE_OFFSET if j % 2 == 0 else -CAR_LANE_OFFSET
+			var travel_dir: float = 1.0 if j % 2 == 0 else -1.0
+			var pos: float = fposmod(base_pos + _anim_t * speed * travel_dir, length)
+			var car_angle: float = angle if travel_dir > 0.0 else angle + PI
+			var center := a + dir * pos + perp * side
+			_draw_car(center, car_angle, i + j)
 
 
-func _draw_car(center: Vector2, angle: float) -> void:
+func _draw_car(center: Vector2, angle: float, color_index: int = 0) -> void:
 	var half_l := CAR_LENGTH / 2.0
 	var hw := CAR_WIDTH_HALF
+	draw_circle(center + Vector2(0.6, 1.0), hw * 1.3, CAR_SHADOW)
+	var body_color: Color = CAR_COLORS[color_index % CAR_COLORS.size()]
 	# Chamfered corners give a car-like silhouette instead of a plain rectangle.
 	var cl := half_l * 0.55
 	var cw := hw * 0.65
@@ -290,8 +409,7 @@ func _draw_car(center: Vector2, angle: float) -> void:
 		center + Vector2(-cl, hw).rotated(angle),
 		center + Vector2(-half_l, cw).rotated(angle),
 	])
-	draw_colored_polygon(body_corners, CAR_BODY)
-	draw_polyline(body_corners + PackedVector2Array([body_corners[0]]), CAR_OUTLINE, CAR_OUTLINE_W, true)
+	draw_colored_polygon(body_corners, body_color)
 	# Windshield, biased toward the front so travel direction reads at a glance
 	var ws_off := half_l * 0.35
 	var ws_hw := hw * 0.55
