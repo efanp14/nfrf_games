@@ -20,7 +20,7 @@ enum Treatment {
 }
 
 # --- Configuration ---
-@export var total_rounds: int = 6
+@export var total_rounds: int = 3
 @export var treatment: Treatment = Treatment.INDIVIDUAL
 @export var num_ai_commuters: int = 30
 @export var home_work_pair: int = 0
