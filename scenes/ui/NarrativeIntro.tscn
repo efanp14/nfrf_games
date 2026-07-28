@@ -1,0 +1,71 @@
+[gd_scene format=3 uid="uid://dnarrintro001"]
+
+[ext_resource type="Script" path="res://scripts/ui/NarrativeIntro.gd" id="1_narr00"]
+
+[node name="NarrativeIntro" type="CanvasLayer"]
+layer = 4
+script = ExtResource("1_narr00")
+
+[node name="Overlay" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.12, 0.94)
+mouse_filter = 0
+
+[node name="SpeakerLayer" type="Control" parent="."]
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+mouse_filter = 2
+
+[node name="SpeakerIcon" type="TextureRect" parent="SpeakerLayer"]
+unique_name_in_owner = true
+anchor_right = 1.0
+anchor_bottom = 1.0
+expand_mode = 1
+stretch_mode = 5
+mouse_filter = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
+custom_minimum_size = Vector2(560, 0)
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "Welcome to CycleCity"
+theme_override_font_sizes/font_size = 20
+
+[node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="BodyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(504, 0)
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 14
+
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="Spacer" type="Control" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
+size_flags_horizontal = 3
+
+[node name="ContinueButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 0)
+text = "Continue"

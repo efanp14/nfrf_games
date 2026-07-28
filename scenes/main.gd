@@ -11,6 +11,7 @@ extends Node2D
 @onready var pre_survey          = $PreSurvey as PreSurvey
 @onready var main_menu           = $MainMenu as MainMenu
 @onready var consent_screen      = $ConsentScreen as ConsentScreen
+@onready var narrative_intro     = $NarrativeIntro as NarrativeIntro
 
 var _pending_upgrades: Array = []
 var _logger: DataLogger = null
@@ -54,6 +55,7 @@ func _ready() -> void:
 	main_menu.game_starting.connect(_on_game_starting)
 	consent_screen.consent_given.connect(_on_consent_given)
 	consent_screen.consent_declined.connect(_on_consent_declined)
+	narrative_intro.narrative_finished.connect(_on_narrative_finished)
 
 
 func _on_game_starting(treatment: int, num_players: int) -> void:
@@ -92,6 +94,14 @@ func _on_survey_completed(alpha: float, responses: Dictionary) -> void:
 		return
 
 	pre_survey.hide()
+	narrative_intro.show_narrative(_pending_treatment)
+
+
+## Fires once the player(s) have clicked through the welcome + treatment
+## orientation screens (NarrativeIntro) — only then does the game itself
+## actually start, so round_started/city_grid build behind a screen the
+## player has already dismissed rather than behind one still covering it.
+func _on_narrative_finished() -> void:
 	GameManager.start_game(_player_alphas, _pending_treatment)
 	_logger.treatment = int(GameManager.treatment)
 	_logger.on_consent_given(_consent_timestamp_s)
