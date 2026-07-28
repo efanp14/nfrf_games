@@ -205,8 +205,17 @@ func _credits_remaining() -> int:
 func _center_grid() -> void:
 	const HUD_LEFT: float = 240.0
 	const PAD: float      = 20.0
+	# get_bounds() only spans node CENTER positions — roads (half-width),
+	# node shadows/rims, and especially NPC building icons (towers rise up
+	# to ~45px above their node) all draw beyond that. Without this margin
+	# the top/bottom-most roads and buildings get fit flush against the
+	# viewport edge and read as cropped. Growing the bounds before fitting
+	# shrinks the whole city_grid slightly and insets it evenly instead —
+	# the background image is a child of city_grid, so it scales/moves in
+	# lockstep automatically and needs no separate adjustment.
+	const VISUAL_MARGIN: float = 50.0
 	var vp: Vector2 = get_viewport_rect().size
-	var bounds: Rect2 = GameManager.network.get_bounds()
+	var bounds: Rect2 = GameManager.network.get_bounds().grow(VISUAL_MARGIN)
 	var map_w: float = bounds.size.x
 	var map_h: float = bounds.size.y
 	var avail_w: float = vp.x - HUD_LEFT - PAD * 2.0
