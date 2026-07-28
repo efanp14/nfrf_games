@@ -36,9 +36,12 @@ func show_for_link(link_id: String, credits_remaining: int, alpha: float, pendin
 			link.base_time, SafetyDisplay.format(link_safety)]
 
 	# Abstract effect arrows instead of raw stress/time deltas — protected
-	# relief is always stronger than painted, hence the extra ↓.
-	painted_button.text   = "Painted Lane  —  $%d   (stress ↓  time ↓)" % Player.COST_PAINTED_LANE
-	protected_button.text = "Protected Track  —  $%d   (stress ↓↓  time ↓)" % Player.COST_PROTECTED_TRACK
+	# relief is always stronger than painted, hence the extra ↓. Cost is
+	# per-link (scales with the road's length via base_time), not flat.
+	var painted_cost: int   = Player.cost_for_link(link, 1)
+	var protected_cost: int = Player.cost_for_link(link, 2)
+	painted_button.text   = "Painted Lane  —  %s   (stress ↓  time ↓)" % Player.format_dollars(painted_cost)
+	protected_button.text = "Protected Track  —  %s   (stress ↓↓  time ↓)" % Player.format_dollars(protected_cost)
 
 	var level_names := ["No Bike Lane", "Painted Lane", "Protected Track"]
 	var effective_level := pending_level if pending_level >= 0 else link.upgrade_level
@@ -51,20 +54,19 @@ func show_for_link(link_id: String, credits_remaining: int, alpha: float, pendin
 	else:
 		current_label.text = "Current: %s" % level_names[effective_level]
 
-	painted_button.disabled   = effective_level >= 1 or credits_remaining < Player.COST_PAINTED_LANE
-	protected_button.disabled = effective_level >= 2 or credits_remaining < Player.COST_PROTECTED_TRACK
+	painted_button.disabled   = effective_level >= 1 or credits_remaining < painted_cost
+	protected_button.disabled = effective_level >= 2 or credits_remaining < protected_cost
 
 	if pending_level == 0:
 		remove_button.visible = true
 		remove_button.text    = "Cancel Removal"
 	elif effective_level > 0:
 		remove_button.visible = true
-		var refund: int = Player.COST_PAINTED_LANE if effective_level == 1 \
-				else Player.COST_PROTECTED_TRACK
+		var refund: int = Player.cost_for_link(link, effective_level)
 		if pending_level > 0:
-			remove_button.text = "Cancel Upgrade  (+$%d)" % refund
+			remove_button.text = "Cancel Upgrade  (+%s)" % Player.format_dollars(refund)
 		else:
-			remove_button.text = "Remove Upgrade  (+$%d)" % refund
+			remove_button.text = "Remove Upgrade  (+%s)" % Player.format_dollars(refund)
 	else:
 		remove_button.visible = false
 

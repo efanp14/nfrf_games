@@ -89,8 +89,7 @@ func submit_upgrades(upgrade_requests: Array) -> void:
 		if level == 0:
 			var link: CityNetwork.Link = network.links.get(req["link_id"])
 			if link and link.upgrade_level > 0:
-				var refund: int = Player.COST_PAINTED_LANE if link.upgrade_level == 1 \
-								  else Player.COST_PROTECTED_TRACK
+				var refund: int = Player.cost_for_link(link, link.upgrade_level)
 				network.downgrade_link(req["link_id"])
 				human_player.credits_remaining = mini(
 					human_player.credits_remaining + refund,

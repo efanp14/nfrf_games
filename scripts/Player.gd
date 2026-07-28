@@ -27,20 +27,54 @@ class_name Player
 ## cautious (β=0.1) reads 95 — on every route, not just short ones.
 const SAFETY_TARGET_DEFICIT: float = 50.0
 
-# --- Upgrade Cost Constants ---
-## Defined here (not in the network) because cost is a game/economy rule.
+# --- Upgrade Cost ---
+## Defined here (not in the network) because cost is a game/economy rule,
+## even though it reads the link's base_time. base_time isn't a real-world
+## duration on its own — it's derived from the link's on-screen pixel length
+## (see CityNetwork._build_network) — so to get a real-world $ cost we first
+## convert it to a real-world distance, then price that distance per metre.
 ##
-## Flat per-upgrade cost in dollars — every link costs the same regardless
-## of its actual on-screen length; the game does not price per metre.
-## The numbers themselves are grounded in real PER-LINEAR-METRE construction
-## pricing for a Medicine-Hat-like city, applied to a representative run
-## length per tier, then rounded to clean numbers:
-##   painted:   ~$60/linear metre  × ~100m run  ≈ $6,000  → rounded to $100
-##   protected: ~$200/linear metre (quick-build) × ~300m run ≈ $60,000 → rounded to $300
-## Only the ratio (1:3) and relative scale carry over from that real-world
-## per-metre basis — the in-game constants below are flat totals, not rates.
-const COST_PAINTED_LANE: int = 100   # Dollars
-const COST_PROTECTED_TRACK: int = 300
+## Distance conversion (owner reference, 3 Aug 2026): a 14-minute bike ride
+## is about 5 km, so CYCLING_SPEED_M_PER_MIN = 5000/14 ≈ 357 m/min (≈21.4
+## km/h).
+##
+## Per-metre rates: originally $60/m painted, $300/m protected (owner
+## estimate, 3 Aug 2026 — a 5x ratio). Re-tuned 4 Aug 2026 (owner: "make
+## protected less expensive and painted more expensive so protected is 3.5x
+## the price of painted") — both numbers move, not just the ratio: their
+## average ($180/m) is held fixed so this reads as the two prices converging
+## toward each other rather than the whole district getting cheaper or
+## pricier. Painted 60 -> 80, protected 300 -> 280.
+##
+## These are real construction-cost figures, not scaled down to fit a small
+## play budget — at this network's link lengths (~1–5.4 km) a single upgrade
+## costs tens of thousands to low millions of dollars; credits_per_round
+## below is set independently to match.
+const CYCLING_SPEED_M_PER_MIN: float = 5000.0 / 14.0
+const COST_PER_METRE_PAINTED: float = 80.0
+const COST_PER_METRE_PROTECTED: float = COST_PER_METRE_PAINTED * 3.5
+
+## Dollar cost to buy `level` (1 = painted, 2 = protected) on `link`,
+## rounded to the nearest $1,000 — at real-construction-cost scale, nearest
+## $5 no longer reads as a clean number.
+static func cost_for_link(link: CityNetwork.Link, level: int) -> int:
+	var distance_m: float = link.base_time * CYCLING_SPEED_M_PER_MIN
+	var rate: float = COST_PER_METRE_PAINTED if level == 1 else COST_PER_METRE_PROTECTED
+	return int(round(distance_m * rate / 1000.0)) * 1000
+
+
+## "$1,100,000" instead of "$1100000" — at real-construction-cost scale
+## (six/seven figures per link), comma grouping is needed for the number to
+## read cleanly at a glance. GDScript's String % formatting has no built-in
+## thousands separator, hence this helper.
+static func format_dollars(amount: int) -> String:
+	var digits := str(absi(amount))
+	var grouped := ""
+	for i in range(digits.length()):
+		if i > 0 and (digits.length() - i) % 3 == 0:
+			grouped += ","
+		grouped += digits[i]
+	return ("-$" if amount < 0 else "$") + grouped
 
 # --- Identity ---
 var player_id: String
@@ -53,9 +87,19 @@ var work: Vector2i
 var alpha: float = 1.0
 
 # --- Budget ---
-## 600/round affords at most 2 protected upgrades (600 / 300), or a mix of
-## painted + protected — the intended tight trade-off.
-var credits_per_round: int = 600
+## Rescaled 3 Aug 2026 alongside the move to real-construction-cost pricing
+## (see cost_for_link) — the old $600 was sized against ~$300 as a "typical"
+## protected-upgrade cost; at real prices the network's median protected
+## upgrade is ~$546,000 (still true as of 4 Aug 2026 — checked against the
+## current 46-node/69-link network, median unchanged despite the west
+## extension since the new links span a similar length range). 2x that
+## median ("roughly 2 typical protected upgrades per round") works out to
+## ~$1.1M, which is what this was set to. Bumped to a flat $2,000,000 (owner,
+## 4 Aug 2026, "for now" — an explicit override past the computed ratio, not
+## a re-derivation) — affords ~3-4 typical protected upgrades per round
+## instead of 2. Revisit if the loosened budget needs to come back down to
+## the 2-upgrade trade-off feel.
+var credits_per_round: int = 2000000
 var credits_remaining: int = 0
 
 # --- Route Cache ---
@@ -97,7 +141,10 @@ func start_round(round_num: int) -> void:
 ## Attempt to purchase an upgrade for a link.
 ## Returns true on success, false if insufficient credits or invalid upgrade.
 func buy_upgrade(link_id: String, upgrade_level: int, network: CityNetwork) -> bool:
-	var cost: int = COST_PAINTED_LANE if upgrade_level == 1 else COST_PROTECTED_TRACK
+	var link: CityNetwork.Link = network.links.get(link_id)
+	if link == null:
+		return false
+	var cost: int = Player.cost_for_link(link, upgrade_level)
 
 	# Validate: can we afford it?
 	if credits_remaining < cost:

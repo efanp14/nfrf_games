@@ -193,11 +193,9 @@ func _credits_remaining() -> int:
 			continue
 		if req["level"] == 0:
 			if link.upgrade_level > 0:
-				net_spent -= Player.COST_PAINTED_LANE if link.upgrade_level == 1 \
-						else Player.COST_PROTECTED_TRACK
+				net_spent -= Player.cost_for_link(link, link.upgrade_level)
 		elif req["level"] > link.upgrade_level:
-			net_spent += Player.COST_PAINTED_LANE if req["level"] == 1 \
-					else Player.COST_PROTECTED_TRACK
+			net_spent += Player.cost_for_link(link, req["level"])
 	return mini(
 		GameManager.human_player.credits_per_round,
 		GameManager.human_player.credits_per_round - net_spent

@@ -42,13 +42,13 @@ func _sync_initial_state() -> void:
 	if not GameManager.game_running:
 		return
 	round_label.text  = "Round %d / %d" % [GameManager.current_round, GameManager.total_rounds]
-	budget_label.text = "Budget: $%d"   % GameManager.human_player.credits_per_round
+	budget_label.text = "Budget: " + Player.format_dollars(GameManager.human_player.credits_per_round)
 	city_panel.visible = GameManager.treatment != GameManager.Treatment.INDIVIDUAL
 
 
 func _on_round_started(round_num: int, budget: int) -> void:
 	round_label.text       = "Round %d / %d" % [round_num, GameManager.total_rounds]
-	budget_label.text      = "Budget: $%d"   % budget
+	budget_label.text      = "Budget: " + Player.format_dollars(budget)
 	city_panel.visible     = GameManager.treatment != GameManager.Treatment.INDIVIDUAL
 	end_round_button.disabled = false
 
@@ -60,8 +60,8 @@ func _on_round_ended(_round_num: int, results: Dictionary) -> void:
 
 
 ## Time stays a raw number (travel time + money are the only raw numbers
-## shown to participants); safety is emoji-only unless debug mode is on
-## (SafetyDisplay.format handles that).
+## shown to participants); safety is star-rating-only unless debug mode is
+## on (SafetyDisplay.format handles that).
 func _render_personal(results: Dictionary) -> void:
 	var players_data: Array = results.get("players", [])
 	if players_data.size() <= 1:
@@ -100,4 +100,4 @@ func _on_game_over(_final: Dictionary) -> void:
 
 
 func update_budget(credits_remaining: int) -> void:
-	budget_label.text = "Budget: $%d" % credits_remaining
+	budget_label.text = "Budget: " + Player.format_dollars(credits_remaining)
