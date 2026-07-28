@@ -219,7 +219,10 @@ func _on_segment_clicked(link_id: String) -> void:
 ## Spawns a bike per human player and tweens it along their current route,
 ## then resolves once the longest one finishes. Called by main.gd right
 ## before the round summary is shown, so players see the effect of their
-## upgrade before reading the numbers.
+## upgrade before reading the numbers. Once the player(s) arrive, the
+## simulated residents make their own commute (home → work) on bikes too —
+## sequenced after, not simultaneous, so it reads as two distinct beats
+## instead of one crowded blur of every bike on the map at once.
 func play_round_end_animation() -> void:
 	var last_tween: Tween = null
 	for i in range(GameManager.human_players.size()):
@@ -231,6 +234,17 @@ func play_round_end_animation() -> void:
 			last_tween = t
 	if last_tween:
 		await last_tween.finished
+
+	var npc_last_tween: Tween = null
+	for commuter in GameManager.ai_commuters:
+		var route: Dictionary = GameManager.network.find_route(
+				commuter["start"], commuter["goal"], commuter["alpha"])
+		var path: Array = route.get("path", [])
+		var t := _spawn_bike(path, NodeMarker.NPC_HOME_COLOR)
+		if t:
+			npc_last_tween = t
+	if npc_last_tween:
+		await npc_last_tween.finished
 
 
 func _spawn_bike(path: Array, bike_color: Color) -> Tween:
