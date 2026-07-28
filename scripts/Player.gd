@@ -7,9 +7,25 @@ class_name Player
 ## Spec formula is Safety = 100 - Σ(stress weights), but a literal unscaled
 ## sum barely moves across the whole unimproved→protected range (confirmed
 ## by owner sign-off 7 Jul 2026 — literal formula produced <2pt swings).
-## This scale factor is what makes upgrades visibly register in the 0-100
-## score, emoji/face display, and Prospect-Theory deltas.
-const SAFETY_STRESS_SCALE: float = 5.0
+##
+## A single FLAT scale on the raw stress sum (tried first: SCALE=18) cannot
+## simultaneously (a) make every unimproved route read ≤50 and (b) let a
+## fully protected route read ≥70 for every personality — routes vary too
+## much in total length/stress for one flat multiplier to fit both ends at
+## once (proven, not just missed by tuning: the scale strict enough for (a)
+## makes even a confident rider's 40% protected relief (β=0.6) unable to
+## climb back above "safe" on the network's longest/highest-stress routes).
+##
+## Fix: normalize each route's stress sum against that SAME route's own
+## fully-unimproved baseline (β=1 on every link it uses), so the score
+## reflects "how much of THIS route's own starting risk have I removed" —
+## independent of whether the route happens to be long/short, busy/quiet.
+## ratio=1.0 (still fully unimproved) always reads the same regardless of
+## route, and ratio=β (fully protected, uniform β across the route) always
+## reads 100 - β×DEFICIT, so a confident rider fully protected (β=0.6)
+## reads 100-0.6×50=70 (right at "good"), average (β=0.2) reads 90, and
+## cautious (β=0.1) reads 95 — on every route, not just short ones.
+const SAFETY_TARGET_DEFICIT: float = 50.0
 
 # --- Upgrade Cost Constants ---
 ## Defined here (not in the network) because cost is a game/economy rule.
@@ -132,21 +148,26 @@ func _compute_safety(route: Dictionary, network: CityNetwork) -> float:
 ## Pure/static version of the safety formula, usable for any rider (human
 ## player or simulated resident) without needing a Player instance — e.g.
 ## for city-wide average safety in GameManager._compute_city_metrics().
-## Safety = 100 - sum(beta * stress_score * base_time) along path.
-## beta is the infrastructure relief; on protected track it depends on the
-## rider's own alpha/personality, so upgrades reduce the stress contribution
-## of each link by an amount that varies by rider.
+## Safety = 100 - ratio * SAFETY_TARGET_DEFICIT, where ratio is this route's
+## current stress sum divided by what that SAME route's stress sum would be
+## fully unimproved (see SAFETY_TARGET_DEFICIT comment for why it's
+## normalized this way rather than a flat scale on the raw sum).
 static func route_safety(route: Dictionary, network: CityNetwork, rider_alpha: float) -> float:
 	if route.is_empty() or network == null:
 		return 100.0
 	var stress_sum: float = 0.0
+	var baseline_sum: float = 0.0
 	var path: Array = route.get("path", [])
 	for i in range(path.size() - 1):
 		var link_id: String = "%d,%d-%d,%d" % [path[i].x, path[i].y, path[i+1].x, path[i+1].y]
 		if network.links.has(link_id):
 			var link: CityNetwork.Link = network.links[link_id]
 			stress_sum += link.effective_beta(rider_alpha) * link.stress_score * link.base_time
-	return maxf(0.0, 100.0 - stress_sum * SAFETY_STRESS_SCALE)
+			baseline_sum += link.stress_score * link.base_time   # same route, fully unimproved
+	if baseline_sum <= 0.0:
+		return 100.0
+	var ratio: float = stress_sum / baseline_sum
+	return maxf(0.0, 100.0 - ratio * SAFETY_TARGET_DEFICIT)
 
 
 ## Prospect Theory helper: time change relative to the player's personal baseline.
