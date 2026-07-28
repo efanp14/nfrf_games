@@ -217,6 +217,30 @@ static func route_safety(route: Dictionary, network: CityNetwork, rider_alpha: f
 	return maxf(0.0, 100.0 - ratio * SAFETY_TARGET_DEFICIT)
 
 
+## Separate scale from SAFETY_STRESS_SCALE because this previews a single
+## link in isolation — no route length to sum stress-over-time across, so
+## it needs its own calibration. Recalibrated 4 Aug 2026 after the
+## network-wide stress rewrite raised the floor from 0.15 to 0.40 (average
+## 0.60) — the old scale (210) was tuned against that old 0.15 floor, so
+## stress x 210 now exceeds 100 for nearly every unimproved link, clamping
+## every single-link preview to 0 stars regardless of which road it was
+## (reported by owner: "all roads are currently zero stars"). New scale
+## (100) means safety = 100 x (1 - stress), so the network's lowest-stress
+## link (0.44) reads as exactly 3/5 stars unimproved — same design intent as
+## before (never a full 5/5 while unimproved, now generalized to "never
+## above 3/5" given the new higher floor), while the average link (~0.60)
+## reads 2/5 and the worst (~0.92) reads 0/5. Verified by script against
+## every link in the network, not just eyeballed.
+const LINK_PREVIEW_STRESS_SCALE: float = 100.0
+
+## Preview safety score for a single link in isolation, used by the upgrade
+## popup before a route ever touches it (so a player can see how upgrading
+## THIS link would change ITS safety, independent of their current route).
+static func link_preview_safety(link: CityNetwork.Link, rider_alpha: float) -> float:
+	var stress_weight: float = link.effective_beta(rider_alpha) * link.stress_score
+	return maxf(0.0, 100.0 - stress_weight * LINK_PREVIEW_STRESS_SCALE)
+
+
 ## Prospect Theory helper: time change relative to the player's personal baseline.
 ## Positive = gain (faster), Negative = loss (slower).
 ## Used by the analytics layer; not needed for core game flow.

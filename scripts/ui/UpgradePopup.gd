@@ -27,7 +27,7 @@ func show_for_link(link_id: String, credits_remaining: int, alpha: float, pendin
 	_current_link_id = link_id
 	var link: CityNetwork.Link = GameManager.network.links[link_id]
 
-	var link_safety := 100.0 * (1.0 - link.effective_beta(alpha) * link.stress_score)
+	var link_safety := Player.link_preview_safety(link, alpha)
 	if SafetyDisplay.debug_mode:
 		link_info_label.text = "Time: %.1f min  |  Stress: %.2f  |  Safety: %d" % [
 			link.base_time, link.stress_score, int(link_safety)]
