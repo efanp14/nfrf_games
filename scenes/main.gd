@@ -31,7 +31,7 @@ const CHAT_PANEL_ENABLED := false
 
 
 func _enter_tree() -> void:
-	RenderingServer.set_default_clear_color(Color(0.96, 0.94, 0.91))
+	RenderingServer.set_default_clear_color(Color(0.965, 0.945, 0.90))
 	_logger = DataLogger.new()
 	GameManager.add_child(_logger)
 	GameManager.round_ended.connect(_logger.on_round_ended)

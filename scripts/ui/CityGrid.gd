@@ -11,6 +11,48 @@ var _markers: Dictionary = {}
 
 const LinkSegmentScene := preload("res://scenes/components/LinkSegment.tscn")
 const NodeMarkerScene  := preload("res://scenes/components/NodeMarker.tscn")
+const BackgroundTexture := preload("res://assets/images/background new.png")
+const ProceduralBackgroundScript := preload("res://scripts/ui/ProceduralBackground.gd")
+
+## Two interchangeable backgrounds:
+##  - IMAGE: the illustrated art (background new.png), aligned via BG_TRANSFORM
+##    below. More detail/atmosphere, but it's hand/AI-drawn art fit to our
+##    grid after the fact, so alignment is close but not mathematically exact.
+##  - PROCEDURAL: flat-vector buildings/parks generated directly from the
+##    network's own node/link positions (see ProceduralBackground.gd) — always
+##    perfectly aligned since it's built from the same coordinates as the
+##    roads, but plainer/less detailed.
+## Switch by changing BACKGROUND_MODE; nothing else needs to change.
+enum BackgroundMode { NONE, IMAGE, PROCEDURAL }
+const BACKGROUND_MODE := BackgroundMode.PROCEDURAL
+
+## Aligns the decorative background image with our actual node/road layout.
+## A 2-point (home/work icon) fit left visible drift in the upper-right of
+## the map — the image isn't a mathematically precise scaled copy of our
+## grid, so anchoring only two far-apart points let error accumulate
+## elsewhere. Fixed by least-squares fitting a full affine transform (scale
+## + shear + translation, solved for via numpy) against 23 correspondences:
+## the image's own house/briefcase icons (nodes 1/20) plus its "school"
+## grad-cap icon (node 15), plus 20 more found by detecting the image's own
+## intersection-circle blobs (dark-pixel erosion + connected components)
+## and matching them to nodes via a rough preliminary fit. Residuals after
+## the full fit are ~1–14px on a 24px-wide road — much tighter than the old
+## 2-point version, especially away from the home/work diagonal.
+## (The image's coffee-cup icon was tried as a 4th anchor but its predicted
+## position was ~200px off any real node — it's decorative filler between
+## nodes 5 and 6, not meant to mark node 4 — so it's excluded.)
+## Recompute this transform (see git history for the fitting script) if the
+## background image or node layout changes.
+const BG_TRANSFORM := Transform2D(
+	Vector2(0.559452, -0.006345),
+	Vector2(-0.001913, 0.550042),
+	Vector2(141.406, 104.130)
+)
+
+## Manual fine-tune on top of the fitted transform above, in case it still
+## needs a small nudge. Positive X = image moves right, negative Y = image
+## moves up.
+const BG_MANUAL_OFFSET := Vector2.ZERO
 
 ## Round-end "moving bikes" animation — one bike per human player, traced
 ## along their newly-recalculated route. Cosmetic only.
@@ -32,7 +74,26 @@ func _build() -> void:
 	var net    := GameManager.network
 	var num_players: int = GameManager.human_players.size()
 
-	# --- Draw the Alder River behind everything ---
+	# --- Background (furthest back, behind roads/nodes/everything) ---
+	match BACKGROUND_MODE:
+		BackgroundMode.IMAGE:
+			if net.node_positions.has(Vector2i(1, 0)):
+				var bg := Sprite2D.new()
+				bg.texture = BackgroundTexture
+				bg.centered = false
+				bg.transform = BG_TRANSFORM
+				bg.position += BG_MANUAL_OFFSET
+				add_child(bg)
+				move_child(bg, 0)
+		BackgroundMode.PROCEDURAL:
+			var proc_bg: Node2D = ProceduralBackgroundScript.new()
+			proc_bg.setup(net)
+			add_child(proc_bg)
+			move_child(proc_bg, 0)
+		BackgroundMode.NONE:
+			pass
+
+	# --- Draw the river behind everything (no-op: this topology has none) ---
 	if net.river_points.size() > 1:
 		var river := Line2D.new()
 		river.points        = net.river_points
