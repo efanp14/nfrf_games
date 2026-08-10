@@ -28,12 +28,15 @@ func show_for_link(link_id: String, credits_remaining: int, alpha: float, pendin
 	var link: CityNetwork.Link = GameManager.network.links[link_id]
 
 	var link_safety := Player.link_preview_safety(link, alpha)
+	# effective_time, not base_time — an already-upgraded road is genuinely
+	# quicker to ride, so the popup must agree with the time the player sees
+	# on their route rather than quoting the unimproved figure.
 	if SafetyDisplay.debug_mode:
 		link_info_label.text = "Time: %.1f min  |  Stress: %.2f  |  Safety: %d" % [
-			link.base_time, link.stress_score, int(link_safety)]
+			link.effective_time(), link.stress_score, int(link_safety)]
 	else:
 		link_info_label.text = "Time: %.1f min  |  Safety: %s" % [
-			link.base_time, SafetyDisplay.format(link_safety)]
+			link.effective_time(), SafetyDisplay.format(link_safety)]
 
 	# Abstract effect arrows instead of raw stress/time deltas — protected
 	# relief is always stronger than painted, hence the extra ↓. Cost is

@@ -38,29 +38,41 @@ const SAFETY_TARGET_DEFICIT: float = 50.0
 ## is about 5 km, so CYCLING_SPEED_M_PER_MIN = 5000/14 ≈ 357 m/min (≈21.4
 ## km/h).
 ##
-## Per-metre rates: originally $60/m painted, $300/m protected (owner
-## estimate, 3 Aug 2026 — a 5x ratio). Re-tuned 4 Aug 2026 (owner: "make
-## protected less expensive and painted more expensive so protected is 3.5x
-## the price of painted") — both numbers move, not just the ratio: their
-## average ($180/m) is held fixed so this reads as the two prices converging
-## toward each other rather than the whole district getting cheaper or
-## pricier. Painted 60 -> 80, protected 300 -> 280.
+## Per-metre rates come from the July 2026 data requirements document, which
+## sources them from a consultant estimate on a Calgary Complete Streets
+## basis: $60/m painted, $200/m protected. (Calgary is the costing basis
+## only — no real place name is ever shown to a participant.)
 ##
-## These are real construction-cost figures, not scaled down to fit a small
-## play budget — at this network's link lengths (~1–5.4 km) a single upgrade
-## costs tens of thousands to low millions of dollars; credits_per_round
-## below is set independently to match.
+## History: $60/$300 (3 Aug 2026, 5x ratio) -> $80/$280 (4 Aug 2026, owner:
+## "protected is 3.5x the price of painted") -> $60/$200 here. NOTE that the
+## document's figures put protected at 3.33x painted, slightly narrower than
+## the 3.5x the owner asked for on 4 Aug; the document's numbers were taken
+## as authoritative since they are externally sourced and defensible in
+## write-up, but the ratio did move.
+##
+## The document also groups links into three representative lengths (150 /
+## 300 / 450 m). Those are NOT used: this network's links run 929-5,357 m, so
+## none fall in that range, and the decision was to keep real per-link
+## lengths and adopt only the unit rates. Cost therefore stays continuous
+## (length x rate) rather than bucketed into three flat prices.
 const CYCLING_SPEED_M_PER_MIN: float = 5000.0 / 14.0
-const COST_PER_METRE_PAINTED: float = 80.0
-const COST_PER_METRE_PROTECTED: float = COST_PER_METRE_PAINTED * 3.5
+const COST_PER_METRE_PAINTED: float = 60.0
+const COST_PER_METRE_PROTECTED: float = 200.0
 
 ## Dollar cost to buy `level` (1 = painted, 2 = protected) on `link`,
 ## rounded to the nearest $1,000 — at real-construction-cost scale, nearest
 ## $5 no longer reads as a clean number.
 static func cost_for_link(link: CityNetwork.Link, level: int) -> int:
-	var distance_m: float = link.base_time * CYCLING_SPEED_M_PER_MIN
 	var rate: float = COST_PER_METRE_PAINTED if level == 1 else COST_PER_METRE_PROTECTED
-	return int(round(distance_m * rate / 1000.0)) * 1000
+	return int(round(link_length_m(link) * rate / 1000.0)) * 1000
+
+
+## Real-world length of a link in metres, converted from its base_time by the
+## CYCLING_SPEED_M_PER_MIN figure above. Split out of cost_for_link() because
+## length is also recorded per upgrade in the research log, so analysis can
+## compare/price links without re-deriving the conversion.
+static func link_length_m(link: CityNetwork.Link) -> float:
+	return link.base_time * CYCLING_SPEED_M_PER_MIN
 
 
 ## "$1,100,000" instead of "$1100000" — at real-construction-cost scale
@@ -87,26 +99,57 @@ var work: Vector2i
 var alpha: float = 1.0
 
 # --- Budget ---
-## Rescaled 3 Aug 2026 alongside the move to real-construction-cost pricing
-## (see cost_for_link) — the old $600 was sized against ~$300 as a "typical"
-## protected-upgrade cost; at real prices the network's median protected
-## upgrade is ~$546,000 (still true as of 4 Aug 2026 — checked against the
-## current 46-node/69-link network, median unchanged despite the west
-## extension since the new links span a similar length range). 2x that
-## median ("roughly 2 typical protected upgrades per round") works out to
-## ~$1.1M, which is what this was set to. Bumped to a flat $2,000,000 (owner,
-## 4 Aug 2026, "for now" — an explicit override past the computed ratio, not
-## a re-derivation) — affords ~3-4 typical protected upgrades per round
-## instead of 2. Revisit if the loosened budget needs to come back down to
-## the 2-upgrade trade-off feel.
-var credits_per_round: int = 2000000
+## Sized against the network's MEDIAN protected upgrade, so the round budget
+## keeps a consistent "how many typical upgrades can I buy" feel whenever the
+## unit rates move. The owner's standing intent (4 Aug 2026) is **3-4 typical
+## protected upgrades per round** — enough to make painted-vs-protected a real
+## trade-off without letting a player simply buy everything.
+##
+## History: $600 -> $1.1M (3 Aug 2026, when pricing moved to real
+## construction costs) -> flat $2,000,000 (4 Aug 2026, owner override to
+## reach the 3-4 feel at the then-current $80/$280 rates).
+##
+## Re-derived here after rates dropped to $60/$200 (see cost_for_link). At
+## those rates the median protected upgrade is $364,000, so the old
+## $2,000,000 had drifted to 5.5 upgrades/round — well past the intended 3-4,
+## because the budget had been left untouched while prices fell. 3.5x the
+## median lands at $1,274,000, rounded to $1,300,000 = 3.6 median protected
+## upgrades per round.
+##
+## Deliberately still above the network's most expensive single protected
+## upgrade ($1,071,000, the 5,357 m link), so no link is ever impossible to
+## protect within one round — a budget below that would silently make the
+## longest roads unbuyable rather than merely expensive.
+##
+## A constant as well as a default, so participant-facing text can quote the
+## budget without hardcoding it a second time. The main menu previously carried
+## its own literal and was left saying $2,000,000 after this figure was
+## re-derived, which is exactly the drift a single definition prevents.
+const DEFAULT_CREDITS_PER_ROUND: int = 1300000
+
+var credits_per_round: int = DEFAULT_CREDITS_PER_ROUND
 var credits_remaining: int = 0
 
 # --- Route Cache ---
 ## Populated each round by GameManager after network updates.
 var current_route: Dictionary = {}   # { path, total_time, total_impedance }
-var baseline_time: float = 0.0         # rolls forward each round (Prospect Theory per-round delta)
-var initial_baseline_time: float = 0.0 # set once at game start; used for end-of-game comparison
+
+## Prospect Theory reference point — **STATIC** (owner, 3 Aug 2026).
+## Every round's gain/loss is measured against the Round-1 baseline, i.e. the
+## untouched network, NOT against the previous round. So a player who improves
+## their commute in Round 1 and then does nothing in Round 2 still sees the
+## accumulated gain, rather than "no change".
+##
+## These are set once at game start and never move. `baseline_time` used to be
+## overwritten at the end of every round (making the reference dynamic); that
+## roll-forward has been removed. It is kept as a separate field from
+## `initial_baseline_time` only because both names are already referenced
+## elsewhere — under a static reference the two always hold the same value.
+var baseline_time: float = 0.0
+var initial_baseline_time: float = 0.0
+var initial_baseline_safety: float = 0.0
+var initial_baseline_stress: float = 0.0
+var initial_baseline_impedance: float = 0.0
 
 # --- Round Log ---
 ## Each entry: { round: int, upgrades: Array, time_before: float, time_after: float, credits_spent: int }
@@ -132,9 +175,13 @@ func start_round(round_num: int) -> void:
 	round_log.append({
 		"round": round_num,
 		"upgrades": [],
+		"removals": [],
 		"time_before": current_route.get("total_time", 0.0),
 		"time_after": 0.0,
 		"credits_spent": 0,
+		# Recorded explicitly rather than left to be re-derived as
+		# spent + remaining, which refunds can make ambiguous.
+		"budget_available": credits_per_round,
 	})
 
 
@@ -166,7 +213,14 @@ func buy_upgrade(link_id: String, upgrade_level: int, network: CityNetwork) -> b
 	# never personally use (self- vs. other-oriented investment).
 	var is_own_route: bool = Player.route_contains_link(current_route, link_id)
 	var entry: Dictionary = round_log.back()
-	entry["upgrades"].append({ "link": link_id, "level": upgrade_level, "cost": cost, "own_route": is_own_route })
+	entry["upgrades"].append({
+		"link": link_id,
+		"level": upgrade_level,
+		"cost": cost,
+		"own_route": is_own_route,
+		"length_m": link_length_m(link),
+		"base_time_min": link.base_time,
+	})
 	entry["credits_spent"] += cost
 	if is_own_route:
 		entry["own_route_spent"] = entry.get("own_route_spent", 0) + cost
@@ -174,6 +228,21 @@ func buy_upgrade(link_id: String, upgrade_level: int, network: CityNetwork) -> b
 		entry["other_route_spent"] = entry.get("other_route_spent", 0) + cost
 
 	return true
+
+
+## Records a confirmed removal of an already-built upgrade. Removals are
+## applied by GameManager via CityNetwork.downgrade_link() rather than through
+## buy_upgrade(), so without this they left no trace in the round log at all.
+## Kept in its own array rather than appended to "upgrades" so the existing
+## upgrades schema — and every metric derived from it — stays unchanged.
+func record_downgrade(link_id: String, from_level: int, refund: int, link: CityNetwork.Link) -> void:
+	round_log.back()["removals"].append({
+		"link": link_id,
+		"from_level": from_level,
+		"refund": refund,
+		"length_m": link_length_m(link),
+		"base_time_min": link.base_time,
+	})
 
 
 ## Finalise the round after routes are recalculated.
@@ -200,21 +269,58 @@ func _compute_safety(route: Dictionary, network: CityNetwork) -> float:
 ## fully unimproved (see SAFETY_TARGET_DEFICIT comment for why it's
 ## normalized this way rather than a flat scale on the raw sum).
 static func route_safety(route: Dictionary, network: CityNetwork, rider_alpha: float) -> float:
-	if route.is_empty() or network == null:
+	var baseline_sum: float = route_stress_unimproved(route, network)
+	if baseline_sum <= 0.0:
 		return 100.0
-	var stress_sum: float = 0.0
-	var baseline_sum: float = 0.0
+	var ratio: float = route_stress(route, network, rider_alpha) / baseline_sum
+	return maxf(0.0, 100.0 - ratio * SAFETY_TARGET_DEFICIT)
+
+
+## Raw, unnormalized stress exposure along a route: Σ(β × base_stress ×
+## base_time). This is the "total route stress" the research log records
+## before and after every round — deliberately distinct from the 0-100 safety
+## score above, which normalizes this same figure against the route's own
+## unimproved baseline so it reads consistently across long and short
+## commutes. Analysis needs the raw sum too, hence both.
+static func route_stress(route: Dictionary, network: CityNetwork, rider_alpha: float) -> float:
+	return _stress_sum(route, network, rider_alpha, false)
+
+
+## The same sum with every link forced to β = 1 (fully unimproved) — the
+## denominator route_safety() normalizes against.
+static func route_stress_unimproved(route: Dictionary, network: CityNetwork) -> float:
+	return _stress_sum(route, network, 0.0, true)
+
+
+static func _stress_sum(route: Dictionary, network: CityNetwork, rider_alpha: float, unimproved: bool) -> float:
+	if route.is_empty() or network == null:
+		return 0.0
+	var total: float = 0.0
 	var path: Array = route.get("path", [])
 	for i in range(path.size() - 1):
 		var link_id: String = "%d,%d-%d,%d" % [path[i].x, path[i].y, path[i+1].x, path[i+1].y]
 		if network.links.has(link_id):
 			var link: CityNetwork.Link = network.links[link_id]
-			stress_sum += link.effective_beta(rider_alpha) * link.stress_score * link.base_time
-			baseline_sum += link.stress_score * link.base_time   # same route, fully unimproved
-	if baseline_sum <= 0.0:
-		return 100.0
-	var ratio: float = stress_sum / baseline_sum
-	return maxf(0.0, 100.0 - ratio * SAFETY_TARGET_DEFICIT)
+			var beta: float = 1.0 if unimproved else link.effective_beta(rider_alpha)
+			# Weighted by base_time, NOT effective_time: stress exposure scales
+			# with the physical length of road ridden, not with how fast the
+			# infrastructure lets you cover it. Using effective_time here would
+			# double-count the upgrade — once as reduced stress via beta, again
+			# as reduced exposure — and would shift the safety score's meaning.
+			total += beta * link.stress_score * link.base_time
+	return total
+
+
+## Canonical link IDs along a route, in travel order — the "links included in
+## each route" the research log records before and after every round. Uses
+## canonical (direction-independent) IDs so a route's links join directly
+## against upgrade records no matter which way the rider traversed them.
+static func route_link_ids(route: Dictionary) -> Array:
+	var ids: Array = []
+	var path: Array = route.get("path", [])
+	for i in range(path.size() - 1):
+		ids.append(CityNetwork.canonical_link_id(path[i], path[i + 1]))
+	return ids
 
 
 ## Separate scale from SAFETY_STRESS_SCALE because this previews a single
@@ -241,9 +347,8 @@ static func link_preview_safety(link: CityNetwork.Link, rider_alpha: float) -> f
 	return maxf(0.0, 100.0 - stress_weight * LINK_PREVIEW_STRESS_SCALE)
 
 
-## Prospect Theory helper: time change relative to the player's personal baseline.
-## Positive = gain (faster), Negative = loss (slower).
-## Used by the analytics layer; not needed for core game flow.
+## Prospect Theory delta: time change against the STATIC Round-1 baseline.
+## Positive = gain (faster than at the start), negative = loss (slower).
 func time_delta_from_baseline() -> float:
 	return baseline_time - current_route.get("total_time", baseline_time)
 
@@ -298,7 +403,9 @@ func export_log() -> Array:
 			"round": entry["round"],
 			"time_before": entry["time_before"],
 			"time_after": entry["time_after"],
+			"budget_available": entry.get("budget_available", credits_per_round),
 			"credits_spent": entry["credits_spent"],
 			"upgrades": JSON.stringify(entry["upgrades"]),
+			"removals": JSON.stringify(entry.get("removals", [])),
 		})
 	return rows

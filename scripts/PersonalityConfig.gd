@@ -8,9 +8,15 @@ const ALPHA_CAUTIOUS:  float = 3.0
 const ALPHA_AVERAGE:   float = 1.5
 const ALPHA_CONFIDENT: float = 0.4
 
-## Pre-survey mean(Q5..Q8) thresholds that select a personality type.
+## Thresholds on the mean of the four attitude items in the opening survey
+## (SurveyQuestions.ALPHA_KEYS, official Q8 to Q11) that select a personality
+## type.
 const SURVEY_MEAN_CAUTIOUS_MAX:  float = 2.5   # mean < 2.5  -> Cautious
 const SURVEY_MEAN_CONFIDENT_MIN: float = 3.5   # mean > 3.5  -> Confident
+
+const NAME_CAUTIOUS:  String = "cautious"
+const NAME_AVERAGE:   String = "average"
+const NAME_CONFIDENT: String = "confident"
 
 ## Protected-lane beta (infrastructure relief), keyed by the cyclist's
 ## personality — not by road stress. Painted-lane beta stays stress-derived
@@ -27,6 +33,17 @@ static func alpha_for_survey_mean(mean: float) -> float:
 	elif mean > SURVEY_MEAN_CONFIDENT_MIN:
 		return ALPHA_CONFIDENT
 	return ALPHA_AVERAGE
+
+
+## The personality label behind an alpha, for the research log. Derived rather
+## than stored separately so the label can never disagree with the value that
+## actually drove routing.
+static func personality_name_for_alpha(alpha: float) -> String:
+	if is_equal_approx(alpha, ALPHA_CAUTIOUS):
+		return NAME_CAUTIOUS
+	if is_equal_approx(alpha, ALPHA_CONFIDENT):
+		return NAME_CONFIDENT
+	return NAME_AVERAGE
 
 
 ## Every alpha in play is assigned from exactly one of the three constants

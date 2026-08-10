@@ -41,6 +41,30 @@ class Link:
 		stress_score = ss
 		upgrade_level = 0
 
+	## Infrastructure speed bonus, indexed by upgrade_level
+	## (unimproved / painted / protected). Better cycling infrastructure lets a
+	## rider cover the same road slightly FASTER: more room, fewer conflicts
+	## with motor traffic, less weaving around parked cars and less slowing at
+	## pinch points. A painted lane helps a little; a protected track helps a
+	## little more. Applies to every rider regardless of personality — it is a
+	## property of the road, not of how nervous the cyclist is.
+	##
+	## Deliberately small. Stress relief already moves impedance by 20-60%, so
+	## an 8% time gain stays clearly secondary: the router still prefers a
+	## longer, calmer route over a shorter, stressful one wherever that choice
+	## exists. Raising these much above ~0.90 would start letting raw speed
+	## outrank safety in route choice, which is not the intent.
+	const TIME_FACTOR: Array = [1.0, 0.96, 0.92]
+
+	## Travel time actually experienced on this link, i.e. base_time with the
+	## infrastructure speed bonus applied.
+	##
+	## NOTE base_time itself is never modified — it remains the immutable
+	## physical fact, and is still what upgrade costs and link lengths are
+	## derived from (see Player.link_length_m). This is a derived value.
+	func effective_time() -> float:
+		return base_time * TIME_FACTOR[clampi(upgrade_level, 0, TIME_FACTOR.size() - 1)]
+
 	## Infrastructure relief factor (β).
 	## Painted relief is stress-derived (spec gives it as a flat 0.5-0.8 range).
 	## Protected relief depends on the rider's personality, not the road —
@@ -53,7 +77,7 @@ class Link:
 			_: return 1.0
 
 	func impedance(alpha: float) -> float:
-		return base_time * (1.0 + alpha * effective_beta(alpha) * stress_score)
+		return effective_time() * (1.0 + alpha * effective_beta(alpha) * stress_score)
 
 
 # --- Network State ---
@@ -90,52 +114,62 @@ const HOME_WORK_PAIRS: Array = [
 	[Vector2i(24, 0), Vector2i(45, 0)],  # was work=6; now West Extension node 45
 ]
 
-## Fixed set of resident commute pairs (home node → destination node),
-## grouped into "neighbourhood → workplace" clusters rather than scattered
-## individually. Each of the original three clusters' routes was chosen
-## (and verified — see git history) to share ZERO links with any of the 5
-## HOME_WORK_PAIRS above, across all three personality alphas (0.4 / 1.5 /
-## 3.0) — so upgrading only the player's own commute never helps these
-## residents, and upgrading these residents' streets never helps the
-## player's own commute either. That's intentional: it's what makes
-## "upgrade my route" and "upgrade the city" genuinely different choices
-## instead of the same one. NOTE: the 4 Aug 2026 network-wide stress rewrite
-## (see the `stress` comment above the `edges` array) broke this property
-## for these three clusters — confirmed and reported to the owner, left
-## as-is since it's an accepted consequence of that rewrite, not undone here.
-##   Node 21 (7 residents) → Node 15, via 21-22-15
-##   Node 14 (6 residents) → Node 15, via 14-15 (direct)
-##   Node 9  (7 residents) → Node 4,  via 9-5-4
-## Node 15 ends up a shared "workplace" fed by two different neighbourhoods
-## (21 and 14) — sized visually per CityGrid/NodeMarker so it reads as a
-## bigger destination than the single-neighbourhood node 4.
+## Fixed set of resident commute pairs (home node → destination node). 12
+## "neighbourhoods" (home nodes), 99 residents total.
 ##
-## Node 1 (1 resident) → Node 17, via 1-3-4-11-10-17. Added later, placed to
-## match specific map landmarks rather than for route independence.
+## REDESIGNED 28 Jul 2026, twice the same day:
+## (1) owner: "at most 2 people from each neighbourhood go to the same
+##     workplace, so there's more road traffic on other parts of the
+##     network." Before this, each neighbourhood sent 100% of its residents
+##     to ONE shared workplace — only 9-11 distinct routes existed across all
+##     60 residents, so nearly every link's NPC-heatmap count came from just
+##     a couple of corridors and most of the network's ~69 links never lit up
+##     at all. Every neighbourhood was split across enough distinct
+##     workplaces that no single (home, work) pair exceeds 2 residents.
+## (2) owner: "add another neighbourhood at node 16, and increase all the
+##     neighbourhoods' amounts by 2-3." Node 16 had just been vacated as a
+##     destination by change (1) above (it was node 29's sole workplace
+##     before), so it was free to become a brand-new 6-resident neighbourhood
+##     — all 3 of its destinations (8, 10, 17) are direct 1-hop neighbours of
+##     16 itself. Every one of the 11 pre-existing neighbourhoods then grew
+##     by 3: first topping up any of its groups still under the 2-per-pair
+##     cap, then adding 1-2 more distinct destinations for the remainder.
+## In both passes, new destinations were chosen as the NEAREST not-yet-used
+## (by that specific neighbourhood) node — by that neighbourhood's own
+## Dijkstra distance — from a ~20-node pool of hub candidates spanning both
+## the original core and the West Extension, so commutes stay plausible
+## rather than artificially long detours.
 ##
-## West Extension clusters (5, added 4 Aug 2026 — owner: "add more NPC homes
-## and works using the other icons in the new area, to improve the city
-## average calculation" — the backend city metrics are computed from
-## ai_commuters + human players, so residents living only in the original
-## 24-node core meant the new district never factored into those averages
-## at all):
-##   Node 28 (6 residents) → Node 36, via 28-27-23-... "bank"
-##   Node 34 (6 residents) → Node 44, via 34-36-44        "gym"
-##   Node 38 (5 residents) → Node 33, via 38-39-...-33    "shopping"
-## Home nodes are the West Extension's dead ends (degree 1 — read as a quiet
-## residential cul-de-sac); work nodes are 3 of its busiest junctions (degree
-## 4-5), matching the same "quiet home, busy destination" shape as the
-## original three clusters.
+## Per-neighbourhood breakdown (home: work×residents, ...):
+##   Node 21 (10): 22×2, 20×2, 15×2, 19×2, 10×2
+##   Node 14 (9):  15×2, 11×2, 22×2, 19×2, 12×1
+##   Node 9  (10): 5×2,  10×2, 8×2 "shopping_bag", 6×2, 4×2 "coffee"
+##   Node 1  (4):  3×2,  30×2
+##   Node 28 (9):  22×2, 15×2, 11×2, 20×2, 19×1
+##   Node 34 (9):  36×2, 35×2 "bank", 44×2 "gym", 30×2, 33×1 "shopping"
+##   Node 38 (8):  39×2, 44×2 "gym", 36×2, 35×2 "bank"
+##   Node 32 (8):  33×2 "shopping", 30×2, 44×2 "gym", 12×2
+##   Node 40 (8):  39×2, 33×2 "shopping", 30×2, 44×2 "gym"
+##   Node 29 (9):  2×2,  6×2,  8×2 "shopping_bag", 5×2, 17×1 "market"
+##   Node 42 (9):  33×2 "shopping", 30×2, 39×2, 44×2 "gym", 12×1
+##   Node 16 (6, NEW): 8×2 "shopping_bag", 10×2, 17×2 "market"
+## The 7 WORK_NODE_ICONS nodes (15/4/17/35/44/33/8 — school/coffee/market/
+## bank/gym/shopping/shopping_bag) now each have 2-4 feeder neighbourhoods
+## instead of 1-2; every other destination (22/20/19/11/10/6/3/30/36/12)
+## falls back to the generic building icon, as before.
 ##
-## 2 more added same day (owner: "add more homes for NPCs on the new areas
-## like on the left side") — originally node 42 and node 40, the two westmost
-## nodes in the network. Moved (owner, same day): home relocated from node 42
-## to node 32 (x=-73.7, still west side, one street over) — work stays 33:
-##   Node 32 (5 residents) → Node 33, via 32-33 (direct)       "shopping"
-##   Node 40 (5 residents) → Node 44, via 40-45-37-44          "gym"
-## Both feed an EXISTING work node rather than adding new ones (same pattern
-## as node 15 already being fed by two neighbourhoods above) — the ask was
-## for more homes specifically, not more workplace icons.
+## Route-independence note (predates both redesigns, still applies): the
+## original three clusters' single routes were chosen to share ZERO links
+## with any of the 5 HOME_WORK_PAIRS above, across all three personality
+## alphas — so upgrading only the player's own commute never helped these
+## residents and vice versa. The 4 Aug 2026 network-wide stress rewrite
+## already broke that property for those clusters (confirmed, reported to
+## the owner, left as-is), and neither 28 Jul redesign attempts to restore or
+## re-verify it — several routes incidentally pass through HOME_WORK_PAIRS
+## nodes as intermediate stops (e.g. several routes above cross node 46, a
+## human player's own work node), the same way the West Extension's 28→35
+## cluster already did. Accepted, not fixed, consistent with the owner's
+## standing call on this property.
 ##
 ## Same pairs every session, for reproducibility.
 ## Which amenity icon each simulated-resident workplace node shows, so the
@@ -144,66 +178,140 @@ const HOME_WORK_PAIRS: Array = [
 ## NodeMarker. Any NPC_WORK node not listed here (e.g. a future cluster)
 ## falls back to the generic "workbuildings" icon.
 const WORK_NODE_ICONS: Dictionary = {
-	Vector2i(15, 0): "school",   # biggest cluster: 13 residents (fed by 21 + 14)
-	Vector2i(4, 0):  "coffee",   # smaller cluster: 7 residents (fed by 9)
-	Vector2i(17, 0): "market",   # single-resident cluster fed by 1
-	Vector2i(36, 0): "bank",     # West Extension cluster fed by 28
-	Vector2i(44, 0): "gym",      # West Extension cluster fed by 34
-	Vector2i(33, 0): "shopping", # West Extension cluster fed by 38
+	Vector2i(15, 0): "school",   # fed by 21 + 14 + 28
+	Vector2i(4, 0):  "coffee",   # fed by 9
+	Vector2i(17, 0): "market",   # fed by 29 + 16
+	Vector2i(35, 0): "bank",     # fed by 34 + 38
+	Vector2i(44, 0): "gym",      # fed by 34 + 38 + 32 + 40 + 42
+	Vector2i(33, 0): "shopping", # fed by 38 + 32 + 40 + 34 + 42
+	Vector2i(8, 0):  "shopping_bag", # fed by 9 + 29 + 16
 }
 
+## Redesigned 28 Jul 2026 (twice — see the breakdown table in the comment
+## block above): first split every neighbourhood's residents across 3-4
+## distinct workplaces (≤2 each), then grew every neighbourhood by 3 more
+## residents and added a brand-new 6-resident neighbourhood at node 16.
 const RESIDENT_COMMUTE_PAIRS: Array = [
+	# Node 21 (10): 22x2, 20x2, 15x2, 19x2, 10x2
+	[Vector2i(21, 0), Vector2i(22, 0)],
+	[Vector2i(21, 0), Vector2i(22, 0)],
+	[Vector2i(21, 0), Vector2i(20, 0)],
+	[Vector2i(21, 0), Vector2i(20, 0)],
 	[Vector2i(21, 0), Vector2i(15, 0)],
 	[Vector2i(21, 0), Vector2i(15, 0)],
-	[Vector2i(21, 0), Vector2i(15, 0)],
-	[Vector2i(21, 0), Vector2i(15, 0)],
-	[Vector2i(21, 0), Vector2i(15, 0)],
-	[Vector2i(21, 0), Vector2i(15, 0)],
-	[Vector2i(21, 0), Vector2i(15, 0)],
+	[Vector2i(21, 0), Vector2i(19, 0)],
+	[Vector2i(21, 0), Vector2i(19, 0)],
+	[Vector2i(21, 0), Vector2i(10, 0)],
+	[Vector2i(21, 0), Vector2i(10, 0)],
+	# Node 14 (9): 15x2, 11x2, 22x2, 19x2, 12x1
 	[Vector2i(14, 0), Vector2i(15, 0)],
 	[Vector2i(14, 0), Vector2i(15, 0)],
-	[Vector2i(14, 0), Vector2i(15, 0)],
-	[Vector2i(14, 0), Vector2i(15, 0)],
-	[Vector2i(14, 0), Vector2i(15, 0)],
-	[Vector2i(14, 0), Vector2i(15, 0)],
+	[Vector2i(14, 0), Vector2i(11, 0)],
+	[Vector2i(14, 0), Vector2i(11, 0)],
+	[Vector2i(14, 0), Vector2i(22, 0)],
+	[Vector2i(14, 0), Vector2i(22, 0)],
+	[Vector2i(14, 0), Vector2i(19, 0)],
+	[Vector2i(14, 0), Vector2i(19, 0)],
+	[Vector2i(14, 0), Vector2i(12, 0)],
+	# Node 9 (10): 5x2, 10x2, 8x2 "shopping_bag", 6x2, 4x2 "coffee"
+	[Vector2i(9, 0),  Vector2i(5, 0)],
+	[Vector2i(9, 0),  Vector2i(5, 0)],
+	[Vector2i(9, 0),  Vector2i(10, 0)],
+	[Vector2i(9, 0),  Vector2i(10, 0)],
+	[Vector2i(9, 0),  Vector2i(8, 0)],
+	[Vector2i(9, 0),  Vector2i(8, 0)],
+	[Vector2i(9, 0),  Vector2i(6, 0)],
+	[Vector2i(9, 0),  Vector2i(6, 0)],
 	[Vector2i(9, 0),  Vector2i(4, 0)],
 	[Vector2i(9, 0),  Vector2i(4, 0)],
-	[Vector2i(9, 0),  Vector2i(4, 0)],
-	[Vector2i(9, 0),  Vector2i(4, 0)],
-	[Vector2i(9, 0),  Vector2i(4, 0)],
-	[Vector2i(9, 0),  Vector2i(4, 0)],
-	[Vector2i(9, 0),  Vector2i(4, 0)],
-	[Vector2i(1, 0),  Vector2i(17, 0)],
-	# West Extension clusters (added 4 Aug 2026 — see comment block above)
-	[Vector2i(28, 0), Vector2i(36, 0)],
-	[Vector2i(28, 0), Vector2i(36, 0)],
-	[Vector2i(28, 0), Vector2i(36, 0)],
-	[Vector2i(28, 0), Vector2i(36, 0)],
-	[Vector2i(28, 0), Vector2i(36, 0)],
-	[Vector2i(28, 0), Vector2i(36, 0)],
+	# Node 1 (4): 3x2, 30x2
+	[Vector2i(1, 0),  Vector2i(3, 0)],
+	[Vector2i(1, 0),  Vector2i(3, 0)],
+	[Vector2i(1, 0),  Vector2i(30, 0)],
+	[Vector2i(1, 0),  Vector2i(30, 0)],
+	# West Extension clusters (originally added 4 Aug 2026, redistributed
+	# 28 Jul 2026 — see comment block above)
+	# Node 28 (9): 22x2, 15x2, 11x2, 20x2, 19x1
+	[Vector2i(28, 0), Vector2i(22, 0)],
+	[Vector2i(28, 0), Vector2i(22, 0)],
+	[Vector2i(28, 0), Vector2i(15, 0)],
+	[Vector2i(28, 0), Vector2i(15, 0)],
+	[Vector2i(28, 0), Vector2i(11, 0)],
+	[Vector2i(28, 0), Vector2i(11, 0)],
+	[Vector2i(28, 0), Vector2i(20, 0)],
+	[Vector2i(28, 0), Vector2i(20, 0)],
+	[Vector2i(28, 0), Vector2i(19, 0)],
+	# Node 34 (9): 36x2, 35x2 "bank", 44x2 "gym", 30x2, 33x1 "shopping"
+	[Vector2i(34, 0), Vector2i(36, 0)],
+	[Vector2i(34, 0), Vector2i(36, 0)],
+	[Vector2i(34, 0), Vector2i(35, 0)],
+	[Vector2i(34, 0), Vector2i(35, 0)],
 	[Vector2i(34, 0), Vector2i(44, 0)],
 	[Vector2i(34, 0), Vector2i(44, 0)],
-	[Vector2i(34, 0), Vector2i(44, 0)],
-	[Vector2i(34, 0), Vector2i(44, 0)],
-	[Vector2i(34, 0), Vector2i(44, 0)],
-	[Vector2i(34, 0), Vector2i(44, 0)],
-	[Vector2i(38, 0), Vector2i(33, 0)],
-	[Vector2i(38, 0), Vector2i(33, 0)],
-	[Vector2i(38, 0), Vector2i(33, 0)],
-	[Vector2i(38, 0), Vector2i(33, 0)],
-	[Vector2i(38, 0), Vector2i(33, 0)],
-	# "Left side" clusters (added 4 Aug 2026, home moved from 42 to 32 same
-	# day — see comment block above).
+	[Vector2i(34, 0), Vector2i(30, 0)],
+	[Vector2i(34, 0), Vector2i(30, 0)],
+	[Vector2i(34, 0), Vector2i(33, 0)],
+	# Node 38 (8): 39x2, 44x2 "gym", 36x2, 35x2 "bank"
+	[Vector2i(38, 0), Vector2i(39, 0)],
+	[Vector2i(38, 0), Vector2i(39, 0)],
+	[Vector2i(38, 0), Vector2i(44, 0)],
+	[Vector2i(38, 0), Vector2i(44, 0)],
+	[Vector2i(38, 0), Vector2i(36, 0)],
+	[Vector2i(38, 0), Vector2i(36, 0)],
+	[Vector2i(38, 0), Vector2i(35, 0)],
+	[Vector2i(38, 0), Vector2i(35, 0)],
+	# "Left side" clusters (originally added 4 Aug 2026, home moved from 42
+	# to 32 same day, redistributed 28 Jul 2026 — see comment block above).
+	# Node 32 (8): 33x2 "shopping", 30x2, 44x2 "gym", 12x2
 	[Vector2i(32, 0), Vector2i(33, 0)],
 	[Vector2i(32, 0), Vector2i(33, 0)],
-	[Vector2i(32, 0), Vector2i(33, 0)],
-	[Vector2i(32, 0), Vector2i(33, 0)],
-	[Vector2i(32, 0), Vector2i(33, 0)],
+	[Vector2i(32, 0), Vector2i(30, 0)],
+	[Vector2i(32, 0), Vector2i(30, 0)],
+	[Vector2i(32, 0), Vector2i(44, 0)],
+	[Vector2i(32, 0), Vector2i(44, 0)],
+	[Vector2i(32, 0), Vector2i(12, 0)],
+	[Vector2i(32, 0), Vector2i(12, 0)],
+	# Node 40 (8): 39x2, 33x2 "shopping", 30x2, 44x2 "gym"
+	[Vector2i(40, 0), Vector2i(39, 0)],
+	[Vector2i(40, 0), Vector2i(39, 0)],
+	[Vector2i(40, 0), Vector2i(33, 0)],
+	[Vector2i(40, 0), Vector2i(33, 0)],
+	[Vector2i(40, 0), Vector2i(30, 0)],
+	[Vector2i(40, 0), Vector2i(30, 0)],
 	[Vector2i(40, 0), Vector2i(44, 0)],
 	[Vector2i(40, 0), Vector2i(44, 0)],
-	[Vector2i(40, 0), Vector2i(44, 0)],
-	[Vector2i(40, 0), Vector2i(44, 0)],
-	[Vector2i(40, 0), Vector2i(44, 0)],
+	# 2 more clusters (originally added 28 Jul 2026 — see comment block
+	# above), redistributed the same day into the ≤2-per-pair design.
+	# Node 29 (9): 2x2, 6x2, 8x2 "shopping_bag", 5x2, 17x1 "market"
+	[Vector2i(29, 0), Vector2i(2, 0)],
+	[Vector2i(29, 0), Vector2i(2, 0)],
+	[Vector2i(29, 0), Vector2i(6, 0)],
+	[Vector2i(29, 0), Vector2i(6, 0)],
+	[Vector2i(29, 0), Vector2i(8, 0)],
+	[Vector2i(29, 0), Vector2i(8, 0)],
+	[Vector2i(29, 0), Vector2i(5, 0)],
+	[Vector2i(29, 0), Vector2i(5, 0)],
+	[Vector2i(29, 0), Vector2i(17, 0)],
+	# Node 42 (9): 33x2 "shopping", 30x2, 39x2, 44x2 "gym", 12x1
+	[Vector2i(42, 0), Vector2i(33, 0)],
+	[Vector2i(42, 0), Vector2i(33, 0)],
+	[Vector2i(42, 0), Vector2i(30, 0)],
+	[Vector2i(42, 0), Vector2i(30, 0)],
+	[Vector2i(42, 0), Vector2i(39, 0)],
+	[Vector2i(42, 0), Vector2i(39, 0)],
+	[Vector2i(42, 0), Vector2i(44, 0)],
+	[Vector2i(42, 0), Vector2i(44, 0)],
+	[Vector2i(42, 0), Vector2i(12, 0)],
+	# New neighbourhood (added 28 Jul 2026 — see comment block above), on
+	# node 16, vacated by the ≤2-per-pair redesign earlier the same day. All
+	# 3 destinations are direct 1-hop neighbours of 16 itself.
+	# Node 16 (6, NEW): 8x2 "shopping_bag", 10x2, 17x2 "market"
+	[Vector2i(16, 0), Vector2i(8, 0)],
+	[Vector2i(16, 0), Vector2i(8, 0)],
+	[Vector2i(16, 0), Vector2i(10, 0)],
+	[Vector2i(16, 0), Vector2i(10, 0)],
+	[Vector2i(16, 0), Vector2i(17, 0)],
+	[Vector2i(16, 0), Vector2i(17, 0)],
 ]
 
 
@@ -452,9 +560,14 @@ func _build_network(pair_index: int = 0) -> void:
 func _apply_initial_infrastructure() -> void:
 	# A few pre-existing upgrades so the game doesn't start with a fully
 	# blank network — same role as the previous network's seeded lanes.
-	_set_initial_upgrade(Vector2i(9, 0), Vector2i(10, 0), 2)    # protected
-	_set_initial_upgrade(Vector2i(17, 0), Vector2i(19, 0), 2)   # protected
 	_set_initial_upgrade(Vector2i(21, 0), Vector2i(22, 0), 1)   # painted
+	_set_initial_upgrade(Vector2i(35, 0), Vector2i(36, 0), 1)   # painted
+	_set_initial_upgrade(Vector2i(1, 0),  Vector2i(2, 0),  2)   # protected
+	_set_initial_upgrade(Vector2i(42, 0), Vector2i(33, 0), 2)   # protected
+	_set_initial_upgrade(Vector2i(11, 0), Vector2i(10, 0), 1)   # painted
+	_set_initial_upgrade(Vector2i(5, 0),  Vector2i(9, 0),  2)   # protected
+	_set_initial_upgrade(Vector2i(18, 0), Vector2i(49, 0), 2)   # protected — top half of the old 18-20 (49 = its midpoint split node)
+	_set_initial_upgrade(Vector2i(45, 0), Vector2i(39, 0), 1)   # painted
 
 
 func _set_initial_upgrade(a: Vector2i, b: Vector2i, level: int) -> void:

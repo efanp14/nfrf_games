@@ -2,7 +2,8 @@ class_name Dijkstra
 ## Dijkstra.gd
 ## Pure shortest-path solver operating on an impedance-weighted adjacency graph.
 ## Accepts any adjacency Dictionary of Vector2i → Array of link objects that expose:
-##   .to_node: Vector2i, .from_node: Vector2i, .base_time: float, .impedance(alpha) -> float
+##   .to_node: Vector2i, .from_node: Vector2i, .effective_time() -> float,
+##   .impedance(alpha) -> float
 ##
 ## "class_name" registers this script as a global type, so any other script in
 ## the project can call Dijkstra.find_route() without an import or preload.
@@ -65,12 +66,15 @@ static func find_route(adjacency: Dictionary, start: Vector2i, goal: Vector2i, a
 	while node != start:
 		path.push_front(node)  # push_front prepends (like unshift in JS / deque.appendleft in Python)
 		var link = prev[node]
-		raw_time += link.base_time  # base_time is physical travel time, unaffected by stress or β
+		# effective_time = base_time with the infrastructure speed bonus applied
+		# (better infrastructure lets a rider go slightly faster). Still
+		# unaffected by stress or β — those only enter the impedance weighting.
+		raw_time += link.effective_time()
 		node = link.from_node
 	path.push_front(start)
 
 	# Returns a Dictionary with three keys. Callers use .get("key", default) to read them.
 	#   path             — ordered Array[Vector2i] of node IDs from start to goal
 	#   total_impedance  — weighted cost Dijkstra minimised (includes stress penalty)
-	#   total_time       — raw travel time in minutes (sum of base_time, no stress weighting)
+	#   total_time       — travel time in minutes (sum of effective_time, no stress weighting)
 	return { "path": path, "total_impedance": dist[goal], "total_time": raw_time }
