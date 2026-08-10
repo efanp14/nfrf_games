@@ -7,7 +7,6 @@ signal finished
 @onready var saved_label: Label      = %SavedLabel
 @onready var safety_label: Label     = %SafetyLabel
 @onready var coverage_label: Label   = %CoverageLabel
-@onready var strategy_label: Label   = %StrategyLabel
 @onready var finish_button: Button   = %FinishButton
 
 var _players_box: VBoxContainer
@@ -83,17 +82,16 @@ func show_results(final_results: Dictionary) -> void:
 
 	# Network coverage is a backend metric — debug-only.
 	coverage_label.text = "[debug] Network coverage:   %.0f%%" % coverage if SafetyDisplay.debug_mode else ""
-	strategy_label.text = _strategy_flavour(coverage, final_results.get("total_time_saved", 0.0))
+
+	# NOTE: this screen deliberately shows NO summary label characterising the
+	# player's strategy. It previously ended the session by labelling the
+	# player "Civic Champion" / "Collective Builder" / "Personal Optimizer"
+	# based on how much of the network they upgraded. Removed (owner, 3 Aug
+	# 2026): the end screen is shown immediately before the post-survey, whose
+	# items ask about fairness, prioritising oneself, and willingness to
+	# sacrifice for citywide benefit — praising or labelling a strategy right
+	# before asking those questions risks steering the answers. Self- vs.
+	# collective-oriented investment IS the dependent variable, so the game
+	# must not evaluate it back to the participant. Do not reintroduce.
 
 	visible = true
-
-
-func _strategy_flavour(coverage: float, saved: float) -> String:
-	if coverage >= 40.0 and saved >= 2.0:
-		return "Civic Champion — you built for the whole city and your commute improved."
-	elif coverage >= 25.0:
-		return "Collective Builder — your investments helped the whole network."
-	elif saved >= 3.0:
-		return "Personal Optimizer — you focused on your own route, and it paid off."
-	else:
-		return "Mixed Planner — a varied strategy across the city."

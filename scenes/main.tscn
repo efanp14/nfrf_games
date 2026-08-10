@@ -10,7 +10,6 @@
 [ext_resource type="PackedScene" uid="uid://c7chat1pan000" path="res://scenes/ui/ChatPanel.tscn" id="7_chat0"]
 [ext_resource type="PackedScene" uid="uid://b3presurv0000" path="res://scenes/ui/PreSurvey.tscn" id="8_presv0"]
 [ext_resource type="PackedScene" uid="uid://b5mainmenu000" path="res://scenes/ui/MainMenu.tscn" id="9_menu0"]
-[ext_resource type="PackedScene" uid="uid://c0nsentscr000" path="res://scenes/ui/ConsentScreen.tscn" id="10_consent0"]
 [ext_resource type="PackedScene" uid="uid://dnarrintro001" path="res://scenes/ui/NarrativeIntro.tscn" id="11_narr0"]
 
 [node name="GameScene" type="Node2D" unique_id=1895432736]
@@ -33,7 +32,5 @@ script = ExtResource("1_o5qli")
 [node name="PreSurvey" parent="." unique_id=27505123 instance=ExtResource("8_presv0")]
 
 [node name="MainMenu" parent="." unique_id=1749891332 instance=ExtResource("9_menu0")]
-
-[node name="ConsentScreen" parent="." unique_id=598420272 instance=ExtResource("10_consent0")]
 
 [node name="NarrativeIntro" parent="." instance=ExtResource("11_narr0")]

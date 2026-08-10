@@ -9,7 +9,9 @@ signal next_round_pressed
 @onready var safety_label: Label         = %SafetyLabel
 @onready var city_section: VBoxContainer = %CitySection
 @onready var city_time_label: Label      = %CityTimeLabel
+@onready var city_safety_label: Label    = %CitySafetyLabel
 @onready var coverage_label: Label       = %CoverageLabel
+@onready var benefit_label: Label        = %BenefitLabel
 @onready var next_button: Button         = %NextButton
 
 var _players_box: VBoxContainer
@@ -48,14 +50,16 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 		var safety: float  = results.get("personal_safety", 0.0)
 
 		time_label.text  = "Commute time:   %.1f min" % time
+		# Wording reflects the STATIC reference point: every round is compared
+		# to the player's original commute, not to the previous round.
 		if delta > 0.05:
-			delta_label.text = "▼  %.1f min faster than last round" % delta
+			delta_label.text = "▼  %.1f min faster than your original commute" % delta
 			delta_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
 		elif delta < -0.05:
-			delta_label.text = "▲  %.1f min slower than last round" % absf(delta)
+			delta_label.text = "▲  %.1f min slower than your original commute" % absf(delta)
 			delta_label.add_theme_color_override("font_color", Color(0.95, 0.3, 0.3))
 		else:
-			delta_label.text = "No change from last round"
+			delta_label.text = "Same as your original commute"
 			delta_label.remove_theme_color_override("font_color")
 		safety_label.text = "Safety: " + SafetyDisplay.format(safety)
 	else:
@@ -83,13 +87,31 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 
 	city_section.visible = treatment != GameManager.Treatment.INDIVIDUAL
 	if city_section.visible:
-		# Backend metrics — hidden from participants, debug-only.
-		if SafetyDisplay.debug_mode:
-			city_time_label.text = "[debug] City avg time:   %.1f min" % results.get("city_avg_time", 0.0)
-			coverage_label.text  = "[debug] Network coverage:   %.0f%%" % results.get("city_coverage", 0.0)
-		else:
-			city_time_label.text = ""
-			coverage_label.text  = ""
+		# City-wide outcomes are shown to participants in T2/T3, with the
+		# change against this round's starting values — the round summary is
+		# where before/after belongs. Same CityFeedback source as the HUD and
+		# the research log, so all three always agree.
+		var text := CityFeedback.lines_with_change(
+			{
+				"avg_time":   results.get("city_avg_time", 0.0),
+				"avg_safety": results.get("city_avg_safety", 0.0),
+				"coverage":   results.get("city_coverage", 0.0),
+			},
+			{
+				"avg_time":   results.get("city_avg_time_baseline", 0.0),
+				"avg_safety": results.get("city_avg_safety_baseline", 0.0),
+				"coverage":   results.get("city_coverage_baseline", 0.0),
+			})
+		city_time_label.text   = text[0]
+		city_safety_label.text = text[1]
+		coverage_label.text    = text[2]
+
+		# The collective-impact sentences. `results` already carries the
+		# residents_* fields verbatim, so this hands CityFeedback the same
+		# values the log records rather than a re-derived copy.
+		var benefit := CityFeedback.benefit_lines(results)
+		benefit_label.visible = not benefit.is_empty()
+		benefit_label.text    = "\n".join(benefit)
 
 	next_button.text = "See Final Results" if is_last_round else "Next Round  →"
 	visible = true
