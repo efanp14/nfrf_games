@@ -7,6 +7,9 @@ var link_id: String = ""
 var _upgrade_level: int = 0
 var _pending_level: int = -1
 var _route_players: Array[int] = []
+## -1 = not in heatmap mode (draw the normal per-player route highlight
+## instead); 0..1 = NPC-heatmap mode, set by CityGrid._show_npc_heatmap().
+var _heatmap_intensity: float = -1.0
 var _is_hovered: bool = false
 var _path_points: PackedVector2Array = []
 var _draw_points: PackedVector2Array = []
@@ -60,6 +63,8 @@ const EDGE_BORDER    := 1.5
 const ROUTE_WIDTH    := 32.0
 const HOVER_WIDTH    := 36.0
 const CENTER_LINE_W  := 1.8
+## Width of the centre line when it is carrying the NPC heatmap colour.
+const CENTER_HEATMAP_W := 4.0
 const CENTER_DASH_LEN := 11.0
 const CENTER_DASH_GAP := 8.0
 const BIKE_PAINT_W   := 4.0
@@ -145,6 +150,29 @@ func clear_routes() -> void:
 	queue_redraw()
 
 
+## intensity: 0.0 (least-used street this round) to 1.0 (most-used) — CityGrid
+## already normalizes by the busiest link before calling this.
+func set_heatmap(intensity: float) -> void:
+	_heatmap_intensity = clampf(intensity, 0.0, 1.0)
+	queue_redraw()
+
+
+func clear_heatmap() -> void:
+	_heatmap_intensity = -1.0
+	queue_redraw()
+
+
+## Green (least-used) → yellow → red (most-used), constant saturation/value
+## so the gradient reads clearly at every step rather than washing out.
+##
+## Fully opaque and at full value, unlike the translucent band this replaced:
+## it now paints a thin centre line over dark asphalt rather than a wide wash
+## behind the road, and at that size any transparency muddies the hue.
+func _heatmap_color(intensity: float) -> Color:
+	var hue: float = lerpf(0.33, 0.0, intensity)
+	return Color.from_hsv(hue, 0.85, 1.0, 1.0)
+
+
 
 func _ready() -> void:
 	for child in get_children():
@@ -189,12 +217,16 @@ func _draw() -> void:
 
 	# Route highlight breathes gently (± a couple px) instead of sitting
 	# perfectly static, so an active route reads as "selected" at a glance.
+	# In heatmap mode the usage colour is carried by the centre line instead of
+	# a wide band behind the road, so nothing is drawn out here and the player
+	# route highlight stays hidden, keeping the two views distinct.
 	var pulse: float = sin(_anim_t * 2.0) * 2.0
-	if _route_players.size() == 1:
-		var col: Color = ROUTE_COLORS[_route_players[0] % ROUTE_COLORS.size()]
-		_draw_thick_line(col, ROUTE_WIDTH + pulse)
-	elif _route_players.size() > 1:
-		_draw_striped_route()
+	if _heatmap_intensity < 0.0:
+		if _route_players.size() == 1:
+			var col: Color = ROUTE_COLORS[_route_players[0] % ROUTE_COLORS.size()]
+			_draw_thick_line(col, ROUTE_WIDTH + pulse)
+		elif _route_players.size() > 1:
+			_draw_striped_route()
 
 	# No Bike Lane roads have no curb — a plain, informal street; upgraded
 	# (painted/protected) roads get a defined edge to read as "built".
@@ -285,6 +317,14 @@ func _draw_road_markings() -> void:
 ## line. Not animated: a scrolling dash was tried and turned out distracting
 ## rather than lively, so the dash positions are fixed per-road.
 func _draw_dashed_center_line() -> void:
+	# Heatmap mode repaints this same line with the link's usage colour, drawn
+	# solid and a little thicker. A 1.8px dash carries too little pixel area to
+	# read a green-to-red gradient off, so the dash pattern is dropped here
+	# rather than tinted.
+	if _heatmap_intensity >= 0.0:
+		_draw_thick_line(_heatmap_color(_heatmap_intensity), CENTER_HEATMAP_W)
+		return
+
 	for i in range(_draw_points.size() - 1):
 		var a := _draw_points[i]
 		var b := _draw_points[i + 1]

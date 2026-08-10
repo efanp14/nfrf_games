@@ -15,9 +15,14 @@ const BIKE_PAINT        := Color(0.18, 0.66, 0.34)
 const PROTECTED_ASPHALT := Color("#A79C87")
 const CAR_BODY          := Color(0.82, 0.35, 0.30)
 const CAR_WINDOW        := Color(0.65, 0.82, 0.92, 0.85)
-const TEXT_COL          := Color(0.28, 0.26, 0.24)
-const HEAD_COL          := Color(0.50, 0.48, 0.45)
-const SEP_COL           := Color(0.60, 0.58, 0.55, 0.35)
+## The legend sits in the dark HUD sidebar, so its text is white. These were
+## previously near-black (0.28) and mid-grey, which are light-background
+## colours: against the sidebar they came out barely legible. The swatch
+## colours below are unchanged, since those deliberately match how the roads
+## and markers actually draw on the map.
+const TEXT_COL          := Color(1, 1, 1)
+const HEAD_COL          := Color(1, 1, 1)
+const SEP_COL           := Color(1, 1, 1, 0.28)
 const PLAYER_COLORS     := [
 	Color(0.42, 0.64, 0.84),
 	Color(0.88, 0.47, 0.32),

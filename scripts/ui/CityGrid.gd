@@ -9,6 +9,14 @@ signal link_clicked(link_id: String)
 var _segments: Dictionary = {}
 var _markers: Dictionary = {}
 
+## PLAYER_ROUTES (default): each human player's current route highlighted in
+## their own color, as before. NPC_HEATMAP (T2/T3 toggle, see GameHUD's
+## CityViewButton): every street recolored green→red by how many of the
+## simulated residents' current routes cross it, so "what the collective
+## relies on" reads as one clean picture instead of ~48 overlapping paths.
+enum ViewMode { PLAYER_ROUTES, NPC_HEATMAP }
+var _view_mode: int = ViewMode.PLAYER_ROUTES
+
 const LinkSegmentScene := preload("res://scenes/components/LinkSegment.tscn")
 const NodeMarkerScene  := preload("res://scenes/components/NodeMarker.tscn")
 const BackgroundTexture := preload("res://assets/images/background new.png")
@@ -283,6 +291,43 @@ func _on_route_updated(player_id: String, route: Dictionary) -> void:
 		var canonical := _canonical(path[i], path[i + 1])
 		if _segments.has(canonical):
 			_segments[canonical].set_on_route(true, player_index)
+	# NPC routes are recalculated the same round the player's are, so a
+	# heatmap left open needs refreshing here too, not just on toggle.
+	if _view_mode == ViewMode.NPC_HEATMAP:
+		_show_npc_heatmap()
+
+
+## Called by main.gd, wired to GameHUD's CityViewButton (T2/T3 only).
+func set_view_mode(mode: int) -> void:
+	_view_mode = mode
+	if mode == ViewMode.NPC_HEATMAP:
+		_show_npc_heatmap()
+	else:
+		for seg: LinkSegment in _segments.values():
+			seg.clear_heatmap()
+
+
+## Tallies how many simulated residents' current shortest routes use each
+## link, then recolors every segment green→red by that count relative to the
+## busiest link this round. Recomputes via find_route rather than caching,
+## same pattern already used by play_round_end_animation() above.
+func _show_npc_heatmap() -> void:
+	var usage: Dictionary = {}
+	var max_count: int = 0
+	for commuter in GameManager.ai_commuters:
+		var route: Dictionary = GameManager.network.find_route(
+				commuter["start"], commuter["goal"], commuter["alpha"])
+		var path: Array = route.get("path", [])
+		for i in range(path.size() - 1):
+			var canonical := _canonical(path[i], path[i + 1])
+			var count: int = usage.get(canonical, 0) + 1
+			usage[canonical] = count
+			max_count = maxi(max_count, count)
+
+	for canonical: String in _segments:
+		var count: int = usage.get(canonical, 0)
+		var intensity: float = float(count) / float(max_count) if max_count > 0 else 0.0
+		_segments[canonical].set_heatmap(intensity)
 
 
 func _player_id_to_index(player_id: String) -> int:
