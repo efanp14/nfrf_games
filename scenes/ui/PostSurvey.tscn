@@ -19,86 +19,46 @@ horizontal_scroll_mode = 0
 
 [node name="OuterMargin" type="MarginContainer" parent="ScrollContainer"]
 size_flags_horizontal = 3
-theme_override_constants/margin_left = 160
-theme_override_constants/margin_right = 160
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
 theme_override_constants/margin_top = 28
 theme_override_constants/margin_bottom = 28
 
-[node name="PanelContainer" type="PanelContainer" parent="ScrollContainer/OuterMargin"]
+[node name="Centerer" type="CenterContainer" parent="ScrollContainer/OuterMargin"]
 size_flags_horizontal = 3
 
-[node name="InnerMargin" type="MarginContainer" parent="ScrollContainer/OuterMargin/PanelContainer"]
+[node name="PanelContainer" type="PanelContainer" parent="ScrollContainer/OuterMargin/Centerer"]
+custom_minimum_size = Vector2(1020, 0)
+
+[node name="InnerMargin" type="MarginContainer" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer"]
 theme_override_constants/margin_left = 32
 theme_override_constants/margin_right = 32
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_bottom = 24
 
-[node name="VBoxContainer" type="VBoxContainer" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin"]
+[node name="VBoxContainer" type="VBoxContainer" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin"]
 theme_override_constants/separation = 14
 
-[node name="TitleLabel" type="Label" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 text = "Post-Game Survey"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 22
 
-[node name="SubtitleLabel" type="Label" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer"]
-text = "Your responses are anonymous and contribute to the research.\nRate each statement:  1 = Strongly Disagree   →   5 = Strongly Agree"
+[node name="SubtitleLabel" type="Label" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
+text = "Your responses are anonymous and contribute to the research.\nPlease rate how much you agree with each statement."
 autowrap_mode = 3
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 12
 
-[node name="ScaleHintRow" type="HBoxContainer" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer"]
+[node name="HSep1" type="HSeparator" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 
-[node name="HSpacer" type="Control" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer/ScaleHintRow"]
-size_flags_horizontal = 3
-
-[node name="HintLabels" type="HBoxContainer" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer/ScaleHintRow"]
-theme_override_constants/separation = 4
-
-[node name="Label1" type="Label" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer/ScaleHintRow/HintLabels"]
-custom_minimum_size = Vector2(36, 0)
-text = "1"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 10
-modulate = Color(0.7, 0.7, 0.7, 1)
-
-[node name="Label2" type="Label" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer/ScaleHintRow/HintLabels"]
-custom_minimum_size = Vector2(36, 0)
-text = "2"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 10
-modulate = Color(0.7, 0.7, 0.7, 1)
-
-[node name="Label3" type="Label" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer/ScaleHintRow/HintLabels"]
-custom_minimum_size = Vector2(36, 0)
-text = "3"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 10
-modulate = Color(0.7, 0.7, 0.7, 1)
-
-[node name="Label4" type="Label" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer/ScaleHintRow/HintLabels"]
-custom_minimum_size = Vector2(36, 0)
-text = "4"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 10
-modulate = Color(0.7, 0.7, 0.7, 1)
-
-[node name="Label5" type="Label" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer/ScaleHintRow/HintLabels"]
-custom_minimum_size = Vector2(36, 0)
-text = "5"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 10
-modulate = Color(0.7, 0.7, 0.7, 1)
-
-[node name="HSep1" type="HSeparator" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer"]
-
-[node name="QuestionsBox" type="VBoxContainer" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer"]
+[node name="QuestionsBox" type="VBoxContainer" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 unique_name_in_owner = true
 theme_override_constants/separation = 6
 
-[node name="HSep2" type="HSeparator" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer"]
+[node name="HSep2" type="HSeparator" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 
-[node name="SubmitButton" type="Button" parent="ScrollContainer/OuterMargin/PanelContainer/InnerMargin/VBoxContainer"]
+[node name="SubmitButton" type="Button" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 36)
 text = "Submit & Finish"

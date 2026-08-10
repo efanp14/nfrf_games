@@ -12,54 +12,55 @@ anchor_bottom = 1.0
 color = Color(0.05, 0.05, 0.12, 0.94)
 mouse_filter = 0
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
-mouse_filter = 2
+horizontal_scroll_mode = 0
 
-[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+[node name="OuterMargin" type="MarginContainer" parent="ScrollContainer"]
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
-[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
-custom_minimum_size = Vector2(560, 0)
-theme_override_constants/margin_left = 28
-theme_override_constants/margin_right = 28
+[node name="Centerer" type="CenterContainer" parent="ScrollContainer/OuterMargin"]
+size_flags_horizontal = 3
+
+[node name="PanelContainer" type="PanelContainer" parent="ScrollContainer/OuterMargin/Centerer"]
+custom_minimum_size = Vector2(1020, 0)
+
+[node name="InnerMargin" type="MarginContainer" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer"]
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_right = 32
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_bottom = 24
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
-theme_override_constants/separation = 10
+[node name="VBoxContainer" type="VBoxContainer" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin"]
+theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 text = "CycleCity: The Commuter's Dilemma"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 22
 
-[node name="SubtitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
-text = "A research study on urban cycling infrastructure"
+[node name="SubtitleLabel" type="Label" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
+text = "Before you start, please answer a few questions about yourself and about cycling.
+Your responses are anonymous and contribute to the research."
+autowrap_mode = 3
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 12
 
-[node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="HSep1" type="HSeparator" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 
-[node name="IntroLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
-text = "You are a citizen-planner in CycleCity. Each round you receive $2,000,000 to upgrade roads with painted bike lanes or protected cycle tracks — longer roads cost more to upgrade. Your upgrades are permanent — choose carefully."
-autowrap_mode = 3
-theme_override_font_sizes/font_size = 12
-
-[node name="HSep2" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
-
-[node name="QuestionLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
-text = "How do you normally cycle?  Rate your agreement:  1 = Strongly Disagree  →  5 = Strongly Agree"
-autowrap_mode = 3
-theme_override_font_sizes/font_size = 12
-
-[node name="QuestionsBox" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="QuestionsBox" type="VBoxContainer" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 unique_name_in_owner = true
-theme_override_constants/separation = 6
+theme_override_constants/separation = 10
 
-[node name="HSep3" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="HSep2" type="HSeparator" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 
-[node name="BeginButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="BeginButton" type="Button" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 36)
 text = "Begin Game"
 disabled = true
