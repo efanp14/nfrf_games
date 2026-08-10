@@ -117,61 +117,65 @@ const HOME_WORK_PAIRS: Array = [
 ## Fixed set of resident commute pairs (home node → destination node). 12
 ## "neighbourhoods" (home nodes), 99 residents total.
 ##
-## REDESIGNED 28 Jul 2026, twice the same day:
-## (1) owner: "at most 2 people from each neighbourhood go to the same
-##     workplace, so there's more road traffic on other parts of the
-##     network." Before this, each neighbourhood sent 100% of its residents
-##     to ONE shared workplace — only 9-11 distinct routes existed across all
-##     60 residents, so nearly every link's NPC-heatmap count came from just
-##     a couple of corridors and most of the network's ~69 links never lit up
-##     at all. Every neighbourhood was split across enough distinct
-##     workplaces that no single (home, work) pair exceeds 2 residents.
-## (2) owner: "add another neighbourhood at node 16, and increase all the
-##     neighbourhoods' amounts by 2-3." Node 16 had just been vacated as a
-##     destination by change (1) above (it was node 29's sole workplace
-##     before), so it was free to become a brand-new 6-resident neighbourhood
-##     — all 3 of its destinations (8, 10, 17) are direct 1-hop neighbours of
-##     16 itself. Every one of the 11 pre-existing neighbourhoods then grew
-##     by 3: first topping up any of its groups still under the 2-per-pair
-##     cap, then adding 1-2 more distinct destinations for the remainder.
-## In both passes, new destinations were chosen as the NEAREST not-yet-used
-## (by that specific neighbourhood) node — by that neighbourhood's own
-## Dijkstra distance — from a ~20-node pool of hub candidates spanning both
-## the original core and the West Extension, so commutes stay plausible
-## rather than artificially long detours.
+## DESTINATIONS REWRITTEN 9 Aug 2026: the commutes were too short to have a
+## route at all. Measured on this network before the rewrite: 34 of the 99
+## residents had a ONE-LINK commute, so Dijkstra had no choice to make for a
+## third of the city, and 61 had two links or fewer. Median resident commute
+## was 8.5 min against a median node-to-node trip of 22.8 min, i.e. residents
+## sat at the 9th percentile of all possible trips while the five player
+## commutes ran 20-42 min. Consequences: the emergent-rerouting mechanism the
+## whole model rests on (§3.1) barely fired, the best single protected upgrade
+## anywhere moved only 5 of 99 residents, and the time and safety benefit
+## measures collapsed onto the same residents instead of telling two stories.
 ##
-## Per-neighbourhood breakdown (home: work×residents, ...):
-##   Node 21 (10): 22×2, 20×2, 15×2, 19×2, 10×2
-##   Node 14 (9):  15×2, 11×2, 22×2, 19×2, 12×1
-##   Node 9  (10): 5×2,  10×2, 8×2 "shopping_bag", 6×2, 4×2 "coffee"
-##   Node 1  (4):  3×2,  30×2
-##   Node 28 (9):  22×2, 15×2, 11×2, 20×2, 19×1
-##   Node 34 (9):  36×2, 35×2 "bank", 44×2 "gym", 30×2, 33×1 "shopping"
-##   Node 38 (8):  39×2, 44×2 "gym", 36×2, 35×2 "bank"
-##   Node 32 (8):  33×2 "shopping", 30×2, 44×2 "gym", 12×2
-##   Node 40 (8):  39×2, 33×2 "shopping", 30×2, 44×2 "gym"
-##   Node 29 (9):  2×2,  6×2,  8×2 "shopping_bag", 5×2, 17×1 "market"
-##   Node 42 (9):  33×2 "shopping", 30×2, 39×2, 44×2 "gym", 12×1
-##   Node 16 (6, NEW): 8×2 "shopping_bag", 10×2, 17×2 "market"
-## The 7 WORK_NODE_ICONS nodes (15/4/17/35/44/33/8 — school/coffee/market/
-## bank/gym/shopping/shopping_bag) now each have 2-4 feeder neighbourhoods
-## instead of 1-2; every other destination (22/20/19/11/10/6/3/30/36/12)
-## falls back to the generic building icon, as before.
+## Cause was the previous selection rule, "nearest not-yet-used node", which
+## optimised commutes toward zero length. That rule was an implementation
+## choice made to keep commutes plausible, NOT one of the owner's 28 Jul
+## instructions. Both of those are preserved intact, see below.
 ##
-## Route-independence note (predates both redesigns, still applies): the
-## original three clusters' single routes were chosen to share ZERO links
-## with any of the 5 HOME_WORK_PAIRS above, across all three personality
-## alphas — so upgrading only the player's own commute never helped these
-## residents and vice versa. The 4 Aug 2026 network-wide stress rewrite
-## already broke that property for those clusters (confirmed, reported to
-## the owner, left as-is), and neither 28 Jul redesign attempts to restore or
-## re-verify it — several routes incidentally pass through HOME_WORK_PAIRS
-## nodes as intermediate stops (e.g. several routes above cross node 46, a
-## human player's own work node), the same way the West Extension's 28→35
-## cluster already did. Accepted, not fixed, consistent with the owner's
-## standing call on this property.
+## New rule: each neighbourhood's destinations are drawn from the SAME 20-node
+## hub pool as before, restricted to nodes 18-35 min away by that
+## neighbourhood's own Dijkstra distance on raw base_time (no personality, so
+## the list does not shift if alpha values are ever retuned), ordered
+## amenity-nodes-first and then by distance. Deterministic and authored, no
+## RNG, so guardrail 3 is untouched.
+##
+## Preserved exactly from the 28 Jul design:
+##   - owner: "at most 2 people from each neighbourhood go to the same
+##     workplace". Still at most 2 per (home, destination) pair.
+##   - owner: "add another neighbourhood at node 16, and increase all the
+##     neighbourhoods' amounts by 2-3". Node 16 is still a 6-resident
+##     neighbourhood; every per-neighbourhood resident count is unchanged.
+##   - the 12 home nodes, the 20-node hub pool as the candidate set, and the
+##     invariant that no home node is also a destination. 15 of the 20 hubs
+##     are actually selected; nodes 2, 5, 6, 10 and 22 now sit outside every
+##     neighbourhood's 18-35 min band and so no longer receive commuters.
+##   - all 7 WORK_NODE_ICONS amenity nodes keep feeders (2-7 neighbourhoods
+##     each), so the school/coffee/market/bank/gym/shopping icons still have
+##     commuters going to them.
+##
+## Effect: one-link commutes 34 → 0, median commute 2 → 5 links and 8.5 →
+## 24.1 min, residents' routes now touch 56 of 69 links (was 47), and the best
+## single protected upgrade moves 14 of 99 residents (was 5). Residents now
+## commute at roughly the same scale as the player.
+##
+## Still open after this change: the impedance-optimal route equals the
+## pure-fastest route for 79% of residents, and is identical across all three
+## personalities, because base_stress has sd 0.09 around mean 0.603 and so
+## nearly cancels out of the path comparison. Fixing that needs the stress
+## column restructured into corridors, which reverses a direct owner
+## instruction and is therefore not done here.
+##
+## Route-independence note (predates this rewrite): the original clusters'
+## routes were once chosen to share zero links with HOME_WORK_PAIRS. The
+## 4 Aug 2026 network-wide stress rewrite already broke that property
+## (reported to the owner, left as-is), and this rewrite does not restore it;
+## resident routes may cross player nodes as intermediate stops. Accepted,
+## consistent with the owner's standing call on this property.
 ##
 ## Same pairs every session, for reproducibility.
+
+
 ## Which amenity icon each simulated-resident workplace node shows, so the
 ## city's job clusters read as distinct destinations (a school, a café)
 ## instead of one repeated generic building — purely cosmetic, drawn by
@@ -187,131 +191,135 @@ const WORK_NODE_ICONS: Dictionary = {
 	Vector2i(8, 0):  "shopping_bag", # fed by 9 + 29 + 16
 }
 
-## Redesigned 28 Jul 2026 (twice — see the breakdown table in the comment
-## block above): first split every neighbourhood's residents across 3-4
-## distinct workplaces (≤2 each), then grew every neighbourhood by 3 more
-## residents and added a brand-new 6-resident neighbourhood at node 16.
+## Destinations rewritten 9 Aug 2026 (see the comment block above): drawn
+## from the existing hub pool at 18-35 min out, replacing the previous
+## nearest-node rule that left a third of the city with no route choice.
+## Per-neighbourhood breakdown is inline below, with each destination's
+## distance from its home node.
 const RESIDENT_COMMUTE_PAIRS: Array = [
-	# Node 21 (10): 22x2, 20x2, 15x2, 19x2, 10x2
-	[Vector2i(21, 0), Vector2i(22, 0)],
-	[Vector2i(21, 0), Vector2i(22, 0)],
-	[Vector2i(21, 0), Vector2i(20, 0)],
-	[Vector2i(21, 0), Vector2i(20, 0)],
-	[Vector2i(21, 0), Vector2i(15, 0)],
-	[Vector2i(21, 0), Vector2i(15, 0)],
-	[Vector2i(21, 0), Vector2i(19, 0)],
-	[Vector2i(21, 0), Vector2i(19, 0)],
-	[Vector2i(21, 0), Vector2i(10, 0)],
-	[Vector2i(21, 0), Vector2i(10, 0)],
-	# Node 14 (9): 15x2, 11x2, 22x2, 19x2, 12x1
-	[Vector2i(14, 0), Vector2i(15, 0)],
-	[Vector2i(14, 0), Vector2i(15, 0)],
-	[Vector2i(14, 0), Vector2i(11, 0)],
-	[Vector2i(14, 0), Vector2i(11, 0)],
-	[Vector2i(14, 0), Vector2i(22, 0)],
-	[Vector2i(14, 0), Vector2i(22, 0)],
-	[Vector2i(14, 0), Vector2i(19, 0)],
-	[Vector2i(14, 0), Vector2i(19, 0)],
-	[Vector2i(14, 0), Vector2i(12, 0)],
-	# Node 9 (10): 5x2, 10x2, 8x2 "shopping_bag", 6x2, 4x2 "coffee"
-	[Vector2i(9, 0),  Vector2i(5, 0)],
-	[Vector2i(9, 0),  Vector2i(5, 0)],
-	[Vector2i(9, 0),  Vector2i(10, 0)],
-	[Vector2i(9, 0),  Vector2i(10, 0)],
-	[Vector2i(9, 0),  Vector2i(8, 0)],
-	[Vector2i(9, 0),  Vector2i(8, 0)],
-	[Vector2i(9, 0),  Vector2i(6, 0)],
-	[Vector2i(9, 0),  Vector2i(6, 0)],
-	[Vector2i(9, 0),  Vector2i(4, 0)],
-	[Vector2i(9, 0),  Vector2i(4, 0)],
-	# Node 1 (4): 3x2, 30x2
-	[Vector2i(1, 0),  Vector2i(3, 0)],
-	[Vector2i(1, 0),  Vector2i(3, 0)],
-	[Vector2i(1, 0),  Vector2i(30, 0)],
-	[Vector2i(1, 0),  Vector2i(30, 0)],
-	# West Extension clusters (originally added 4 Aug 2026, redistributed
-	# 28 Jul 2026 — see comment block above)
-	# Node 28 (9): 22x2, 15x2, 11x2, 20x2, 19x1
-	[Vector2i(28, 0), Vector2i(22, 0)],
-	[Vector2i(28, 0), Vector2i(22, 0)],
-	[Vector2i(28, 0), Vector2i(15, 0)],
-	[Vector2i(28, 0), Vector2i(15, 0)],
-	[Vector2i(28, 0), Vector2i(11, 0)],
-	[Vector2i(28, 0), Vector2i(11, 0)],
-	[Vector2i(28, 0), Vector2i(20, 0)],
-	[Vector2i(28, 0), Vector2i(20, 0)],
-	[Vector2i(28, 0), Vector2i(19, 0)],
-	# Node 34 (9): 36x2, 35x2 "bank", 44x2 "gym", 30x2, 33x1 "shopping"
-	[Vector2i(34, 0), Vector2i(36, 0)],
-	[Vector2i(34, 0), Vector2i(36, 0)],
-	[Vector2i(34, 0), Vector2i(35, 0)],
-	[Vector2i(34, 0), Vector2i(35, 0)],
-	[Vector2i(34, 0), Vector2i(44, 0)],
-	[Vector2i(34, 0), Vector2i(44, 0)],
-	[Vector2i(34, 0), Vector2i(30, 0)],
-	[Vector2i(34, 0), Vector2i(30, 0)],
-	[Vector2i(34, 0), Vector2i(33, 0)],
-	# Node 38 (8): 39x2, 44x2 "gym", 36x2, 35x2 "bank"
-	[Vector2i(38, 0), Vector2i(39, 0)],
-	[Vector2i(38, 0), Vector2i(39, 0)],
-	[Vector2i(38, 0), Vector2i(44, 0)],
-	[Vector2i(38, 0), Vector2i(44, 0)],
-	[Vector2i(38, 0), Vector2i(36, 0)],
-	[Vector2i(38, 0), Vector2i(36, 0)],
+	# Node 1 (4): 35x2 "bank", 8x2 "shopping_bag"
+	#   destination distances: 35=21min, 8=21min
+	[Vector2i(1, 0), Vector2i(35, 0)],
+	[Vector2i(1, 0), Vector2i(35, 0)],
+	[Vector2i(1, 0), Vector2i(8, 0)],
+	[Vector2i(1, 0), Vector2i(8, 0)],
+	# Node 9 (10): 33x2 "shopping", 44x2 "gym", 20x2, 30x2, 36x2
+	#   destination distances: 33=25min, 44=27min, 20=20min, 30=20min, 36=31min
+	[Vector2i(9, 0), Vector2i(33, 0)],
+	[Vector2i(9, 0), Vector2i(33, 0)],
+	[Vector2i(9, 0), Vector2i(44, 0)],
+	[Vector2i(9, 0), Vector2i(44, 0)],
+	[Vector2i(9, 0), Vector2i(20, 0)],
+	[Vector2i(9, 0), Vector2i(20, 0)],
+	[Vector2i(9, 0), Vector2i(30, 0)],
+	[Vector2i(9, 0), Vector2i(30, 0)],
+	[Vector2i(9, 0), Vector2i(36, 0)],
+	[Vector2i(9, 0), Vector2i(36, 0)],
+	# Node 14 (9): 8x2 "shopping_bag", 33x2 "shopping", 44x2 "gym", 35x2 "bank", 30x1
+	#   destination distances: 8=20min, 33=24min, 44=26min, 35=34min, 30=18min
+	[Vector2i(14, 0), Vector2i(8, 0)],
+	[Vector2i(14, 0), Vector2i(8, 0)],
+	[Vector2i(14, 0), Vector2i(33, 0)],
+	[Vector2i(14, 0), Vector2i(33, 0)],
+	[Vector2i(14, 0), Vector2i(44, 0)],
+	[Vector2i(14, 0), Vector2i(44, 0)],
+	[Vector2i(14, 0), Vector2i(35, 0)],
+	[Vector2i(14, 0), Vector2i(35, 0)],
+	[Vector2i(14, 0), Vector2i(30, 0)],
+	# Node 16 (6): 33x2 "shopping", 44x2 "gym", 3x2
+	#   destination distances: 33=28min, 44=30min, 3=21min
+	[Vector2i(16, 0), Vector2i(33, 0)],
+	[Vector2i(16, 0), Vector2i(33, 0)],
+	[Vector2i(16, 0), Vector2i(44, 0)],
+	[Vector2i(16, 0), Vector2i(44, 0)],
+	[Vector2i(16, 0), Vector2i(3, 0)],
+	[Vector2i(16, 0), Vector2i(3, 0)],
+	# Node 21 (10): 8x2 "shopping_bag", 4x2 "coffee", 44x2 "gym", 33x2 "shopping", 35x2 "bank"
+	#   destination distances: 8=22min, 4=25min, 44=25min, 33=33min, 35=33min
+	[Vector2i(21, 0), Vector2i(8, 0)],
+	[Vector2i(21, 0), Vector2i(8, 0)],
+	[Vector2i(21, 0), Vector2i(4, 0)],
+	[Vector2i(21, 0), Vector2i(4, 0)],
+	[Vector2i(21, 0), Vector2i(44, 0)],
+	[Vector2i(21, 0), Vector2i(44, 0)],
+	[Vector2i(21, 0), Vector2i(33, 0)],
+	[Vector2i(21, 0), Vector2i(33, 0)],
+	[Vector2i(21, 0), Vector2i(35, 0)],
+	[Vector2i(21, 0), Vector2i(35, 0)],
+	# Node 28 (9): 4x2 "coffee", 17x2 "market", 8x2 "shopping_bag", 44x2 "gym", 33x1 "shopping"
+	#   destination distances: 4=22min, 17=24min, 8=30min, 44=32min, 33=34min
+	[Vector2i(28, 0), Vector2i(4, 0)],
+	[Vector2i(28, 0), Vector2i(4, 0)],
+	[Vector2i(28, 0), Vector2i(17, 0)],
+	[Vector2i(28, 0), Vector2i(17, 0)],
+	[Vector2i(28, 0), Vector2i(8, 0)],
+	[Vector2i(28, 0), Vector2i(8, 0)],
+	[Vector2i(28, 0), Vector2i(44, 0)],
+	[Vector2i(28, 0), Vector2i(44, 0)],
+	[Vector2i(28, 0), Vector2i(33, 0)],
+	# Node 29 (9): 15x2 "school", 33x2 "shopping", 44x2 "gym", 19x2, 3x1
+	#   destination distances: 15=24min, 33=29min, 44=31min, 19=19min, 3=22min
+	[Vector2i(29, 0), Vector2i(15, 0)],
+	[Vector2i(29, 0), Vector2i(15, 0)],
+	[Vector2i(29, 0), Vector2i(33, 0)],
+	[Vector2i(29, 0), Vector2i(33, 0)],
+	[Vector2i(29, 0), Vector2i(44, 0)],
+	[Vector2i(29, 0), Vector2i(44, 0)],
+	[Vector2i(29, 0), Vector2i(19, 0)],
+	[Vector2i(29, 0), Vector2i(19, 0)],
+	[Vector2i(29, 0), Vector2i(3, 0)],
+	# Node 32 (8): 35x2 "bank", 4x2 "coffee", 17x2 "market", 15x2 "school"
+	#   destination distances: 35=20min, 4=22min, 17=32min, 15=32min
+	[Vector2i(32, 0), Vector2i(35, 0)],
+	[Vector2i(32, 0), Vector2i(35, 0)],
+	[Vector2i(32, 0), Vector2i(4, 0)],
+	[Vector2i(32, 0), Vector2i(4, 0)],
+	[Vector2i(32, 0), Vector2i(17, 0)],
+	[Vector2i(32, 0), Vector2i(17, 0)],
+	[Vector2i(32, 0), Vector2i(15, 0)],
+	[Vector2i(32, 0), Vector2i(15, 0)],
+	# Node 34 (9): 4x2 "coffee", 39x2, 12x2, 3x2, 11x1
+	#   destination distances: 4=28min, 39=18min, 12=22min, 3=24min, 11=27min
+	[Vector2i(34, 0), Vector2i(4, 0)],
+	[Vector2i(34, 0), Vector2i(4, 0)],
+	[Vector2i(34, 0), Vector2i(39, 0)],
+	[Vector2i(34, 0), Vector2i(39, 0)],
+	[Vector2i(34, 0), Vector2i(12, 0)],
+	[Vector2i(34, 0), Vector2i(12, 0)],
+	[Vector2i(34, 0), Vector2i(3, 0)],
+	[Vector2i(34, 0), Vector2i(3, 0)],
+	[Vector2i(34, 0), Vector2i(11, 0)],
+	# Node 38 (8): 33x2 "shopping", 35x2 "bank", 36x2, 30x2
+	#   destination distances: 33=23min, 35=23min, 36=19min, 30=23min
+	[Vector2i(38, 0), Vector2i(33, 0)],
+	[Vector2i(38, 0), Vector2i(33, 0)],
 	[Vector2i(38, 0), Vector2i(35, 0)],
 	[Vector2i(38, 0), Vector2i(35, 0)],
-	# "Left side" clusters (originally added 4 Aug 2026, home moved from 42
-	# to 32 same day, redistributed 28 Jul 2026 — see comment block above).
-	# Node 32 (8): 33x2 "shopping", 30x2, 44x2 "gym", 12x2
-	[Vector2i(32, 0), Vector2i(33, 0)],
-	[Vector2i(32, 0), Vector2i(33, 0)],
-	[Vector2i(32, 0), Vector2i(30, 0)],
-	[Vector2i(32, 0), Vector2i(30, 0)],
-	[Vector2i(32, 0), Vector2i(44, 0)],
-	[Vector2i(32, 0), Vector2i(44, 0)],
-	[Vector2i(32, 0), Vector2i(12, 0)],
-	[Vector2i(32, 0), Vector2i(12, 0)],
-	# Node 40 (8): 39x2, 33x2 "shopping", 30x2, 44x2 "gym"
-	[Vector2i(40, 0), Vector2i(39, 0)],
-	[Vector2i(40, 0), Vector2i(39, 0)],
-	[Vector2i(40, 0), Vector2i(33, 0)],
-	[Vector2i(40, 0), Vector2i(33, 0)],
-	[Vector2i(40, 0), Vector2i(30, 0)],
-	[Vector2i(40, 0), Vector2i(30, 0)],
-	[Vector2i(40, 0), Vector2i(44, 0)],
-	[Vector2i(40, 0), Vector2i(44, 0)],
-	# 2 more clusters (originally added 28 Jul 2026 — see comment block
-	# above), redistributed the same day into the ≤2-per-pair design.
-	# Node 29 (9): 2x2, 6x2, 8x2 "shopping_bag", 5x2, 17x1 "market"
-	[Vector2i(29, 0), Vector2i(2, 0)],
-	[Vector2i(29, 0), Vector2i(2, 0)],
-	[Vector2i(29, 0), Vector2i(6, 0)],
-	[Vector2i(29, 0), Vector2i(6, 0)],
-	[Vector2i(29, 0), Vector2i(8, 0)],
-	[Vector2i(29, 0), Vector2i(8, 0)],
-	[Vector2i(29, 0), Vector2i(5, 0)],
-	[Vector2i(29, 0), Vector2i(5, 0)],
-	[Vector2i(29, 0), Vector2i(17, 0)],
-	# Node 42 (9): 33x2 "shopping", 30x2, 39x2, 44x2 "gym", 12x1
-	[Vector2i(42, 0), Vector2i(33, 0)],
-	[Vector2i(42, 0), Vector2i(33, 0)],
-	[Vector2i(42, 0), Vector2i(30, 0)],
-	[Vector2i(42, 0), Vector2i(30, 0)],
-	[Vector2i(42, 0), Vector2i(39, 0)],
-	[Vector2i(42, 0), Vector2i(39, 0)],
-	[Vector2i(42, 0), Vector2i(44, 0)],
-	[Vector2i(42, 0), Vector2i(44, 0)],
+	[Vector2i(38, 0), Vector2i(36, 0)],
+	[Vector2i(38, 0), Vector2i(36, 0)],
+	[Vector2i(38, 0), Vector2i(30, 0)],
+	[Vector2i(38, 0), Vector2i(30, 0)],
+	# Node 40 (8): 35x2 "bank", 4x2 "coffee", 36x2, 12x2
+	#   destination distances: 35=24min, 4=29min, 36=20min, 12=22min
+	[Vector2i(40, 0), Vector2i(35, 0)],
+	[Vector2i(40, 0), Vector2i(35, 0)],
+	[Vector2i(40, 0), Vector2i(4, 0)],
+	[Vector2i(40, 0), Vector2i(4, 0)],
+	[Vector2i(40, 0), Vector2i(36, 0)],
+	[Vector2i(40, 0), Vector2i(36, 0)],
+	[Vector2i(40, 0), Vector2i(12, 0)],
+	[Vector2i(40, 0), Vector2i(12, 0)],
+	# Node 42 (9): 35x2 "bank", 4x2 "coffee", 17x2 "market", 12x2, 36x1
+	#   destination distances: 35=23min, 4=25min, 17=35min, 12=19min, 36=19min
+	[Vector2i(42, 0), Vector2i(35, 0)],
+	[Vector2i(42, 0), Vector2i(35, 0)],
+	[Vector2i(42, 0), Vector2i(4, 0)],
+	[Vector2i(42, 0), Vector2i(4, 0)],
+	[Vector2i(42, 0), Vector2i(17, 0)],
+	[Vector2i(42, 0), Vector2i(17, 0)],
 	[Vector2i(42, 0), Vector2i(12, 0)],
-	# New neighbourhood (added 28 Jul 2026 — see comment block above), on
-	# node 16, vacated by the ≤2-per-pair redesign earlier the same day. All
-	# 3 destinations are direct 1-hop neighbours of 16 itself.
-	# Node 16 (6, NEW): 8x2 "shopping_bag", 10x2, 17x2 "market"
-	[Vector2i(16, 0), Vector2i(8, 0)],
-	[Vector2i(16, 0), Vector2i(8, 0)],
-	[Vector2i(16, 0), Vector2i(10, 0)],
-	[Vector2i(16, 0), Vector2i(10, 0)],
-	[Vector2i(16, 0), Vector2i(17, 0)],
-	[Vector2i(16, 0), Vector2i(17, 0)],
+	[Vector2i(42, 0), Vector2i(12, 0)],
+	[Vector2i(42, 0), Vector2i(36, 0)],
 ]
 
 
@@ -456,99 +464,122 @@ func _build_network(pair_index: int = 0) -> void:
 	# formula produces from the new, 1.5x-scaled coordinates — not just the
 	# old number multiplied by 1.5, though the two agree to within rounding).
 	#
-	# stress (4 Aug 2026, owner request — "same high stress with some
-	# variation, longer roads higher on average" — replaces the old
-	# hand-assigned-per-link values, including the West Extension's uniform
-	# 0.20): every one of these 69 links, old and new alike, was regenerated
-	# from one formula rather than tuned individually — mean_stress =
-	# 0.55 + 0.30 x (this link's base_time, normalized 0-1 against the
-	# network's own min/max base_time), then +/- up to 0.12 of deterministic
-	# noise, clamped to [0.40, 0.92]. The noise is drawn from Python's
-	# random.Random(42) (fixed seed, same convention as the game's own RNG
-	# seed — not read at runtime, just used once here to author these
-	# numbers) in the exact order the edges are listed, so it's fully
-	# reproducible from the derivation script (kept in git history) rather
-	# than hand-picked. Result: network-wide average stress 0.603 (was much
-	# lower — most streets used to sit at 0.15-0.20), longer links average
-	# 0.65 vs. 0.56 for shorter ones, and no link reads as "quiet" anymore —
-	# even the calmest street is 0.40+. This is a deliberate, large routing
-	# change (previous additions to this file went out of their way to
-	# preserve existing routes; this one doesn't, by design) — see the P0
-	# verification note in the code-review/session log for which specific
-	# routes it moves.
+	# stress: REDERIVED 10 Aug 2026 as an ARTERIAL SKELETON, replacing the
+	# 4 Aug 2026 length-derived column. That column was written to the owner's
+	# instruction, "same high stress with some variation, longer roads higher
+	# on average", and this change reverses it. Recorded here rather than
+	# dropped, because the reversal is the point: deriving stress from length
+	# made "avoid stress" and "avoid time" the same instruction, so there was
+	# nothing to detour around.
+	#
+	# Measured before the rewrite: stress sd was 0.09 around mean 0.603, so
+	# (1 + alpha x stress) scaled every candidate path about equally and
+	# cancelled out of the comparison. Consequence: cautious, average and
+	# confident riders picked the IDENTICAL route for all 99 residents. Alpha,
+	# the mechanism the study rests on, moved the safety readout and nothing
+	# else. The impedance-optimal route also equalled the pure-fastest route
+	# for 79% of residents.
+	#
+	# New rule: the 24 of 69 links most ridden by the simulated residents form
+	# an arterial skeleton at 0.82; the other 45 are backstreets at 0.22. Each
+	# gets +/- up to 0.06 of deterministic noise from Python's
+	# random.Random(42) (fixed seed, same convention as the column it
+	# replaces, not read at runtime) in the exact order the edges are listed,
+	# clamped to [0.10, 0.92]. Selection is by resident usage rather than
+	# betweenness centrality: betweenness scores all-pairs traffic and picked
+	# two links (16-18, 20-21) that no resident rides, and measured worse on
+	# every other count. The skeleton is one connected component of 22 nodes
+	# plus two fragments, hubbed on node 30 (degree 4) with 10/11/36/44 at
+	# degree 3 - a branching spine through the core (1-3-4, 8-9-10-11-12) and
+	# the West Extension (30-33-42, 36-44-37).
+	#
+	# Selection bootstraps off the routes the OLD stress column produced. That
+	# is deliberate and one-shot: it picks the roads people actually rode, and
+	# re-running it against the new column would chase its own tail.
+	#
+	# Result: network mean stress 0.603 -> ~0.42, sd 0.09 -> ~0.28, and the
+	# correlation with link length drops from +0.65 to ~+0.2. Route-equals-
+	# fastest falls to 42/51/72% (cautious/average/confident) and 31 of 99
+	# residents now route DIFFERENTLY depending on personality, up from zero.
+	# Like the 4 Aug rewrite this deliberately moves existing routes.
+	#
+	# Note the visual layer reads this column directly: LinkSegment draws road
+	# WIDTH from base_stress (fixed road character) and car count/speed plus
+	# the centre-line stress view from effective stress (post-beta). A change
+	# here is visible on the map, by design.
 	var edges: Array = [
-		[Vector2i(1, 0),  Vector2i(2, 0),  15.0, 0.88],
-		[Vector2i(1, 0),  Vector2i(3, 0),  3.4, 0.46],
-		[Vector2i(2, 0),  Vector2i(6, 0),  3.4, 0.52],
-		[Vector2i(3, 0),  Vector2i(4, 0),  4.6, 0.53],
-		[Vector2i(3, 0),  Vector2i(12, 0), 5.8, 0.68],
-		[Vector2i(4, 0),  Vector2i(5, 0),  5.1, 0.65],
-		[Vector2i(4, 0),  Vector2i(11, 0), 5.8, 0.72],
-		[Vector2i(5, 0),  Vector2i(6, 0),  5.4, 0.52],
-		[Vector2i(5, 0),  Vector2i(9, 0),  2.8, 0.54],
-		[Vector2i(6, 0),  Vector2i(8, 0),  2.8, 0.44],
-		[Vector2i(7, 0),  Vector2i(8, 0),  5.6, 0.56],
-		[Vector2i(7, 0),  Vector2i(18, 0), 3.0, 0.56],
-		[Vector2i(8, 0),  Vector2i(9, 0),  5.4, 0.50],
-		[Vector2i(8, 0),  Vector2i(16, 0), 3.0, 0.49],
-		[Vector2i(9, 0),  Vector2i(10, 0), 3.0, 0.60],
-		[Vector2i(10, 0), Vector2i(11, 0), 5.1, 0.62],
-		[Vector2i(10, 0), Vector2i(15, 0), 6.5, 0.58],
-		[Vector2i(10, 0), Vector2i(16, 0), 5.4, 0.64],
-		[Vector2i(10, 0), Vector2i(17, 0), 6.1, 0.71],
-		[Vector2i(11, 0), Vector2i(12, 0), 4.6, 0.48],
-		[Vector2i(11, 0), Vector2i(14, 0), 6.5, 0.72],
-		[Vector2i(12, 0), Vector2i(48, 0), 7.0, 0.70],   # split of former 12-13
-		[Vector2i(48, 0), Vector2i(13, 0), 7.0, 0.62],
-		[Vector2i(13, 0), Vector2i(24, 0), 4.6, 0.52],
-		[Vector2i(14, 0), Vector2i(15, 0), 5.1, 0.72],
-		[Vector2i(14, 0), Vector2i(23, 0), 3.0, 0.52],
-		[Vector2i(15, 0), Vector2i(19, 0), 5.4, 0.52],
-		[Vector2i(15, 0), Vector2i(22, 0), 3.0, 0.46],
-		[Vector2i(16, 0), Vector2i(17, 0), 3.0, 0.64],
-		[Vector2i(16, 0), Vector2i(18, 0), 5.6, 0.65],
-		[Vector2i(17, 0), Vector2i(19, 0), 3.5, 0.65],
-		[Vector2i(18, 0), Vector2i(49, 0), 7.5, 0.72],   # split of former 18-20
-		[Vector2i(49, 0), Vector2i(20, 0), 7.5, 0.68],
-		[Vector2i(19, 0), Vector2i(20, 0), 7.5, 0.78],
-		[Vector2i(20, 0), Vector2i(21, 0), 5.4, 0.59],
-		[Vector2i(20, 0), Vector2i(22, 0), 7.0, 0.67],
-		[Vector2i(21, 0), Vector2i(22, 0), 4.5, 0.68],
-		[Vector2i(21, 0), Vector2i(24, 0), 5.1, 0.64],
-		[Vector2i(22, 0), Vector2i(23, 0), 5.1, 0.70],
-		[Vector2i(23, 0), Vector2i(24, 0), 4.5, 0.61],
+		[Vector2i(1, 0),  Vector2i(2, 0),  15.0, 0.24],
+		[Vector2i(1, 0),  Vector2i(3, 0),  3.4, 0.76],
+		[Vector2i(2, 0),  Vector2i(6, 0),  3.4, 0.19],
+		[Vector2i(3, 0),  Vector2i(4, 0),  4.6, 0.79],
+		[Vector2i(3, 0),  Vector2i(12, 0), 5.8, 0.25],
+		[Vector2i(4, 0),  Vector2i(5, 0),  5.1, 0.24],
+		[Vector2i(4, 0),  Vector2i(11, 0), 5.8, 0.27],
+		[Vector2i(5, 0),  Vector2i(6, 0),  5.4, 0.17],
+		[Vector2i(5, 0),  Vector2i(9, 0),  2.8, 0.21],
+		[Vector2i(6, 0),  Vector2i(8, 0),  2.8, 0.76],
+		[Vector2i(7, 0),  Vector2i(8, 0),  5.6, 0.19],
+		[Vector2i(7, 0),  Vector2i(18, 0), 3.0, 0.22],
+		[Vector2i(8, 0),  Vector2i(9, 0),  5.4, 0.76],
+		[Vector2i(8, 0),  Vector2i(16, 0), 3.0, 0.18],
+		[Vector2i(9, 0),  Vector2i(10, 0), 3.0, 0.84],
+		[Vector2i(10, 0), Vector2i(11, 0), 5.1, 0.83],
+		[Vector2i(10, 0), Vector2i(15, 0), 6.5, 0.79],
+		[Vector2i(10, 0), Vector2i(16, 0), 5.4, 0.23],
+		[Vector2i(10, 0), Vector2i(17, 0), 6.1, 0.26],
+		[Vector2i(11, 0), Vector2i(12, 0), 4.6, 0.76],
+		[Vector2i(11, 0), Vector2i(14, 0), 6.5, 0.86],
+		[Vector2i(12, 0), Vector2i(48, 0), 7.0, 0.24],   # split of former 12-13
+		[Vector2i(48, 0), Vector2i(13, 0), 7.0, 0.20],
+		[Vector2i(13, 0), Vector2i(24, 0), 4.6, 0.78],
+		[Vector2i(14, 0), Vector2i(15, 0), 5.1, 0.27],
+		[Vector2i(14, 0), Vector2i(23, 0), 3.0, 0.20],
+		[Vector2i(15, 0), Vector2i(19, 0), 5.4, 0.17],
+		[Vector2i(15, 0), Vector2i(22, 0), 3.0, 0.77],
+		[Vector2i(16, 0), Vector2i(17, 0), 3.0, 0.26],
+		[Vector2i(16, 0), Vector2i(18, 0), 5.6, 0.23],
+		[Vector2i(17, 0), Vector2i(19, 0), 3.5, 0.26],
+		[Vector2i(18, 0), Vector2i(49, 0), 7.5, 0.25],   # split of former 18-20
+		[Vector2i(49, 0), Vector2i(20, 0), 7.5, 0.22],
+		[Vector2i(19, 0), Vector2i(20, 0), 7.5, 0.28],
+		[Vector2i(20, 0), Vector2i(21, 0), 5.4, 0.21],
+		[Vector2i(20, 0), Vector2i(22, 0), 7.0, 0.23],
+		[Vector2i(21, 0), Vector2i(22, 0), 4.5, 0.26],
+		[Vector2i(21, 0), Vector2i(24, 0), 5.1, 0.23],
+		[Vector2i(22, 0), Vector2i(23, 0), 5.1, 0.26],
+		[Vector2i(23, 0), Vector2i(24, 0), 4.5, 0.23],
 		# West Extension edges — owner-designed topology from the node
 		# editor; stress values re-derived by the same formula above, not
 		# the editor's uniform 0.20 default.
-		[Vector2i(23, 0), Vector2i(27, 0), 2.6, 0.60],
-		[Vector2i(27, 0), Vector2i(28, 0), 4.5, 0.49],
-		[Vector2i(2, 0),  Vector2i(29, 0), 3.3, 0.50],
-		[Vector2i(12, 0), Vector2i(30, 0), 6.9, 0.60],
-		[Vector2i(1, 0),  Vector2i(30, 0), 5.0, 0.51],
-		[Vector2i(33, 0), Vector2i(30, 0), 5.5, 0.56],
-		[Vector2i(30, 0), Vector2i(31, 0), 3.9, 0.49],
-		[Vector2i(31, 0), Vector2i(32, 0), 5.5, 0.57],
-		[Vector2i(32, 0), Vector2i(33, 0), 3.9, 0.61],
-		[Vector2i(33, 0), Vector2i(42, 0), 6.6, 0.61],
-		[Vector2i(42, 0), Vector2i(40, 0), 5.8, 0.60],
-		[Vector2i(40, 0), Vector2i(41, 0), 4.3, 0.52],
-		[Vector2i(41, 0), Vector2i(33, 0), 5.8, 0.57],
-		[Vector2i(41, 0), Vector2i(37, 0), 8.1, 0.79],
-		[Vector2i(39, 0), Vector2i(38, 0), 4.4, 0.63],
-		[Vector2i(39, 0), Vector2i(37, 0), 4.5, 0.62],
-		[Vector2i(30, 0), Vector2i(44, 0), 7.6, 0.59],
-		[Vector2i(44, 0), Vector2i(37, 0), 6.1, 0.69],
-		[Vector2i(37, 0), Vector2i(13, 0), 9.6, 0.64],
-		[Vector2i(44, 0), Vector2i(36, 0), 4.0, 0.55],
-		[Vector2i(36, 0), Vector2i(34, 0), 3.9, 0.70],
-		[Vector2i(36, 0), Vector2i(35, 0), 4.0, 0.62],
-		[Vector2i(40, 0), Vector2i(45, 0), 4.0, 0.60],
-		[Vector2i(39, 0), Vector2i(45, 0), 4.5, 0.64],
-		[Vector2i(45, 0), Vector2i(37, 0), 6.3, 0.72],
-		[Vector2i(44, 0), Vector2i(46, 0), 5.1, 0.68],
-		[Vector2i(46, 0), Vector2i(33, 0), 3.5, 0.51],
-		[Vector2i(47, 0), Vector2i(35, 0), 3.1, 0.45],
-		[Vector2i(36, 0), Vector2i(47, 0), 2.8, 0.51],
+		[Vector2i(23, 0), Vector2i(27, 0), 2.6, 0.84],
+		[Vector2i(27, 0), Vector2i(28, 0), 4.5, 0.77],
+		[Vector2i(2, 0),  Vector2i(29, 0), 3.3, 0.79],
+		[Vector2i(12, 0), Vector2i(30, 0), 6.9, 0.79],
+		[Vector2i(1, 0),  Vector2i(30, 0), 5.0, 0.77],
+		[Vector2i(33, 0), Vector2i(30, 0), 5.5, 0.79],
+		[Vector2i(30, 0), Vector2i(31, 0), 3.9, 0.17],
+		[Vector2i(31, 0), Vector2i(32, 0), 5.5, 0.19],
+		[Vector2i(32, 0), Vector2i(33, 0), 3.9, 0.24],
+		[Vector2i(33, 0), Vector2i(42, 0), 6.6, 0.80],
+		[Vector2i(42, 0), Vector2i(40, 0), 5.8, 0.20],
+		[Vector2i(40, 0), Vector2i(41, 0), 4.3, 0.19],
+		[Vector2i(41, 0), Vector2i(33, 0), 5.8, 0.19],
+		[Vector2i(41, 0), Vector2i(37, 0), 8.1, 0.27],
+		[Vector2i(39, 0), Vector2i(38, 0), 4.4, 0.24],
+		[Vector2i(39, 0), Vector2i(37, 0), 4.5, 0.23],
+		[Vector2i(30, 0), Vector2i(44, 0), 7.6, 0.78],
+		[Vector2i(44, 0), Vector2i(37, 0), 6.1, 0.85],
+		[Vector2i(37, 0), Vector2i(13, 0), 9.6, 0.78],
+		[Vector2i(44, 0), Vector2i(36, 0), 4.0, 0.81],
+		[Vector2i(36, 0), Vector2i(34, 0), 3.9, 0.88],
+		[Vector2i(36, 0), Vector2i(35, 0), 4.0, 0.84],
+		[Vector2i(40, 0), Vector2i(45, 0), 4.0, 0.23],
+		[Vector2i(39, 0), Vector2i(45, 0), 4.5, 0.24],
+		[Vector2i(45, 0), Vector2i(37, 0), 6.3, 0.26],
+		[Vector2i(44, 0), Vector2i(46, 0), 5.1, 0.25],
+		[Vector2i(46, 0), Vector2i(33, 0), 3.5, 0.19],
+		[Vector2i(47, 0), Vector2i(35, 0), 3.1, 0.16],
+		[Vector2i(36, 0), Vector2i(47, 0), 2.8, 0.20],
 	]
 
 	for edge: Array in edges:
