@@ -82,7 +82,8 @@ func _total_height() -> float:
 	var n := GameManager.human_players.size() if GameManager.game_running else 1
 	var h := float(FS + 8 + 8)   # header + sep
 	h += ROW_H * 3 + 4           # 3 road types
-	h += 8 + ROW_H + 4           # sep + cars row
+	h += 8 + ROW_H * 2 + 4       # sep + road-width rows (quiet / busy)
+	h += ROW_H + 4               # cars row
 	h += 8                        # sep before markers
 	if n > 1:
 		h += (ROW_H - 4) * n + 16
@@ -112,9 +113,18 @@ func _draw() -> void:
 	_label("Protected track", y, font); y += ROW_H + 4
 	_sep(y); y += 8
 
-	# ── Traffic / stress ────────────────────────────────────────────────────
+	# ── Stress ──────────────────────────────────────────────────────────────
+	# Road width is the always-on stress cue (LinkSegment.ROAD_WIDTH), so it is
+	# listed first and given both ends of its range; the cars below are the
+	# secondary cue that also responds to upgrades.
+	_width_swatch(0.15, y)
+	_label("Quiet street", y, font); y += ROW_H
+
+	_width_swatch(0.90, y)
+	_label("Busy road (more stress)", y, font); y += ROW_H
+
 	_car_swatch(y)
-	_label("Traffic stress", y, font); y += ROW_H + 4
+	_label("Traffic", y, font); y += ROW_H + 4
 	_sep(y); y += 8
 
 	# ── Player routes (multi-player only) ───────────────────────────────────
@@ -177,6 +187,19 @@ func _road_swatch(level: int, y: float) -> void:
 
 	# Yellow centre line (all levels)
 	draw_line(Vector2(0, cy), Vector2(w, cy), YELLOW_CENTER, 1.5)
+
+
+## Same road drawn at the width a given base stress would give it on the map,
+## so the legend's two rows bracket the real on-screen range rather than being
+## an arbitrary thick/thin pair. Scaled to the legend's own swatch height.
+func _width_swatch(stress: float, y: float) -> void:
+	var full := LinkSegment.ROAD_WIDTH + LinkSegment.STRESS_WIDTH_BONUS
+	var frac: float = (LinkSegment.ROAD_WIDTH + LinkSegment.STRESS_WIDTH_BONUS * stress) / full
+	var h := SWATCH_H * frac
+	var top := y + (SWATCH_H - h) * 0.5
+	draw_rect(Rect2(0, top, SWATCH_W, h), ROAD_FILL)
+	draw_rect(Rect2(0, top, SWATCH_W, h), ROAD_EDGE, false, 1.0)
+	draw_line(Vector2(0, top + h * 0.5), Vector2(SWATCH_W, top + h * 0.5), YELLOW_CENTER, 1.5)
 
 
 func _car_swatch(y: float) -> void:

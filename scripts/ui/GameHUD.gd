@@ -2,7 +2,11 @@ class_name GameHUD
 extends CanvasLayer
 
 signal end_round_pressed
-signal city_view_toggled(show_npc_heatmap: bool)
+## One signal carrying the whole view mode rather than a boolean per button:
+## the city-routes heatmap and the stress view both take over the centre line,
+## so they are mutually exclusive and a pair of independent booleans could ask
+## for both at once. Emits a CityGrid.ViewMode value.
+signal view_mode_changed(mode: int)
 
 @onready var round_label: Label         = %RoundLabel
 @onready var budget_label: Label        = %BudgetLabel
@@ -14,6 +18,7 @@ signal city_view_toggled(show_npc_heatmap: bool)
 @onready var coverage_label: Label      = %CoverageLabel
 @onready var benefit_label: Label       = %BenefitLabel
 @onready var city_view_button: Button   = %CityViewButton
+@onready var stress_view_button: Button = %StressViewButton
 @onready var end_round_button: Button   = %EndRoundButton
 @onready var debug_button: Button       = %DebugButton
 
@@ -22,17 +27,21 @@ signal city_view_toggled(show_npc_heatmap: bool)
 var _last_round_results: Dictionary = {}
 var _last_city_metrics: Dictionary = {}
 
-## T2/T3 only — lets a player switch the map between their own highlighted
-## route (default) and a green→red heatmap of how heavily the simulated
-## residents use each street, so "the collective" is visible as a single
-## clean picture instead of dozens of overlapping individual paths.
-var _showing_npc_heatmap: bool = false
+## Which map view is active. The city-routes button is T2/T3 only (it lives
+## inside CityPanel, hidden in T1); the stress button is available in every
+## treatment, since how dangerous a road feels is personal information rather
+## than a collective view.
+##
+## Both buttons drive this one value, so turning either view on turns the other
+## off and the labels below can never disagree with what the map is drawing.
+var _view_mode: int = CityGrid.ViewMode.PLAYER_ROUTES
 
 
 func _ready() -> void:
 	end_round_button.pressed.connect(func(): end_round_pressed.emit())
 	debug_button.pressed.connect(_on_debug_pressed)
 	city_view_button.pressed.connect(_on_city_view_pressed)
+	stress_view_button.pressed.connect(_on_stress_view_pressed)
 	GameManager.round_started.connect(_on_round_started)
 	GameManager.round_ended.connect(_on_round_ended)
 	GameManager.city_metrics_updated.connect(_on_city_metrics_updated)
@@ -41,9 +50,28 @@ func _ready() -> void:
 
 
 func _on_city_view_pressed() -> void:
-	_showing_npc_heatmap = not _showing_npc_heatmap
-	city_view_button.text = "View: My Route" if _showing_npc_heatmap else "View: City Routes"
-	city_view_toggled.emit(_showing_npc_heatmap)
+	_set_view_mode(CityGrid.ViewMode.PLAYER_ROUTES
+			if _view_mode == CityGrid.ViewMode.NPC_HEATMAP
+			else CityGrid.ViewMode.NPC_HEATMAP)
+
+
+func _on_stress_view_pressed() -> void:
+	_set_view_mode(CityGrid.ViewMode.PLAYER_ROUTES
+			if _view_mode == CityGrid.ViewMode.STRESS
+			else CityGrid.ViewMode.STRESS)
+
+
+## Each button's label names what pressing it WILL do, so a button reads as an
+## action rather than a status. Both are refreshed on every change because
+## switching straight from one view to the other has to reset the label on the
+## button that was not pressed.
+func _set_view_mode(mode: int) -> void:
+	_view_mode = mode
+	city_view_button.text = ("View: My Route"
+			if _view_mode == CityGrid.ViewMode.NPC_HEATMAP else "View: City Routes")
+	stress_view_button.text = ("View: My Route"
+			if _view_mode == CityGrid.ViewMode.STRESS else "View: Road Stress")
+	view_mode_changed.emit(_view_mode)
 
 
 func _on_debug_pressed() -> void:

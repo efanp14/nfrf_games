@@ -10,10 +10,22 @@ var _route_players: Array[int] = []
 ## -1 = not in heatmap mode (draw the normal per-player route highlight
 ## instead); 0..1 = NPC-heatmap mode, set by CityGrid._show_npc_heatmap().
 var _heatmap_intensity: float = -1.0
+## Stress view: the centre line carries this road's EFFECTIVE stress (post-beta)
+## on the same green to red ramp the usage heatmap uses. Separate from
+## _heatmap_intensity rather than folded into it because it must not be cached:
+## effective stress changes the moment a link is upgraded, and reading it at
+## draw time means the colour updates itself with no explicit refresh.
+##
+## Deliberately paired with road WIDTH, which encodes base stress and never
+## moves. Width says what kind of road this is, this view says how it feels now.
+var _stress_view: bool = false
 var _is_hovered: bool = false
 var _path_points: PackedVector2Array = []
 var _draw_points: PackedVector2Array = []
 var _stress_score: float = 0.5
+## Drawn width of this road, derived once from base stress in setup(). Never
+## changes at runtime. See the ROAD_WIDTH comment.
+var _road_width: float = ROAD_WIDTH
 var _anim_t: float = 0.0
 var _total_length: float = 0.0
 
@@ -58,10 +70,39 @@ const CAR_SHADOW      := Color(0.0, 0.0, 0.0, 0.20)
 const ROAD_SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.15)
 const ROAD_SHADOW_OFFSET := Vector2(2.5, 3.0)
 
-const ROAD_WIDTH     := 24.0
+## Road width encodes BASE stress: the wider the road, the more inherently
+## stressful it is (10 Aug 2026). This is the always-on stress cue, added
+## because upgrade level had three visual cues (a curb appears, bike strips,
+## colour) and stress had only one, the cars, which is the weakest channel on
+## the road.
+##
+## Width rather than colour, because colour is already spoken for three times
+## over (per-player route highlight, the NPC usage heatmap, upgrade level),
+## because width is pre-attentive so the arterial network's shape reads in a
+## single glance, and because it survives red-green colour deficiency, which
+## affects roughly 8% of men and so matters with real lab participants.
+##
+## Width reads BASE stress and therefore never changes at runtime: a road does
+## not narrow because someone painted a lane on it. It is the road's permanent
+## character. How stressful a road feels RIGHT NOW, after upgrades, is carried
+## by the cars and the centre-line stress view, both of which read effective
+## (post-beta) stress. Two cues, two meanings, mirroring the model's own split
+## between an immutable base_stress and an upgradeable beta.
+##
+## ROAD_WIDTH is the FLOOR, not the average: arterials grow from it and no road
+## is ever drawn narrower than it used to be. Narrowing is not an option: see
+## the CAR_LANE_OFFSET note below, where the drivable band on a painted or
+## protected road is already only 8px and cars need 6.5 of it. Anything under
+## ~21px would push cars out onto the bike lane.
+const ROAD_WIDTH         := 24.0
+const STRESS_WIDTH_BONUS := 12.0
 const EDGE_BORDER    := 1.5
-const ROUTE_WIDTH    := 32.0
-const HOVER_WIDTH    := 36.0
+## Margins ADDED to the road's own width, not absolute widths. These two are
+## drawn behind the road, so a fixed 32/36 would disappear underneath a wide
+## arterial. The values preserve the old look on a minimum-width road (24 + 8
+## = the previous 32, 24 + 12 = the previous 36).
+const ROUTE_MARGIN   := 8.0
+const HOVER_MARGIN   := 12.0
 const CENTER_LINE_W  := 1.8
 ## Width of the centre line when it is carrying the NPC heatmap colour.
 const CENTER_HEATMAP_W := 4.0
@@ -78,6 +119,10 @@ const BARRIER_MARK   := 3.0
 # level. On painted/protected roads the outer BIKE_PAINT_W strip on each
 # side narrows that to ROAD_WIDTH/2 - BIKE_PAINT_W = 8.0, so
 # CAR_LANE_OFFSET + CAR_WIDTH_HALF must stay comfortably under 8.0.
+# CAR_LANE_OFFSET is scaled by the road's own width at draw time (see
+# _car_lane_offset), so a wide arterial spreads its cars across the extra
+# space instead of bunching them down the centre line. That scaling only ever
+# increases the offset, since ROAD_WIDTH is the minimum width.
 const CAR_LENGTH      := 10.0
 const CAR_WIDTH_HALF  := 2.5
 const CAR_LANE_OFFSET := 4.0
@@ -99,8 +144,15 @@ const CAR_SPEED_STRESS_SCALE := 39.65
 func setup(id: String, points: PackedVector2Array, upgrade_level: int = 0, stress: float = 0.5) -> void:
 	link_id = id
 	_stress_score = stress
+	_road_width = ROAD_WIDTH + STRESS_WIDTH_BONUS * clampf(stress, 0.0, 1.0)
 	_upgrade_level = upgrade_level
 	set_points(points)
+
+
+## Cars sit proportionally further out on a wider road, so an arterial's extra
+## width reads as more room rather than a wider empty margin.
+func _car_lane_offset() -> float:
+	return CAR_LANE_OFFSET * (_road_width / ROAD_WIDTH)
 
 
 func set_points(points: PackedVector2Array) -> void:
@@ -162,6 +214,13 @@ func clear_heatmap() -> void:
 	queue_redraw()
 
 
+func set_stress_view(on: bool) -> void:
+	if _stress_view == on:
+		return
+	_stress_view = on
+	queue_redraw()
+
+
 ## Green (least-used) → yellow → red (most-used), constant saturation/value
 ## so the gradient reads clearly at every step rather than washing out.
 ##
@@ -213,7 +272,7 @@ func _draw() -> void:
 	_draw_shadow()
 
 	if _is_hovered:
-		_draw_thick_line(HOVER_GLOW, HOVER_WIDTH)
+		_draw_thick_line(HOVER_GLOW, _road_width + HOVER_MARGIN)
 
 	# Route highlight breathes gently (± a couple px) instead of sitting
 	# perfectly static, so an active route reads as "selected" at a glance.
@@ -224,15 +283,15 @@ func _draw() -> void:
 	if _heatmap_intensity < 0.0:
 		if _route_players.size() == 1:
 			var col: Color = ROUTE_COLORS[_route_players[0] % ROUTE_COLORS.size()]
-			_draw_thick_line(col, ROUTE_WIDTH + pulse)
+			_draw_thick_line(col, _road_width + ROUTE_MARGIN + pulse)
 		elif _route_players.size() > 1:
 			_draw_striped_route()
 
 	# No Bike Lane roads have no curb — a plain, informal street; upgraded
 	# (painted/protected) roads get a defined edge to read as "built".
 	if _display_level() > 0:
-		_draw_thick_line(ROAD_EDGE, ROAD_WIDTH + EDGE_BORDER * 2.0)
-	_draw_thick_line(ROAD_FILL, ROAD_WIDTH)
+		_draw_thick_line(ROAD_EDGE, _road_width + EDGE_BORDER * 2.0)
+	_draw_thick_line(ROAD_FILL, _road_width)
 	_draw_road_markings()
 	_draw_cars()
 
@@ -253,7 +312,7 @@ func _draw_shadow() -> void:
 	var shifted := PackedVector2Array()
 	for p in _draw_points:
 		shifted.append(p + ROAD_SHADOW_OFFSET)
-	draw_polyline(shifted, ROAD_SHADOW_COLOR, ROAD_WIDTH + 3.0, true)
+	draw_polyline(shifted, ROAD_SHADOW_COLOR, _road_width + 3.0, true)
 
 
 func _draw_striped_route() -> void:
@@ -272,7 +331,7 @@ func _draw_striped_route() -> void:
 			var end_pos := minf(pos + stripe_len, length)
 			var p1 := a + dir * pos
 			var p2 := a + dir * end_pos
-			draw_line(p1, p2, col, ROUTE_WIDTH, true)
+			draw_line(p1, p2, col, _road_width + ROUTE_MARGIN, true)
 			pos = end_pos
 			ci += 1
 
@@ -297,17 +356,17 @@ func _draw_road_markings() -> void:
 		pass
 	elif display_level == 1:
 		var pc := Color(BIKE_PAINT, alpha_mult)
-		var po := ROAD_WIDTH / 2.0 - BIKE_PAINT_W / 2.0
+		var po := _road_width / 2.0 - BIKE_PAINT_W / 2.0
 		_draw_offset_line(po, pc, BIKE_PAINT_W)
 		_draw_offset_line(-po, pc, BIKE_PAINT_W)
 	else:
 		# Protected: grey strips same width as painted, white divider just inside
-		var po := ROAD_WIDTH / 2.0 - BIKE_PAINT_W / 2.0
+		var po := _road_width / 2.0 - BIKE_PAINT_W / 2.0
 		var ac := Color(PROTECTED_ASPHALT, alpha_mult)
 		_draw_offset_line(po, ac, BIKE_PAINT_W)
 		_draw_offset_line(-po, ac, BIKE_PAINT_W)
 		var dc := Color(WHITE_MARKING, alpha_mult)
-		var div_off := ROAD_WIDTH / 2.0 - BIKE_PAINT_W - DIVIDER_W / 2.0
+		var div_off := _road_width / 2.0 - BIKE_PAINT_W - DIVIDER_W / 2.0
 		_draw_offset_line(div_off, dc, DIVIDER_W)
 		_draw_offset_line(-div_off, dc, DIVIDER_W)
 
@@ -321,6 +380,15 @@ func _draw_dashed_center_line() -> void:
 	# solid and a little thicker. A 1.8px dash carries too little pixel area to
 	# read a green-to-red gradient off, so the dash pattern is dropped here
 	# rather than tinted.
+	# Stress view reads effective stress live rather than a stored intensity, so
+	# an upgrade recolours the line on the same redraw that redraws the lanes.
+	# Absolute 0-1, NOT normalised against the network's current worst road the
+	# way the usage heatmap is: a city where every street had been calmed should
+	# read as green everywhere, not re-stretch its own scale back to red.
+	if _stress_view:
+		_draw_thick_line(_heatmap_color(clampf(_effective_stress(), 0.0, 1.0)), CENTER_HEATMAP_W)
+		return
+
 	if _heatmap_intensity >= 0.0:
 		_draw_thick_line(_heatmap_color(_heatmap_intensity), CENTER_HEATMAP_W)
 		return
@@ -423,7 +491,8 @@ func _draw_cars() -> void:
 			# Alternate cars slightly left/right of center, one per direction of
 			# travel — and each lane drifts along its own direction over time,
 			# looping back to the start. Cosmetic only; never read by routing.
-			var side: float = CAR_LANE_OFFSET if j % 2 == 0 else -CAR_LANE_OFFSET
+			var lane_off := _car_lane_offset()
+			var side: float = lane_off if j % 2 == 0 else -lane_off
 			var travel_dir: float = 1.0 if j % 2 == 0 else -1.0
 			var pos: float = fposmod(base_pos + _anim_t * speed * travel_dir, length)
 			var car_angle: float = angle if travel_dir > 0.0 else angle + PI
@@ -464,12 +533,19 @@ func _draw_car(center: Vector2, angle: float, color_index: int = 0) -> void:
 
 # --- Hit detection ---
 
+## A wide arterial is drawn past the fixed HIT_RADIUS, so its visual edge
+## would not be clickable. Track the drawn width, never shrinking below the
+## original radius on a narrow road.
+func _hit_radius() -> float:
+	return maxf(HIT_RADIUS, _road_width / 2.0)
+
+
 func _is_mouse_near() -> bool:
 	if _path_points.size() < 2:
 		return false
 	var local_mouse := to_local(get_global_mouse_position())
 	for i: int in range(_path_points.size() - 1):
-		if _dist_to_segment(local_mouse, _path_points[i], _path_points[i + 1]) < HIT_RADIUS:
+		if _dist_to_segment(local_mouse, _path_points[i], _path_points[i + 1]) < _hit_radius():
 			return true
 	return false
 

@@ -98,6 +98,12 @@ custom_minimum_size = Vector2(0, 28)
 text = "View: City Routes"
 theme_override_font_sizes/font_size = 12
 
+[node name="StressViewButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+text = "View: Road Stress"
+theme_override_font_sizes/font_size = 12
+
 [node name="MapLegend" type="Control" parent="HUDRoot/LeftSidebar/MarginContainer/VBoxContainer"]
 script = ExtResource("2_legend")
 

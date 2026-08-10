@@ -71,7 +71,7 @@ func _ready() -> void:
 	get_tree().root.size_changed.connect(_on_viewport_resized)
 	city_grid.link_clicked.connect(_on_link_clicked)
 	game_hud.end_round_pressed.connect(_on_end_round)
-	game_hud.city_view_toggled.connect(_on_city_view_toggled)
+	game_hud.view_mode_changed.connect(_on_view_mode_changed)
 	upgrade_popup.upgrade_chosen.connect(_on_upgrade_chosen)
 	upgrade_popup.downgrade_requested.connect(_on_downgrade_requested)
 	upgrade_popup.cancelled.connect(upgrade_popup.hide)
@@ -194,8 +194,7 @@ func _on_narrative_finished() -> void:
 		GameManager.chat_message_received.connect(chat_panel.add_message)
 
 
-func _on_city_view_toggled(show_npc_heatmap: bool) -> void:
-	var mode := CityGrid.ViewMode.NPC_HEATMAP if show_npc_heatmap else CityGrid.ViewMode.PLAYER_ROUTES
+func _on_view_mode_changed(mode: int) -> void:
 	city_grid.set_view_mode(mode)
 
 

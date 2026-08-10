@@ -14,7 +14,15 @@ var _markers: Dictionary = {}
 ## CityViewButton): every street recolored green→red by how many of the
 ## simulated residents' current routes cross it, so "what the collective
 ## relies on" reads as one clean picture instead of ~48 overlapping paths.
-enum ViewMode { PLAYER_ROUTES, NPC_HEATMAP }
+## STRESS (all treatments, see GameHUD's StressViewButton): every street's
+## centre line recolored green→red by its current effective stress, so a player
+## can read how dangerous each road feels and watch an upgrade calm it. Unlike
+## the other two this is available in T1 as well, because road stress is
+## personal information every treatment needs, not a collective view.
+##
+## All three are mutually exclusive: NPC_HEATMAP and STRESS both take over the
+## centre line, so they cannot both be on. One view mode, not a set of flags.
+enum ViewMode { PLAYER_ROUTES, NPC_HEATMAP, STRESS }
 var _view_mode: int = ViewMode.PLAYER_ROUTES
 
 const LinkSegmentScene := preload("res://scenes/components/LinkSegment.tscn")
@@ -300,11 +308,23 @@ func _on_route_updated(player_id: String, route: Dictionary) -> void:
 ## Called by main.gd, wired to GameHUD's CityViewButton (T2/T3 only).
 func set_view_mode(mode: int) -> void:
 	_view_mode = mode
-	if mode == ViewMode.NPC_HEATMAP:
-		_show_npc_heatmap()
-	else:
+	# Clear both centre-line views first, so switching between them can never
+	# leave a segment carrying the previous one.
+	for seg: LinkSegment in _segments.values():
+		seg.set_stress_view(false)
+	if mode != ViewMode.NPC_HEATMAP:
 		for seg: LinkSegment in _segments.values():
 			seg.clear_heatmap()
+	match mode:
+		ViewMode.NPC_HEATMAP:
+			_show_npc_heatmap()
+		ViewMode.STRESS:
+			# No per-link value passed in: each segment already knows its own
+			# base stress and upgrade level, so it derives effective stress
+			# itself. Keeps this out of the "UI reads core state" pattern that
+			# _show_npc_heatmap() below is already stuck with.
+			for seg: LinkSegment in _segments.values():
+				seg.set_stress_view(true)
 
 
 ## Tallies how many simulated residents' current shortest routes use each
