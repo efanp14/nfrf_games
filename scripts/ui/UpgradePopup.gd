@@ -17,6 +17,12 @@ var _current_link_id: String = ""
 
 func _ready() -> void:
 	visible = false
+	# Marks these two as the buttons that get the upgrade sound rather than the
+	# ordinary click. A meta flag rather than a call, so Audio.gd stays a
+	# generic service that does not need to know what an upgrade is. Remove and
+	# Cancel keep the plain click, since neither commits an upgrade.
+	painted_button.set_meta("sfx", "upgrade")
+	protected_button.set_meta("sfx", "upgrade")
 	painted_button.pressed.connect(func(): _on_upgrade_chosen(1))
 	protected_button.pressed.connect(func(): _on_upgrade_chosen(2))
 	remove_button.pressed.connect(func(): downgrade_requested.emit(_current_link_id); hide())

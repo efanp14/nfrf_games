@@ -252,11 +252,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		var was := _is_hovered
 		_is_hovered = _is_mouse_near()
 		if was != _is_hovered:
+			# On the entering edge only. Roads are Node2D rather than Control,
+			# so they sit outside the button wiring in Audio.gd and say so
+			# themselves. Audio applies its own cooldown, which matters here:
+			# dragging across the map crosses several roads in a few frames.
+			if _is_hovered:
+				Audio.play_hover()
 			queue_redraw()
 		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and _is_mouse_near():
+			# Clicking a road opens the upgrade popup, so this is an ordinary
+			# click. The upgrade sound belongs to the buttons inside that popup.
+			Audio.play_click()
 			clicked.emit(link_id)
 			get_viewport().set_input_as_handled()
 
