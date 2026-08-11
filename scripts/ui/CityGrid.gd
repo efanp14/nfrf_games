@@ -25,6 +25,23 @@ var _markers: Dictionary = {}
 enum ViewMode { PLAYER_ROUTES, NPC_HEATMAP, STRESS }
 var _view_mode: int = ViewMode.PLAYER_ROUTES
 
+## Hides the simulated residents' presence on the map: their neighbourhood and
+## workplace markers, and the bikes they ride at round end. Playtest feedback
+## was that the map is visually busy, and the residents are the largest single
+## contributor — 12 neighbourhood markers, 15 workplace markers, and 99 bikes
+## crossing the city in one burst after every round.
+##
+## A toggle rather than a removal, because whether they go for good is the
+## owner's call and has not been made. Nothing about the model changes: the
+## residents are still simulated, still routed, still counted in every city
+## metric and still written to the logs. This hides them, it does not switch
+## them off, so a session recorded with the toggle on produces exactly the same
+## data as one with it off.
+##
+## Static so it survives the scene reload between a chained T1 and T2, which
+## would otherwise reset it mid-sitting.
+static var hide_resident_visuals: bool = false
+
 const LinkSegmentScene := preload("res://scenes/components/LinkSegment.tscn")
 const NodeMarkerScene  := preload("res://scenes/components/NodeMarker.tscn")
 const BackgroundTexture := preload("res://assets/images/background new.png")
@@ -186,6 +203,10 @@ func _build() -> void:
 		marker.setup(node_id, mtype, display_label, pidx, num_players, work_icon_key)
 		_markers[node_id] = marker
 
+	# The toggle is static and survives a scene reload, so a map built after it
+	# was switched on must come up already hiding them.
+	_apply_resident_visibility()
+
 
 func refresh_link(link_id: String) -> void:
 	var parts := link_id.split("-")
@@ -251,6 +272,12 @@ func play_round_end_animation() -> void:
 	if last_tween:
 		await last_tween.finished
 
+	# The residents' commute is the busiest moment on screen, so it is the first
+	# thing the hide toggle drops. The player's own bike above always rides:
+	# there is one of it, and it is how they see what their upgrade did.
+	if hide_resident_visuals:
+		return
+
 	var npc_last_tween: Tween = null
 	for commuter in GameManager.ai_commuters:
 		var route: Dictionary = GameManager.network.find_route(
@@ -303,6 +330,24 @@ func _on_route_updated(player_id: String, route: Dictionary) -> void:
 	# heatmap left open needs refreshing here too, not just on toggle.
 	if _view_mode == ViewMode.NPC_HEATMAP:
 		_show_npc_heatmap()
+
+
+## Called by main.gd, wired to GameHUD's resident-visuals button. Applies to
+## markers already on the map, so it takes effect without rebuilding the grid.
+func set_resident_visuals_hidden(hidden: bool) -> void:
+	hide_resident_visuals = hidden
+	_apply_resident_visibility()
+
+
+## Hides the ICON only, never the marker. Every marker draws the road node's
+## own intersection circle and the icon sits on top of it, so hiding the node
+## would delete a junction from the map and leave a visible gap where roads
+## meet.
+func _apply_resident_visibility() -> void:
+	for marker: NodeMarker in _markers.values():
+		if marker.marker_type == NodeMarker.MarkerType.NPC_HOME \
+				or marker.marker_type == NodeMarker.MarkerType.NPC_WORK:
+			marker.set_icon_hidden(hide_resident_visuals)
 
 
 ## Called by main.gd, wired to GameHUD's CityViewButton (T2/T3 only).

@@ -1,5 +1,15 @@
 class_name RoundSummary
 extends CanvasLayer
+## The end-of-round panel down the right-hand edge.
+##
+## Its background (SidePanel's panel style, set in the scene) is FULLY OPAQUE
+## and uses the same colour as the left sidebar, so the two read as one
+## interface framing the map rather than two different surfaces. The panel
+## carried no style override at all until 11 Aug 2026 and fell back to the
+## default theme's translucent one, which left the city network showing through
+## the round's numbers and made them hard to read against a busy map. A light
+## hairline down the left edge keeps it reading as sitting ON the map rather
+## than being cut out of it.
 
 signal next_round_pressed
 

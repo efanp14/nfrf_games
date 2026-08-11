@@ -74,6 +74,14 @@ func _make_icon(tex: Texture2D, tint: Color) -> Sprite2D:
 	return icon
 
 
+## Re-measure and repaint. Called when the resident markers are toggled, which
+## changes the legend's height as well as its contents, so a plain queue_redraw()
+## would leave a gap where the removed rows used to be.
+func refresh() -> void:
+	_refresh_size()
+	queue_redraw()
+
+
 func _refresh_size() -> void:
 	custom_minimum_size = Vector2(0, _total_height())
 
@@ -88,7 +96,8 @@ func _total_height() -> float:
 	if n > 1:
 		h += (ROW_H - 4) * n + 16
 	h += ROW_H * 2               # home + work
-	h += ROW_H * 2               # NPC home + work
+	if not CityGrid.hide_resident_visuals:
+		h += ROW_H * 2           # neighbourhood + workplace
 	return h
 
 
@@ -145,11 +154,22 @@ func _draw() -> void:
 	_place_icon(_work_icon, y)
 	_label("Work destination", y, font); y += ROW_H
 
-	_place_icon(_neighbourhood_icon, y)
-	_label("Neighbourhood", y, font); y += ROW_H
+	# Dropped along with the markers themselves, so the legend never explains a
+	# symbol that is not on the map.
+	#
+	# The icons are persistent Sprite2D children, not something _draw() paints,
+	# so skipping the _place_icon() calls alone would only remove the TEXT and
+	# leave the two glyphs sitting wherever they were last positioned. They have
+	# to be hidden explicitly.
+	var show_residents := not CityGrid.hide_resident_visuals
+	_neighbourhood_icon.visible = show_residents
+	_workplace_icon.visible = show_residents
+	if show_residents:
+		_place_icon(_neighbourhood_icon, y)
+		_label("Neighbourhood", y, font); y += ROW_H
 
-	_place_icon(_workplace_icon, y)
-	_label("Workplace", y, font)
+		_place_icon(_workplace_icon, y)
+		_label("Workplace", y, font)
 
 
 # ── Drawing helpers ──────────────────────────────────────────────────────────

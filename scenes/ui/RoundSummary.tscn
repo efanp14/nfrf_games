@@ -2,6 +2,11 @@
 
 [ext_resource type="Script" path="res://scripts/ui/RoundSummary.gd" id="1_rsum0"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_summary"]
+bg_color = Color(0.145, 0.153, 0.176, 1)
+border_width_left = 2
+border_color = Color(0.32, 0.35, 0.42, 1)
+
 [node name="RoundSummary" type="CanvasLayer"]
 layer = 3
 script = ExtResource("1_rsum0")
@@ -11,6 +16,7 @@ anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -380
+theme_override_styles/panel = SubResource("StyleBoxFlat_summary")
 
 [node name="MarginContainer" type="MarginContainer" parent="SidePanel"]
 anchor_right = 1.0

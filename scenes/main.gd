@@ -72,6 +72,7 @@ func _ready() -> void:
 	city_grid.link_clicked.connect(_on_link_clicked)
 	game_hud.end_round_pressed.connect(_on_end_round)
 	game_hud.view_mode_changed.connect(_on_view_mode_changed)
+	game_hud.resident_visuals_toggled.connect(city_grid.set_resident_visuals_hidden)
 	upgrade_popup.upgrade_chosen.connect(_on_upgrade_chosen)
 	upgrade_popup.downgrade_requested.connect(_on_downgrade_requested)
 	upgrade_popup.cancelled.connect(upgrade_popup.hide)
@@ -303,11 +304,21 @@ func _map_bounds() -> Rect2:
 
 
 ## The area of the window the map is allowed to occupy.
+##
+## The sidebar's real width is measured rather than assumed. HUD_LEFT is only a
+## floor: the sidebar is a PanelContainer, so it grows past its 240px offset
+## whenever its contents demand more, and the group treatment is where that is
+## most likely, since the legend gains a row per player. A hardcoded 240 would
+## then leave the map running underneath it with roads hidden behind the panel.
 func _map_viewport() -> Rect2:
 	var vp: Vector2 = get_viewport_rect().size
+	# HUD_LEFT until the HUD exists, which is only during the first frames.
+	var left: float = HUD_LEFT
+	if game_hud != null:
+		left = maxf(HUD_LEFT, game_hud.sidebar_width())
 	return Rect2(
-		Vector2(HUD_LEFT + PAD, PAD),
-		Vector2(vp.x - HUD_LEFT - PAD * 2.0, vp.y - PAD * 2.0)
+		Vector2(left + PAD, PAD),
+		Vector2(vp.x - left - PAD * 2.0, vp.y - PAD * 2.0)
 	)
 
 

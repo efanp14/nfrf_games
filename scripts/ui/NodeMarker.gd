@@ -17,6 +17,13 @@ var _name_label: Label
 var _icon: Sprite2D
 var _icon_shadow_radius: float = 0.0
 
+## Suppresses the amenity icon and its ground shadow while leaving the marker
+## itself alone. Used to hide the simulated residents' neighbourhoods and
+## workplaces without taking the ROAD NODE with them: every marker draws the
+## intersection circle, and the icon merely sits on top of it, so hiding the
+## whole node would delete a junction from the map rather than an icon from it.
+var icon_hidden: bool = false
+
 const PLAYER_COLORS: Array = [
 	Color(0.42, 0.64, 0.84),   # blue
 	Color(0.88, 0.47, 0.32),   # coral
@@ -163,11 +170,25 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, r + 1.0, NODE_RIM_COLOR, true, -1.0, true)
 	draw_circle(Vector2.ZERO, r, LinkSegment.ROAD_FILL, true, -1.0, true)
 
+	if icon_hidden:
+		# Road node only. The circle above is the intersection and always
+		# stands; what is dropped is the icon and the shadow it casts.
+		return
+
 	if marker_type == MarkerType.HOME or marker_type == MarkerType.WORK \
 			or marker_type == MarkerType.NPC_HOME or marker_type == MarkerType.NPC_WORK:
 		_draw_shadow_blob(Vector2.ZERO, _icon_shadow_radius)
 	elif marker_type != MarkerType.NORMAL:
 		draw_circle(Vector2.ZERO, r, _get_color(), true, -1.0, true)
+
+
+## Shows or hides this marker's icon, leaving the road node itself drawn.
+func set_icon_hidden(hidden: bool) -> void:
+	if icon_hidden == hidden:
+		return
+	icon_hidden = hidden
+	_update_icon()
+	queue_redraw()
 
 
 ## Small ground shadow under the icon so it reads as standing on the
@@ -183,6 +204,11 @@ func _update_icon() -> void:
 	if _icon == null:
 		return
 	_icon.position = Vector2.ZERO
+
+	if icon_hidden:
+		_icon.visible = false
+		_icon_shadow_radius = 0.0
+		return
 
 	match marker_type:
 		MarkerType.HOME:

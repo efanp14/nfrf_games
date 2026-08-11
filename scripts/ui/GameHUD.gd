@@ -7,6 +7,10 @@ signal end_round_pressed
 ## so they are mutually exclusive and a pair of independent booleans could ask
 ## for both at once. Emits a CityGrid.ViewMode value.
 signal view_mode_changed(mode: int)
+## Hide or show the simulated residents on the map: their neighbourhood and
+## workplace markers, and the bikes they ride at round end. Display only; the
+## residents are still simulated, still counted and still logged either way.
+signal resident_visuals_toggled(hidden: bool)
 
 @onready var round_label: Label         = %RoundLabel
 @onready var budget_label: Label        = %BudgetLabel
@@ -21,6 +25,8 @@ signal view_mode_changed(mode: int)
 @onready var stress_view_button: Button = %StressViewButton
 @onready var end_round_button: Button   = %EndRoundButton
 @onready var debug_button: Button       = %DebugButton
+@onready var resident_visuals_button: Button = %ResidentVisualsButton
+@onready var map_legend: Control        = %MapLegend
 
 ## Cached so toggling debug mode can re-render immediately without waiting
 ## for the next GameManager signal.
@@ -40,6 +46,8 @@ var _view_mode: int = CityGrid.ViewMode.PLAYER_ROUTES
 func _ready() -> void:
 	end_round_button.pressed.connect(func(): end_round_pressed.emit())
 	debug_button.pressed.connect(_on_debug_pressed)
+	resident_visuals_button.pressed.connect(_on_resident_visuals_pressed)
+	_refresh_resident_visuals_button()
 	city_view_button.pressed.connect(_on_city_view_pressed)
 	stress_view_button.pressed.connect(_on_stress_view_pressed)
 	GameManager.round_started.connect(_on_round_started)
@@ -83,6 +91,37 @@ func _on_debug_pressed() -> void:
 		_render_city(_last_city_metrics)
 
 
+## How much of the window's left edge the sidebar actually occupies, so the map
+## can be fitted beside it rather than under it. Measured rather than assumed
+## because a PanelContainer sizes to its contents, and the sidebar's contents
+## grow with the player count.
+func sidebar_width() -> float:
+	var sidebar := get_node_or_null("HUDRoot/LeftSidebar") as Control
+	return sidebar.size.x if sidebar != null else 0.0
+
+
+## Sits beside the debug toggle because both are researcher controls rather than
+## part of the game, but it is not debug: it changes what a participant sees.
+##
+## The label names the current state rather than the action, matching the debug
+## button beside it. The view buttons above use the opposite convention because
+## they switch between named views; here there is one thing with two states.
+func _on_resident_visuals_pressed() -> void:
+	var hidden := not CityGrid.hide_resident_visuals
+	_refresh_resident_visuals_button(hidden)
+	# Emit BEFORE refreshing the legend: the flag is only set once main.gd
+	# passes this to CityGrid, and the legend reads that flag to decide which
+	# rows to draw. Refreshing first would repaint against the old value.
+	resident_visuals_toggled.emit(hidden)
+	# The legend drops its neighbourhood and workplace rows to match, so it
+	# never explains a symbol that is no longer on the map.
+	map_legend.refresh()
+
+
+func _refresh_resident_visuals_button(hidden: bool = CityGrid.hide_resident_visuals) -> void:
+	resident_visuals_button.text = "Residents: Hidden" if hidden else "Residents: Shown"
+
+
 func _sync_initial_state() -> void:
 	if not GameManager.game_running:
 		return
@@ -110,17 +149,29 @@ func _on_round_ended(_round_num: int, results: Dictionary) -> void:
 func _render_personal(results: Dictionary) -> void:
 	var players_data: Array = results.get("players", [])
 	if players_data.size() <= 1:
+		safety_label.visible = true
 		time_label.text   = "Time: %.1f min" % results.get("personal_time", 0.0)
 		safety_label.text = "Safety: " + SafetyDisplay.format(results.get("personal_safety", 0.0))
-	else:
-		var time_parts: PackedStringArray = []
-		var safety_parts: PackedStringArray = []
-		for i in range(players_data.size()):
-			var pd: Dictionary = players_data[i]
-			time_parts.append("P%d: %.1f" % [i + 1, pd.get("time", 0.0)])
-			safety_parts.append("P%d: %s" % [i + 1, SafetyDisplay.format(pd.get("safety", 0.0))])
-		time_label.text   = "Time  " + "  ".join(time_parts)
-		safety_label.text = "Safety  " + "  ".join(safety_parts)
+		return
+
+	# A ROW PER PLAYER, not one line listing everybody.
+	#
+	# Both figures used to be laid out along a single line each ("Time  P1: 28.6
+	# P2: 20.8 ..."), and a Label reports the width of its longest line as its
+	# minimum. Five players made that line about 590px, which the sidebar's
+	# PanelContainer had to honour, so the panel grew from 240px to over 600 and
+	# swallowed a third of the map. Rows are bounded by the widest single row
+	# instead, which stays inside the sidebar however many players there are.
+	#
+	# Time and safety share a row, so five players cost five lines rather than
+	# ten, and each player's two numbers read together.
+	safety_label.visible = false
+	var rows: PackedStringArray = []
+	for i in range(players_data.size()):
+		var pd: Dictionary = players_data[i]
+		rows.append("P%d   %.1f min   %s" % [
+			i + 1, pd.get("time", 0.0), SafetyDisplay.format(pd.get("safety", 0.0))])
+	time_label.text = "\n".join(rows)
 
 
 func _on_city_metrics_updated(metrics: Dictionary) -> void:
