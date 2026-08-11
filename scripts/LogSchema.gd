@@ -27,6 +27,8 @@ const TABLE_DECISIONS: String = "decisions"
 const TABLE_UPGRADES:  String = "upgrades"
 const TABLE_SURVEYS:   String = "surveys"
 const TABLE_RESIDENTS: String = "residents"
+const TABLE_NETWORK_LINKS: String = "network_links"
+const TABLE_NETWORK_NODES: String = "network_nodes"
 
 ## Separator for list-valued cells (route link IDs, feedback lines). A pipe
 ## rather than a comma so the cell needs no quoting, and rather than JSON so a
@@ -119,7 +121,7 @@ static func rounds_columns() -> Array:
 		["n_upgrades", "Links bought this round."],
 		["n_upgrades_painted", "Of those, painted lanes."],
 		["n_upgrades_protected", "Of those, protected lanes."],
-		["n_removals", "Previously built upgrades taken back off the network this round."],
+		["n_removals", "Previously built upgrades taken back OFF the network this round, i.e. confirmed demolitions. This is NOT the count of selections the participant changed their mind about before confirming: a link staged and then unstaged never reaches the network, so it leaves this column at 0. For choices reconsidered during the round use changed_or_removed in decisions.csv, or n_interaction_events below."],
 		["n_interaction_events", "Staging actions before confirmation: selections, level changes and withdrawals. A measure of how much the decision was reworked."],
 		["city_feedback_shown", "The city-wide message the participant actually read this round, verbatim, pipe separated. Empty in the individual treatment, which is shown none."],
 		["city_metrics_shown", "Whether the city columns below were ON SCREEN this round. They are COMPUTED in every treatment, including T1 where they are hidden, so a city value with this set false is a genuine measurement the participant could not see, not missing data. That is what makes T1 city figures usable as the counterfactual for 'would this player have helped the city had they known'."],
@@ -300,6 +302,62 @@ static func _survey_item_columns(prefix: String, q: Dictionary, note: String) ->
 	return [{"col": key, "desc": "%s: \"%s\" The chosen option, verbatim." % [note, text]}]
 
 
+## network_links.csv: one row per undirected road link. The board itself.
+##
+## Exported because every other table refers to links by ID while nothing on
+## disk said what a link WAS. Without it nobody can re-run Dijkstra
+## independently, audit a stress value, or check that a cost matches its
+## length — they can only take the game's word for the numbers. Together with
+## parameters.json (which carries the per-metre rates, the time factors and the
+## personality betas) this is enough to reproduce every route in the session
+## from scratch.
+##
+## Immutable columns only. What players changed during the session lives in
+## upgrades.csv; this describes the network they started from, which is why
+## upgrade_level is absent and initial_upgrade_level is not.
+static func network_links_columns() -> Array:
+	if _cache.has(TABLE_NETWORK_LINKS):
+		return _cache[TABLE_NETWORK_LINKS]
+	var cols: Array = _cols([
+		["schema_version", "Version of this column dictionary."],
+		["session_id", "The run this network belongs to. The network is a fixed authored list, so this is identical across sessions of the same build; compare network_signature in parameters.json to confirm two sessions share a board."],
+		["link_id", "Canonical undirected link ID, 'x,y-x,y' with the lower node first. This is the form every other table joins on."],
+		["from_node", "One endpoint, as 'x,y'. Direction is not meaningful: the link is undirected and stored once here."],
+		["to_node", "The other endpoint, as 'x,y'."],
+		["from_name", "Fictional place name of from_node, as shown to participants."],
+		["to_name", "Fictional place name of to_node."],
+		["length_m", "Link length in metres. Upgrade cost is this times the per-metre rate in parameters.json."],
+		["base_time_min", "Unimproved travel time in minutes. Immutable: upgrades never change it, they apply a speed factor to it (see time_factor_by_level in parameters.json)."],
+		["base_stress", "Inherent stress of the road, 0 to 1, from its role in the network rather than its length: arterials sit near 0.82 and backstreets near 0.22. Immutable. This is the term an upgrade buys relief FROM, never changes."],
+		["beta_painted", "Stress relief factor a painted lane would give this link, computed as 0.8 - 0.3 x base_stress. Personality independent. Recorded because it is a formula rather than a table and so cannot be read off parameters.json."],
+		["initial_upgrade_level", "What this link already had before anyone played: 0 none, 1 painted, 2 protected. The city does not start blank. Nobody paid for these, they cannot be removed by a participant, and they are already counted in the Round 1 baseline."],
+		["initial_level_name", "Readable form of the column above."],
+		["cost_painted", "What upgrading this link to painted costs, in dollars."],
+		["cost_protected", "What upgrading this link to protected costs, in dollars."],
+	])
+	_cache[TABLE_NETWORK_LINKS] = cols
+	return cols
+
+
+## network_nodes.csv: one row per junction, so the map can be redrawn and node
+## IDs appearing in route_links, home_node and work_node can be named.
+static func network_nodes_columns() -> Array:
+	if _cache.has(TABLE_NETWORK_NODES):
+		return _cache[TABLE_NETWORK_NODES]
+	var cols: Array = _cols([
+		["schema_version", "Version of this column dictionary."],
+		["session_id", "The run this network belongs to."],
+		["node_id", "Junction ID as 'x,y'. Joins against home_node and work_node in rounds.csv, and against the endpoints in network_links.csv."],
+		["name", "Fictional place name shown to participants. Invented deliberately: real street names would let local knowledge bias where people invest."],
+		["map_label", "Short label drawn on the map, empty when the node is drawn unlabelled."],
+		["map_x", "Horizontal screen position used to draw the node. Layout only; routing uses base_time, never geometry."],
+		["map_y", "Vertical screen position used to draw the node."],
+		["degree", "How many links meet here."],
+	])
+	_cache[TABLE_NETWORK_NODES] = cols
+	return cols
+
+
 ## Every table, for generating the codebook.
 static func all_tables() -> Dictionary:
 	return {
@@ -308,6 +366,36 @@ static func all_tables() -> Dictionary:
 		TABLE_UPGRADES:  upgrades_columns(),
 		TABLE_SURVEYS:   surveys_columns(),
 		TABLE_RESIDENTS: residents_columns(),
+		TABLE_NETWORK_LINKS: network_links_columns(),
+		TABLE_NETWORK_NODES: network_nodes_columns(),
+	}
+
+
+## What each FILE in a session folder is, keyed by filename.
+##
+## The per-column descriptions above cover the tidy CSVs, but a session folder
+## also holds JSON that no column list describes, and a researcher opening the
+## folder had no way to tell which files were the source of record, which were
+## derived, and which they could ignore. Anything written into a session folder
+## belongs here: DataLogger._verify_codebook_coverage() reads the finished folder
+## back and warns on any file it does not describe, which is the file-level
+## counterpart of a column being unable to exist without a description.
+static func file_notes() -> Dictionary:
+	return {
+		"events.json": "SOURCE OF RECORD. Every logged event in one array, appended as the session ran: consent, one entry per pre-survey, one per round, a final snapshot, and one per post-survey. Row kinds are told apart by the `round` field, which is an int for a round and a String marker otherwise, so this does not load as a table. Every CSV in this folder is derived from it. If a CSV and this file ever disagree, this one is right.",
+		"rounds.csv": "The workhorse. One row per participant per round, which is the unit of analysis. Start here.",
+		"decisions.csv": "One row per link selection, in the order made. CAUTION when joining: a round in which the participant confirmed without selecting anything contributes NO rows here, so an inner join against this file silently drops that round. Join from rounds.csv outward, never into it.",
+		"upgrades.csv": "One row per link actually bought or removed. What was committed to, as against decisions.csv, which is what was done on the way there.",
+		"surveys.csv": "One row per participant per session, every survey item as its own column. Post-survey items q5 to q7 are answered ONLY in the group treatment: they ask about the discussion, so they are deliberately not shown, and are blank rather than missing, in T1 and T2. The group treatment in turn leaves the pre-survey columns blank, because it assigns every player the average personality instead of surveying them.",
+		"residents.csv": "One row per simulated resident per round per phase. The city's own outcomes, and the basis of every city metric. Large: residents x rounds x 2.",
+		"network_links.csv": "The road network the session was played on, one row per undirected link. Immutable properties only.",
+		"network_nodes.csv": "The junctions of that network, with names and map positions.",
+		"parameters.json": "Every setting the session ran under: budget, rounds, per-metre costs, alpha and beta tables, the benefit definition, and network_signature. Read this before comparing two sessions, since these values have changed between builds.",
+		"codebook.csv": "This file. One row per file and per column, generated from the same declarations the writers use, so a column cannot exist here with a stale description or go undescribed.",
+		"summary.json": "One object describing the whole session: final values, session totals, and the post-survey responses. Everything here is derivable from the per-round tables except the session totals, so treat it as convenience rather than as evidence.",
+		"summary.csv": "summary.json as a single header row plus a single data row, for dropping into a spreadsheet. Its columns are exactly the keys of summary.json; nested values are JSON encoded into one cell.",
+		"residents.json": "The per-resident detail behind residents.csv, in its original nested form. residents.csv is the analysis-ready version of the same data.",
+		"audio_manifest.json": "Round start and end times, as UTC and as offsets from the session start, for locating a round inside a discussion recording. The recorder's own start time is the one value this file cannot know, so it must be written into the session protocol by hand. Group sessions only in practice, though it is written for every session.",
 	}
 
 

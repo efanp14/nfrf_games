@@ -214,6 +214,7 @@ func _on_narrative_finished() -> void:
 	# Taken after start_game(), so the network exists and its fingerprint can be
 	# recorded along with the rest of the settings this session ran under.
 	_logger.game_parameters = GameManager.session_parameters()
+	_logger.network_tables  = GameManager.network_tables()
 	_logger.on_consent_external()
 	_logger.set_participant_identity(_participant_ids, _group_id, _treatment_ordinals,
 			_chained_from_session_id)

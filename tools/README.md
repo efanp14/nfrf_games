@@ -36,9 +36,11 @@ folders, not one.
 | `upgrades.csv` | One row per link bought or removed. What was *committed to*. |
 | `surveys.csv` | One row per participant, every survey item its own column. |
 | `residents.csv` | One row per simulated resident per round per phase. |
+| `network_links.csv` | The road network played on, one row per link: length, base time, base stress, what the city started with, and both upgrade prices. |
+| `network_nodes.csv` | The junctions, with names and map positions. |
 | `summary.csv` / `summary.json` | The whole session on one row. |
 | `parameters.json` | The settings and network fingerprint this session ran under. |
-| `codebook.csv` | What every column in the tables above means. |
+| `codebook.csv` | What every file is, and what every column in the tables above means. |
 | `events.json` / `residents.json` | The original records the tables are built from. |
 | `audio_manifest.json` | Round start and end times, for lining a recording up against the decisions made in it. |
 
@@ -168,3 +170,22 @@ Two caveats:
 the road network. Sessions with different signatures were played on different
 networks and are not directly comparable. The network was restructured during
 development, which changed route choice substantially.
+
+## Rebuilding the model without the game
+
+`network_links.csv` and `parameters.json` together are enough to reproduce any
+route in a session from scratch, so the game's numbers can be audited rather
+than taken on trust. Build an undirected graph from `network_links.csv`, weight
+each edge by
+
+```
+impedance = base_time_min x time_factor[level] x (1 + alpha x beta x base_stress)
+```
+
+and run Dijkstra. `time_factor_by_level` and the protected `beta` per
+personality are in `parameters.json`; painted `beta` is per link, in
+`beta_painted`. At the start of a session every link sits at
+`initial_upgrade_level`, and `upgrades.csv` says what changed and when.
+
+Costs check the same way: `length_m` times the per-metre rate for the level,
+rounded to the nearest thousand dollars.

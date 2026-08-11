@@ -57,6 +57,12 @@ var treatment_ordinals: Array = []
 ## handed.
 var game_parameters: Dictionary = {}
 
+## Snapshot of the network this session was played on, from
+## GameManager.network_tables(). Pushed in the same way and for the same reason
+## as game_parameters: this file records what it is handed rather than reaching
+## into the game to fetch it.
+var network_tables: Dictionary = {}
+
 ## The session this one immediately followed, empty unless this is the second
 ## half of a chained T1-into-T2 sitting.
 ##
@@ -660,6 +666,31 @@ func _write_session_summary() -> void:
 	else:
 		push_error("[DataLogger] Could not write session summary to %s" % csv_path)
 
+	# Last, because it reads the finished folder: everything this session emits
+	# must exist by now for the check to see it.
+	_verify_codebook_coverage()
+
+
+## Warns if the folder contains a file the codebook does not describe.
+##
+## The codebook is generated from the column declarations, so a COLUMN cannot go
+## undescribed. A whole FILE could, and six of them silently did until the file
+## notes were added. This closes that by checking the actual directory rather
+## than a list someone has to remember to update: add a writer, forget the note,
+## and the next session says so.
+func _verify_codebook_coverage() -> void:
+	var notes: Dictionary = LogSchema.file_notes()
+	var dir: DirAccess = DirAccess.open(_session_dir())
+	if dir == null:
+		return
+	var undocumented: PackedStringArray = []
+	for filename: String in dir.get_files():
+		if not notes.has(filename):
+			undocumented.append(filename)
+	if not undocumented.is_empty():
+		push_warning("[DataLogger] No codebook entry for: %s. Add one to LogSchema.file_notes()."
+				% ", ".join(undocumented))
+
 
 # --- Analysis-ready CSVs -----------------------------------------------------
 #
@@ -686,6 +717,10 @@ func _write_analysis_tables() -> void:
 	_write_table("upgrades.csv",  LogSchema.upgrades_columns(),  _upgrades_rows(parts))
 	_write_table("surveys.csv",   LogSchema.surveys_columns(),   _surveys_rows(parts))
 	_write_table("residents.csv", LogSchema.residents_columns(), _residents_rows())
+	_write_table("network_links.csv", LogSchema.network_links_columns(),
+			_network_rows("links"))
+	_write_table("network_nodes.csv", LogSchema.network_nodes_columns(),
+			_network_rows("nodes"))
 	_write_parameters()
 	_write_codebook()
 	print("[DataLogger] Analysis tables written to %s" % _session_dir())
@@ -1074,6 +1109,19 @@ func _residents_rows() -> Array:
 	return rows
 
 
+## Stamps the session key onto each network row. The rows themselves arrive
+## fully formed from GameManager, so this adds only what the logger knows and
+## the network cannot.
+func _network_rows(key: String) -> Array:
+	var rows: Array = []
+	for entry: Dictionary in network_tables.get(key, []):
+		var row: Dictionary = entry.duplicate()
+		row["schema_version"] = LogSchema.SCHEMA_VERSION
+		row["session_id"]     = session_id
+		rows.append(row)
+	return rows
+
+
 ## The settings this session ran under, so the folder describes itself.
 func _write_parameters() -> void:
 	var params: Dictionary = game_parameters.duplicate()
@@ -1092,6 +1140,11 @@ func _write_parameters() -> void:
 		push_error("[DataLogger] Could not write %s" % path)
 
 
+## Value in the codebook's `column` field for a row describing a whole file
+## rather than one of its columns.
+const WHOLE_FILE: String = "(whole file)"
+
+
 ## The data dictionary, written into each session folder so a researcher opening
 ## one folder has both the data and the meaning of every column without needing
 ## anything else. Generated from the same declarations the writers use, so a
@@ -1103,6 +1156,17 @@ func _write_codebook() -> void:
 		push_error("[DataLogger] Could not write %s" % path)
 		return
 	file.store_line("file,column,description")
+
+	# What each file IS, before what each column means. The codebook used to
+	# describe five CSVs and say nothing about the JSON beside them, so a folder
+	# of thirteen files documented six. WHOLE_FILE rather than a blank cell so
+	# these rows are filterable and cannot be mistaken for an unnamed column.
+	var notes: Dictionary = LogSchema.file_notes()
+	var filenames: Array = notes.keys()
+	filenames.sort()
+	for filename: String in filenames:
+		file.store_line(LogSchema.csv_row([filename, WHOLE_FILE, notes[filename]]))
+
 	var tables: Dictionary = LogSchema.all_tables()
 	var names: Array = tables.keys()
 	names.sort()

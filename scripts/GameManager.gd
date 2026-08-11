@@ -231,6 +231,69 @@ static func _upgraded_links_on_route(upgrades: Array, route_links: Array) -> Arr
 	return out
 
 
+## The board itself, for the log: one entry per undirected link and one per
+## junction.
+##
+## parameters.json already records the rates and coefficients, but until now
+## nothing recorded what a link WAS, so `link_id` appeared in five tables as an
+## opaque key and the network's own numbers were unauditable. With this, the
+## per-metre rates and the beta tables, an analyst can rebuild the graph and
+## re-run Dijkstra without the game.
+##
+## Immutable properties only. `upgrade_level` is deliberately absent because it
+## is what players change and it is already recorded per purchase in
+## upgrades.csv; `initial_upgrade_level` is present because it is not.
+##
+## Links are emitted once each, keyed canonically. The graph stores both
+## directions of every road as separate Link objects, and exporting both would
+## double every count taken off this file for no gain, since the pair is
+## identical in every column here.
+func network_tables() -> Dictionary:
+	if network == null:
+		return {"links": [], "nodes": []}
+
+	var links: Array = []
+	var degree: Dictionary = {}
+	var seen: Dictionary = {}
+	var link_ids: Array = network.links.keys()
+	link_ids.sort()
+	for link_id: String in link_ids:
+		var link: CityNetwork.Link = network.links[link_id]
+		var canonical: String = CityNetwork.canonical_link_id(link.from_node, link.to_node)
+		degree[link.from_node] = int(degree.get(link.from_node, 0)) + 1
+		if seen.has(canonical):
+			continue
+		seen[canonical] = true
+		links.append({
+			"link_id":        canonical,
+			"from_node":      "%d,%d" % [link.from_node.x, link.from_node.y],
+			"to_node":        "%d,%d" % [link.to_node.x, link.to_node.y],
+			"from_name":      network.node_names.get(link.from_node, ""),
+			"to_name":        network.node_names.get(link.to_node, ""),
+			"length_m":       Player.link_length_m(link),
+			"base_time_min":  link.base_time,
+			"base_stress":    link.stress_score,
+			"beta_painted":   0.8 - 0.3 * link.stress_score,
+			"initial_upgrade_level": link.initial_upgrade_level,
+			"initial_level_name":    LogSchema.infra_level_name(link.initial_upgrade_level),
+			"cost_painted":   Player.cost_for_link(link, 1),
+			"cost_protected": Player.cost_for_link(link, 2),
+		})
+
+	var nodes: Array = []
+	for node: Vector2i in network.all_nodes:
+		var pos: Vector2 = network.node_positions.get(node, Vector2.ZERO)
+		nodes.append({
+			"node_id":   "%d,%d" % [node.x, node.y],
+			"name":      network.node_names.get(node, ""),
+			"map_label": network.node_labels.get(node, ""),
+			"map_x":     pos.x,
+			"map_y":     pos.y,
+			"degree":    int(degree.get(node, 0)),
+		})
+	return {"links": links, "nodes": nodes}
+
+
 ## Everything that decided how this session played, gathered for the log.
 ##
 ## Read from the config classes at the moment a session starts, not copied into
