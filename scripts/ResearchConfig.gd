@@ -57,43 +57,15 @@ static func is_valid_id(text: String) -> bool:
 	return true
 
 
-## Which group a participant number belongs to, under the sequential scheme
-## above. One-based on both sides: participant 1 is the first member of group 1.
-## Returns 0 for a non-positive number, meaning "no group could be derived".
-static func group_for_participant(participant_number: int) -> int:
-	if participant_number < 1:
-		return 0
-	return ((participant_number - 1) / GROUP_SIZE) + 1
-
-
-## Display/log form of a group number.
-static func group_id(group_number: int) -> String:
-	return "g%03d" % group_number
-
-
-## Best guess at the group for a set of participant IDs, used only to pre-fill
-## the group field on the menu.
+## The group a session belongs to is ENTERED by the researcher, not derived.
 ##
-## IDs are free text, so this can only work when they happen to be plain numbers
-## following the owner's scheme. Anything else returns an empty string, which
-## the caller must treat as "ask the researcher" rather than as a group — the
-## alternative would be inventing a group number and recording it as though it
-## were derived, which is worse than admitting it is unknown.
-static func suggested_group_id(ids: Array) -> String:
-	if ids.is_empty():
-		return ""
-	var groups := {}
-	for id in ids:
-		var text := str(id).strip_edges()
-		if not text.is_valid_int():
-			return ""
-		var group_number := group_for_participant(int(text))
-		if group_number == 0:
-			return ""
-		groups[group_number] = true
-	# Only offer a suggestion when every participant lands in the SAME group.
-	# A session spanning two groups is a legitimate thing for a researcher to
-	# do, but there is no single right answer to fill in, so it goes to them.
-	if groups.size() != 1:
-		return ""
-	return group_id(groups.keys()[0])
+## There used to be a derivation here: participant numbers mapped to a group
+## under the sequential scheme above (1 to 3 in group 1, and so on), and the
+## menu pre-filled the field from it. It was removed because it could only ever
+## work when every ID was a plain integer, and the IDs in use are prefixed
+## (p001), so the guess never fired and the field was typed by hand regardless.
+## What remained was a latch, an extra change handler and three helpers serving
+## a feature that did nothing.
+##
+## Both identifiers now follow one rule: the researcher types them, the game
+## stores them verbatim, and nothing is inferred.
