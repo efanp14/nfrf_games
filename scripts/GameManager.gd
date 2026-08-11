@@ -113,6 +113,13 @@ func start_game(alphas: Array, chosen_treatment: Treatment) -> void:
 	network = CityNetwork.new(home_work_pair)
 
 	human_players.clear()
+	# Two players sharing a home or workplace would make their routes converge
+	# by construction and their outcomes non-independent. The table is supposed
+	# to guarantee this; say so loudly if an edit ever breaks it, since nothing
+	# else about a clash is visible while playing.
+	var clashes: Array = CityNetwork.player_pairs_overlap(alphas.size())
+	if not clashes.is_empty():
+		push_error("HOME_WORK_PAIRS: node(s) %s shared between players" % str(clashes))
 	for i in range(alphas.size()):
 		var pair_idx: int = i % CityNetwork.HOME_WORK_PAIRS.size()
 		var pair: Array = CityNetwork.HOME_WORK_PAIRS[pair_idx]

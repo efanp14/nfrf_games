@@ -106,13 +106,49 @@ var river_points: PackedVector2Array  # cosmetic curve drawn by CityGrid
 ## Extension comment (the 1-30-12 shortcut analysis); changing its work node
 ## would make that note stale, so it's the one pair keeping its original
 ## work node.
+##
+## INVARIANT (10 Aug 2026): across all five pairs, every home and every work
+## node is DISTINCT — no node appears twice, whether as two homes, two works, or
+## one player's home and another's work. A group session seats up to five
+## players at once, and two of them sharing an endpoint means one person's
+## workplace is another's front door: their routes converge by construction,
+## the map draws two markers on one node, and the per-player outcomes stop being
+## independent observations. Keep this true when editing the table; the check in
+## player_pairs_overlap() enforces it at startup.
+##
+## Index 2's home was 7,0 until 10 Aug 2026, which collided with index 0's WORK
+## node and so broke the invariant for every group of 3 or more. Index 0 is the
+## single-player commute and could not move, so index 2's home did. Node 19 was
+## chosen to preserve that pair's character: it is not a resident neighbourhood,
+## it keeps the same 7-link structure, it is still the longest of the five
+## commutes, and it still starts in the original grid and crosses into the West
+## Extension rather than sitting inside it (37.3 min, was 41.9).
 const HOME_WORK_PAIRS: Array = [
 	[Vector2i(23, 0), Vector2i(7, 0)],
 	[Vector2i(13, 0), Vector2i(46, 0)],  # was work=2; now West Extension hub node 46
-	[Vector2i(7, 0),  Vector2i(41, 0)],  # was work=12; now West Extension node 41
+	[Vector2i(19, 0), Vector2i(41, 0)],  # was home=7 (clashed with pair 0's work); was work=12
 	[Vector2i(18, 0), Vector2i(1, 0)],
 	[Vector2i(24, 0), Vector2i(45, 0)],  # was work=6; now West Extension node 45
 ]
+
+
+## Any node used by more than one player as a home or a workplace, as
+## "x,y" strings. Empty means the table is sound.
+##
+## Exists because the table is hand-edited and the clash it guards against is
+## invisible on inspection: it is not two identical pairs, it is one pair's home
+## equal to a different pair's work, several lines apart. That was live in the
+## build for every group of three or more and nothing surfaced it.
+static func player_pairs_overlap(player_count: int = HOME_WORK_PAIRS.size()) -> Array:
+	var seen: Dictionary = {}
+	var clashes: Dictionary = {}
+	for i in range(mini(player_count, HOME_WORK_PAIRS.size())):
+		for node: Vector2i in HOME_WORK_PAIRS[i]:
+			var key: String = "%d,%d" % [node.x, node.y]
+			if seen.has(key):
+				clashes[key] = true
+			seen[key] = true
+	return clashes.keys()
 
 ## Fixed set of resident commute pairs (home node → destination node). 12
 ## "neighbourhoods" (home nodes), 99 residents total.
