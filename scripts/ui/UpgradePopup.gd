@@ -66,10 +66,17 @@ func show_for_link(link_id: String, credits_remaining: int, alpha: float, pendin
 	painted_button.disabled   = effective_level >= 1 or credits_remaining < painted_cost
 	protected_button.disabled = effective_level >= 2 or credits_remaining < protected_cost
 
+	# Removal is offered only for what the PLAYER put here. The city starts with
+	# a few lanes nobody paid for; those are part of the board, not of anyone's
+	# spending, so they are never removable and their price is never refundable.
+	# Compared against the level this link began the game at rather than against
+	# zero, so a pre-existing painted lane raised to protected can still be
+	# taken back down to painted.
+	var initial_level: int = link.initial_upgrade_level
 	if pending_level == 0:
 		remove_button.visible = true
 		remove_button.text    = "Cancel Removal"
-	elif effective_level > 0:
+	elif effective_level > initial_level:
 		remove_button.visible = true
 		var refund: int = Player.cost_for_link(link, effective_level)
 		if pending_level > 0:

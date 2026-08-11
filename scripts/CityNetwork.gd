@@ -33,6 +33,16 @@ class Link:
 	var base_time: float
 	var stress_score: float
 	var upgrade_level: int
+	## What this link already had before anyone played, from
+	## _apply_initial_infrastructure(). The city starts with a few lanes so the
+	## network is not blank on round one, and the player did not pay for them.
+	##
+	## Tracked separately because upgrade_level alone cannot tell an upgrade the
+	## player bought from one that was always there, and removal refunds money.
+	## Without it, demolishing a pre-existing protected lane paid out its full
+	## price, so a player could spend their budget and then top it back up by
+	## tearing out infrastructure they never funded.
+	var initial_upgrade_level: int = 0
 	func _init(fid: String, fn: Vector2i, tn: Vector2i, bt: float, ss: float) -> void:
 		id = fid
 		from_node = fn
@@ -40,6 +50,11 @@ class Link:
 		base_time = bt
 		stress_score = ss
 		upgrade_level = 0
+
+	## Whether there is anything here the PLAYER put in, and so anything they
+	## may take back out.
+	func has_player_upgrade() -> bool:
+		return upgrade_level > initial_upgrade_level
 
 	## Infrastructure speed bonus, indexed by upgrade_level
 	## (unimproved / painted / protected). Better cycling infrastructure lets a
@@ -644,6 +659,10 @@ func _set_initial_upgrade(a: Vector2i, b: Vector2i, level: int) -> void:
 		if links.has(lid):
 			var link: Link = links[lid]
 			link.upgrade_level = level
+			# Remembered so this can never be removed for a refund, and so
+			# raising it and then changing your mind returns it to here rather
+			# than stripping the road bare.
+			link.initial_upgrade_level = level
 
 
 # --- Graph Building ---
@@ -659,18 +678,27 @@ func _add_undirected_link(a: Vector2i, b: Vector2i, base_time: float, stress: fl
 	adjacency[b].append(link_ba)
 
 
+## Takes back what the PLAYER built here, returning the link to whatever it
+## started the game with rather than to bare road. Returns false, changing
+## nothing, when there is nothing of theirs to take back.
+##
+## The floor matters in two ways. A link that came pre-upgraded cannot be
+## removed at all, so its refund can never be claimed. And a pre-existing
+## painted lane the player raised to protected drops back to painted, not to
+## nothing, so changing your mind cannot destroy infrastructure that was there
+## before you arrived.
 func downgrade_link(link_id: String) -> bool:
 	if not links.has(link_id):
 		return false
 	var link: Link = links[link_id]
-	if link.upgrade_level == 0:
+	if not link.has_player_upgrade():
 		return false
-	link.upgrade_level = 0
+	link.upgrade_level = link.initial_upgrade_level
 	var parts      := link_id.split("-")
 	var reverse_id := "%s-%s" % [parts[1], parts[0]]
 	if links.has(reverse_id):
 		var rev: Link = links[reverse_id]
-		rev.upgrade_level = 0
+		rev.upgrade_level = rev.initial_upgrade_level
 	return true
 
 

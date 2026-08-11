@@ -158,15 +158,19 @@ func submit_upgrades(upgrade_requests: Array) -> void:
 		var level: int = req.get("level", 0)
 		if level == 0:
 			var link: CityNetwork.Link = network.links.get(req["link_id"])
-			if link and link.upgrade_level > 0:
+			# Only what the player built can be taken back. The refund is paid
+			# strictly on downgrade_link() having succeeded, never on the link
+			# merely being upgraded: the city starts with a few lanes nobody
+			# paid for, and refunding those was money from nowhere.
+			if link and link.has_player_upgrade():
 				var from_level: int = link.upgrade_level
 				var refund: int = Player.cost_for_link(link, from_level)
-				network.downgrade_link(req["link_id"])
-				human_player.record_downgrade(req["link_id"], from_level, refund, link)
-				human_player.credits_remaining = mini(
-					human_player.credits_remaining + refund,
-					human_player.credits_per_round
-				)
+				if network.downgrade_link(req["link_id"]):
+					human_player.record_downgrade(req["link_id"], from_level, refund, link)
+					human_player.credits_remaining = mini(
+						human_player.credits_remaining + refund,
+						human_player.credits_per_round
+					)
 		else:
 			human_player.buy_upgrade(req["link_id"], level, network)
 
