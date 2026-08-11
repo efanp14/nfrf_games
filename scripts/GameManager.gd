@@ -43,6 +43,7 @@ const ACTION_STAGE_REMOVAL: String = "stage_removal"   # staged the removal of a
 ## nor worse by more than these thresholds is "unchanged".
 const BENEFIT_EPSILON_TIME: float   = 0.01   # minutes
 const BENEFIT_EPSILON_SAFETY: float = 0.01   # points on the 0-100 safety scale
+const BENEFIT_EPSILON_STRESS: float = 0.001  # raw stress units, a smaller scale than safety
 
 const PLAYER_COLORS: Array = [
 	Color(0.42, 0.64, 0.84),   # blue
@@ -143,6 +144,7 @@ func start_game(alphas: Array, chosen_treatment: Treatment) -> void:
 		p.initial_baseline_safety    = p.safety_score
 		p.initial_baseline_stress    = Player.route_stress(baseline_route, network, p.alpha)
 		p.initial_baseline_impedance = baseline_route.get("total_impedance", 0.0)
+		p.initial_baseline_route_links = Player.route_link_ids(baseline_route)
 
 	game_running = true
 	_start_round(1)
@@ -223,6 +225,83 @@ static func _upgraded_links_on_route(upgrades: Array, route_links: Array) -> Arr
 		if route_links.has(canonical):
 			out.append(canonical)
 	return out
+
+
+## Everything that decided how this session played, gathered for the log.
+##
+## Read from the config classes at the moment a session starts, not copied into
+## a list that would go stale the next time a value is retuned. The parameters
+## have moved repeatedly — six rounds became three, the stress model was
+## restructured — and a session that does not record what produced it cannot be
+## told apart from one run under different settings. Snapshotting it makes every
+## session folder self-describing and means a pilot can be separated from the
+## main study without consulting the commit history.
+func session_parameters() -> Dictionary:
+	return {
+		"total_rounds":      total_rounds,
+		"num_residents":     num_ai_commuters,
+		"home_work_pair":    home_work_pair,
+		"budget_per_round":  Player.DEFAULT_CREDITS_PER_ROUND,
+		"cost_per_metre_painted":   Player.COST_PER_METRE_PAINTED,
+		"cost_per_metre_protected": Player.COST_PER_METRE_PROTECTED,
+		"time_factor_by_level":     CityNetwork.Link.TIME_FACTOR,
+		"alpha_cautious":   PersonalityConfig.ALPHA_CAUTIOUS,
+		"alpha_average":    PersonalityConfig.ALPHA_AVERAGE,
+		"alpha_confident":  PersonalityConfig.ALPHA_CONFIDENT,
+		"survey_mean_cautious_max":  PersonalityConfig.SURVEY_MEAN_CAUTIOUS_MAX,
+		"survey_mean_confident_min": PersonalityConfig.SURVEY_MEAN_CONFIDENT_MIN,
+		"beta_protected_cautious":  PersonalityConfig.BETA_PROTECTED_CAUTIOUS,
+		"beta_protected_average":   PersonalityConfig.BETA_PROTECTED_AVERAGE,
+		"beta_protected_confident": PersonalityConfig.BETA_PROTECTED_CONFIDENT,
+		"benefit_epsilon_time":   BENEFIT_EPSILON_TIME,
+		"benefit_epsilon_safety": BENEFIT_EPSILON_SAFETY,
+		# How "a resident benefited" was defined when these numbers were
+		# produced. A percentage of residents benefiting means nothing later
+		# without it, and the definition is exactly the kind of thing that gets
+		# retuned between a pilot and a main study.
+		"benefit_metric":    "time_and_safety_counted_separately_never_combined",
+		"benefit_reference": "round1_baseline",
+		"group_size": ResearchConfig.GROUP_SIZE,
+		# True means the group treatment assigned every player the average
+		# personality instead of surveying them, so their routing input differs
+		# from their own individual sessions.
+		"group_treatment_uses_default_alpha": ResearchConfig.GROUP_TREATMENT_USES_DEFAULT_ALPHA,
+		"network_signature": network.signature() if network != null else null,
+		"prospect_theory_reference": "static_round1",
+	}
+
+
+## Share of a round's confirmed spending that landed on `route_links`.
+##
+## Distinct from Player.own_route_share(), which reads the BUYER's own tally.
+## In group mode every purchase is recorded against player 0, because the group
+## shares one screen, one mouse and one budget — so players 2..n have an empty
+## tally and their share reads as the -1.0 "nothing spent" sentinel rather than
+## a real value. Computing it from the round's upgrades against any rider's
+## route makes "what share of the group's spending helped MY commute" answerable
+## for every member of the group, not only whoever's Player object holds the
+## purse. That comparison — self-interested vs. collective allocation, alone vs.
+## negotiating — is the study's dependent variable, so it has to exist for
+## everyone at the table.
+##
+## Pass the route the rider held WHILE DECIDING. That is the same route
+## Player.buy_upgrade() flags each purchase against, so for player 0 this
+## reproduces own_route_upgrade_share exactly and any disagreement between the
+## two is a bug in one of them.
+##
+## Returns the same -1.0 sentinel as own_route_share() when nothing was spent:
+## callers must not read it as "0% own-route".
+static func _spend_share_on_route(upgrades: Array, route_links: Array) -> float:
+	var total: int = 0
+	var own: int = 0
+	for u: Dictionary in upgrades:
+		var cost: int = int(u.get("cost", 0))
+		total += cost
+		if route_links.has(_canonical_of(u.get("link", ""))):
+			own += cost
+	if total <= 0:
+		return -1.0
+	return float(own) / float(total)
 
 
 # --- Private Round Logic ---
@@ -318,11 +397,25 @@ func _recalculate_and_end_round() -> void:
 			"impedance_delta": p.initial_baseline_impedance - impedance_after,
 			"own_route_upgrade_share": Player.own_route_share(p.round_log.back()),
 			"cumulative_own_route_upgrade_share": p.cumulative_own_route_share(),
+			# The same measure computed from the round's purchases rather than
+			# from this player's own purse, so it is a real value for every
+			# member of a T3 group and not just the one holding the budget.
+			"group_spend_on_my_route_share": _spend_share_on_route(
+					round_upgrades, before["route_links"]),
+			# This rider's own origin and destination, in the same form the
+			# simulated residents use, so a player's commute can be compared
+			# against the resident population without reformatting either.
+			"home": "%d,%d" % [p.home.x, p.home.y],
+			"work": "%d,%d" % [p.work.x, p.work.y],
 			"route": _path_to_ids(p.current_route.get("path", [])),
 			"route_before": before["route"],
 			"route_links": route_links,
 			"route_links_before": before["route_links"],
+			# The Round-1 route, carried on every round so "still on the route
+			# they started with" is answerable without going back to Round 1.
+			"route_links_baseline": p.initial_baseline_route_links,
 			"route_changed": route_links != before["route_links"],
+			"route_changed_from_baseline": route_links != p.initial_baseline_route_links,
 			"upgraded_links_on_new_route": _upgraded_links_on_route(round_upgrades, route_links),
 		})
 
@@ -334,6 +427,13 @@ func _recalculate_and_end_round() -> void:
 		"round":             current_round,
 		"alpha":             human_player.alpha,
 		"group_mode":        treatment == Treatment.COLLECTIVE_CHAT,
+		# Whether the city-wide figures were on screen this round. They are
+		# COMPUTED in every treatment, including T1 where they are never shown,
+		# so a blank city column would otherwise be ambiguous between "not
+		# calculated" and "calculated but hidden". Recording which it was is
+		# what makes the T1 city numbers usable: they are the counterfactual for
+		# "would this player have helped the city had they been able to see it".
+		"city_metrics_shown": treatment != Treatment.INDIVIDUAL,
 		"personal_time":     human_player.current_route.get("total_time", 0.0),
 		"personal_time_before": _round_start_player_data[0]["time"],
 		"personal_safety":   human_player.safety_score,
@@ -353,10 +453,15 @@ func _recalculate_and_end_round() -> void:
 		"route_links":        players_data[0]["route_links"],
 		"route_before":       players_data[0]["route_before"],
 		"route_links_before": players_data[0]["route_links_before"],
+		"route_links_baseline": players_data[0]["route_links_baseline"],
 		"route_changed":      players_data[0]["route_changed"],
+		"route_changed_from_baseline": players_data[0]["route_changed_from_baseline"],
 		"upgraded_links_on_new_route": players_data[0]["upgraded_links_on_new_route"],
 		"budget_available":  human_player.credits_per_round,
 		"credits_spent":     human_player.round_log.back().get("credits_spent", 0),
+		# Spend across every round so far. A group session has one shared purse,
+		# so this is a property of the session rather than of any one player.
+		"credits_spent_cumulative": human_player.cumulative_credits_spent(),
 		"credits_remaining": human_player.credits_remaining,
 		"upgrades":          round_upgrades,
 		"removals":          human_player.round_log.back().get("removals", []),
@@ -368,6 +473,10 @@ func _recalculate_and_end_round() -> void:
 		"interaction_events": _events_for_round(current_round),
 		"own_route_upgrade_share": Player.own_route_share(human_player.round_log.back()),
 		"cumulative_own_route_upgrade_share": human_player.cumulative_own_route_share(),
+		# Player 0's copy of the per-player measure above. Must equal
+		# own_route_upgrade_share on every round; kept alongside it so the two
+		# definitions can be cross-checked directly in the log.
+		"group_spend_on_my_route_share": players_data[0]["group_spend_on_my_route_share"],
 		"players":           players_data,
 		"final_route":       _path_to_ids(human_player.current_route.get("path", [])),
 	}
@@ -534,21 +643,33 @@ func _compute_benefit_metrics(now: Array, baseline: Array) -> Dictionary:
 	var time_worsened: int  = 0
 	var safety_improved: int = 0
 	var safety_worsened: int = 0
+	# Raw route stress, reported alongside the normalised 0-100 safety score.
+	# Safety is a transform of stress, so the two move together, but the data
+	# spec asks for "average stress improvement among affected residents" in raw
+	# model units and a normalised score is not that. Kept as its own block
+	# rather than substituted, since the transform is not linear across routes
+	# of different lengths.
+	var stress_improved: int = 0
+	var stress_worsened: int = 0
 	var time_gain_sum: float   = 0.0   # over improved residents only
 	var safety_gain_sum: float = 0.0   # over improved residents only
+	var stress_gain_sum: float = 0.0   # over improved residents only
 	var time_net_sum: float    = 0.0   # over everyone
 	var safety_net_sum: float  = 0.0   # over everyone
+	var stress_net_sum: float  = 0.0   # over everyone
 
 	for i in range(total):
 		var before: Dictionary = baseline[i]
 		var after: Dictionary  = now[i]
 		# Signed so POSITIVE = improvement, matching every other delta in the
-		# log: time is better when lower, safety is better when higher.
+		# log: time and stress are better when lower, safety when higher.
 		var time_gain: float   = before.get("time", 0.0) - after.get("time", 0.0)
 		var safety_gain: float = after.get("safety", 0.0) - before.get("safety", 0.0)
+		var stress_gain: float = before.get("stress", 0.0) - after.get("stress", 0.0)
 
 		time_net_sum   += time_gain
 		safety_net_sum += safety_gain
+		stress_net_sum += stress_gain
 
 		if time_gain > BENEFIT_EPSILON_TIME:
 			time_improved += 1
@@ -561,6 +682,12 @@ func _compute_benefit_metrics(now: Array, baseline: Array) -> Dictionary:
 			safety_gain_sum += safety_gain
 		elif safety_gain < -BENEFIT_EPSILON_SAFETY:
 			safety_worsened += 1
+
+		if stress_gain > BENEFIT_EPSILON_STRESS:
+			stress_improved += 1
+			stress_gain_sum += stress_gain
+		elif stress_gain < -BENEFIT_EPSILON_STRESS:
+			stress_worsened += 1
 
 	var denom: float = float(total) if total > 0 else 1.0
 	return {
@@ -583,8 +710,16 @@ func _compute_benefit_metrics(now: Array, baseline: Array) -> Dictionary:
 		"residents_safety_no_benefit_pct": 100.0 * float(total - safety_improved) / denom,
 		"residents_safety_improvement_mean": (safety_gain_sum / float(safety_improved)) if safety_improved > 0 else 0.0,
 
+		"residents_stress_improved":       stress_improved,
+		"residents_stress_improved_pct":   100.0 * float(stress_improved) / denom,
+		"residents_stress_worsened":       stress_worsened,
+		"residents_stress_no_benefit":     total - stress_improved,
+		"residents_stress_no_benefit_pct": 100.0 * float(total - stress_improved) / denom,
+		"residents_stress_improvement_mean": (stress_gain_sum / float(stress_improved)) if stress_improved > 0 else 0.0,
+
 		"residents_total_time_saved_min": time_net_sum,
 		"residents_total_safety_gained":  safety_net_sum,
+		"residents_total_stress_reduced": stress_net_sum,
 	}
 
 

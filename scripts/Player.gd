@@ -150,6 +150,13 @@ var initial_baseline_time: float = 0.0
 var initial_baseline_safety: float = 0.0
 var initial_baseline_stress: float = 0.0
 var initial_baseline_impedance: float = 0.0
+## The links of the Round-1 route, kept alongside the baseline scalars beside it.
+## The data spec asks for "the baseline route between home and work before any
+## investment" as its own output, and while it is recoverable from Round 1's
+## route_links_before, that requires knowing to look there and having Round 1 to
+## hand. Carrying it on every round makes the comparison "is this person still
+## riding the route they started on" a direct one.
+var initial_baseline_route_links: Array = []
 
 # --- Round Log ---
 ## Each entry: { round: int, upgrades: Array, time_before: float, time_after: float, credits_spent: int }
@@ -380,6 +387,16 @@ static func own_route_share(round_log_entry: Dictionary) -> float:
 		return -1.0
 	var own: int = round_log_entry.get("own_route_spent", 0)
 	return float(own) / float(spent)
+
+
+## Money spent across every round played so far, as distinct from this round's
+## spend. Refunds from removals return to the wallet but are deliberately not
+## subtracted here, matching the per-round figure this sums.
+func cumulative_credits_spent() -> int:
+	var total: int = 0
+	for entry in round_log:
+		total += int(entry.get("credits_spent", 0))
+	return total
 
 
 ## Same as own_route_share(), aggregated across every round played so far.

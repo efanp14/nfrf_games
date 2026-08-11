@@ -725,6 +725,31 @@ func coverage_percent() -> float:
 	return (float(upgraded) / float(total_undirected)) * 100.0 if total_undirected > 0 else 0.0
 
 
+## A short fingerprint of the network's immutable structure: which links exist,
+## how long they take and how stressful they are, plus the resident commute
+## list.
+##
+## Recorded with every session so data can be told apart across builds. The
+## network has been restructured more than once — the arterial stress rewrite of
+## 10 August 2026 changed route choice substantially — and sessions run either
+## side of such a change are not directly comparable. Without a fingerprint that
+## difference is invisible in the data, and the only way to date a session is to
+## match its timestamp against the commit history by hand.
+##
+## Deliberately excludes upgrade_level, which is what players change: the point
+## is to identify the board, not the state of play on it. Links are sorted so
+## the value depends on the network rather than on dictionary iteration order.
+func signature() -> String:
+	var ids: Array = links.keys()
+	ids.sort()
+	var parts: PackedStringArray = []
+	for link_id: String in ids:
+		var link: Link = links[link_id]
+		parts.append("%s:%.4f:%.4f" % [link_id, link.base_time, link.stress_score])
+	parts.append("commutes:%d" % RESIDENT_COMMUTE_PAIRS.size())
+	return "%x" % hash("|".join(parts))
+
+
 # --- Display Helpers ---
 
 func link_display_name(link_id: String) -> String:

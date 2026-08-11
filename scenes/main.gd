@@ -31,6 +31,13 @@ var _alpha_sources: Array[String] = []
 var _treatment_ordinals: Array[int] = []
 var _current_survey_player: int = 0
 var _round_summary_active: bool = false
+## Set when the researcher picked the chained menu entry. T2 is queued only
+## after T1's post-survey is submitted, so an abandoned T1 leaves nothing behind.
+var _chain_to_t2: bool = false
+## The session this one follows on from, empty unless this IS the follow-on half
+## of a chained sitting. Recorded so "these two folders were one sitting" is a
+## fact in the data rather than something inferred from adjacent timestamps.
+var _chained_from_session_id: String = ""
 
 ## Layout of the map area. The HUD occupies a fixed strip down the left, so the
 ## map is fitted into what is left rather than into the whole window.
@@ -62,7 +69,14 @@ const CHAT_PANEL_ENABLED := false
 func _enter_tree() -> void:
 	RenderingServer.set_default_clear_color(Color(0.965, 0.945, 0.90))
 	_logger = DataLogger.new()
-	GameManager.add_child(_logger)
+	# Parented to THIS scene, not to the GameManager autoload. One logger is one
+	# session, and a session is one scene: the logger is last used by
+	# on_post_survey_completed, which runs before the reload. Parenting it to the
+	# autoload instead left it alive after reload_current_scene(), still
+	# connected to round_ended, so a second session's rounds were appended to the
+	# FIRST session's files while a fresh logger wrote them again to its own.
+	# Chaining T1 into T2 reloads every time, so this has to be right.
+	add_child(_logger)
 	GameManager.round_ended.connect(_logger.on_round_ended)
 	GameManager.game_over.connect(_logger.on_game_over)
 
@@ -84,10 +98,29 @@ func _ready() -> void:
 	pre_survey.survey_completed.connect(_on_survey_completed)
 	main_menu.game_starting.connect(_on_game_starting)
 	narrative_intro.narrative_finished.connect(_on_narrative_finished)
+	_start_queued_treatment_if_any()
 
 
-func _on_game_starting(treatment: int, num_players: int, participant_ids: Array, group_id: String) -> void:
+## A chained session reloads the scene between treatments (see SessionQueue for
+## why a reload rather than an in-place reset), so the follow-on treatment picks
+## up here instead of at the menu, with the identity the researcher already
+## entered. Runs after every child's _ready(), which is what lets it override
+## MainMenu._ready() having just made itself visible.
+func _start_queued_treatment_if_any() -> void:
+	if not SessionQueue.has_pending():
+		return
+	var queued: Dictionary = SessionQueue.take()
+	main_menu.hide()
+	# chain_to_t2 false: this IS the follow-on, so it queues nothing further.
+	_on_game_starting(queued["treatment"], queued["num_players"],
+			queued["participant_ids"], queued["group_id"], false,
+			str(queued.get("from_session_id", "")))
+
+
+func _on_game_starting(treatment: int, num_players: int, participant_ids: Array, group_id: String, chain_to_t2: bool = false, from_session_id: String = "") -> void:
 	_pending_treatment = treatment
+	_chain_to_t2 = chain_to_t2
+	_chained_from_session_id = from_session_id
 	_num_players = num_players
 	_player_alphas.clear()
 	_player_survey_responses.clear()
@@ -178,8 +211,12 @@ func _on_survey_completed(alpha: float, responses: Dictionary) -> void:
 func _on_narrative_finished() -> void:
 	GameManager.start_game(_player_alphas, _pending_treatment)
 	_logger.treatment = int(GameManager.treatment)
+	# Taken after start_game(), so the network exists and its fingerprint can be
+	# recorded along with the rest of the settings this session ran under.
+	_logger.game_parameters = GameManager.session_parameters()
 	_logger.on_consent_external()
-	_logger.set_participant_identity(_participant_ids, _group_id, _treatment_ordinals)
+	_logger.set_participant_identity(_participant_ids, _group_id, _treatment_ordinals,
+			_chained_from_session_id)
 	for i in range(_player_alphas.size()):
 		_logger.on_pre_survey_completed(i + 1, _player_survey_responses[i], _player_alphas[i],
 				_participant_ids[i], _alpha_sources[i])
@@ -267,8 +304,15 @@ func _on_post_survey_completed(player_num: int, responses: Dictionary) -> void:
 	_logger.on_post_survey_completed(player_num, _num_players, pid, responses)
 	if player_num < _num_players:
 		post_survey.show_survey(int(GameManager.treatment), player_num + 1, _num_players)
-	else:
-		get_tree().reload_current_scene()
+		return
+	# Queued here rather than at the menu so the follow-on treatment exists only
+	# once the first one is genuinely finished and its survey recorded. T2 gets
+	# its own session ID, folder and summary row; the two are joined afterwards
+	# by participant ID, which keeps the one-row-per-session schema intact.
+	if _chain_to_t2:
+		SessionQueue.queue_next(int(GameManager.Treatment.COLLECTIVE_INFO),
+				_participant_ids, _group_id, _num_players, _logger.session_id)
+	get_tree().reload_current_scene()
 
 
 func _on_end_round() -> void:
