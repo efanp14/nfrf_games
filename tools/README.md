@@ -77,7 +77,7 @@ It produces:
 | `all_surveys.csv` | One row per participant per session. |
 | `all_sessions.csv` | The per-session summaries stacked. |
 | `all_residents.csv` | Every resident, round and phase. |
-| `participants_wide.csv` | **One row per person**, their three sessions side by side: `t1_r2_time`, `t3_r1_group_spend_on_my_route_share`, and so on. The shape for SPSS or a spreadsheet. |
+| `participants_wide.csv` | **One row per person**, their three sessions side by side: `t1_r2_travel_time_min`, `t3_r1_own_route_spend_share`, and so on. The shape for SPSS or a spreadsheet. |
 | `codebook.csv` | Column descriptions. |
 | `aggregate_report.txt` | What was read, and what looks wrong. Read it. |
 
@@ -135,11 +135,11 @@ appears on three rows. Summing down those columns counts one city three times.
 share one screen and one mouse, so the game cannot know whose hand it was. Blank
 there means "the group decided", not "missing". Per-person attribution inside a
 group session comes from the audio recording, aligned via `audio_manifest.json`.
-What *is* per person is `group_spend_on_my_route_share`: the share of the
-group's spending that landed on that individual's route. It is the column to use
-when comparing self-interested against collective allocation, because unlike
-`own_route_upgrade_share` it holds a real value for every seat rather than only
-for the one the budget is recorded against.
+What *is* per person is `own_route_spend_share`: the share of the group's
+spending that landed on that individual's route. It is the column to use when
+comparing self-interested against collective allocation, because it holds a real
+value for every seat rather than only for the one the budget is recorded
+against.
 
 ## Comparing the same person alone and in a group
 
@@ -189,3 +189,24 @@ personality are in `parameters.json`; painted `beta` is per link, in
 
 Costs check the same way: `length_m` times the per-metre rate for the level,
 rounded to the nearest thousand dollars.
+
+## Schema versions
+
+Every row carries `schema_version`. Version 2 (11 August 2026) renamed a number
+of columns and changed two encodings, deliberately, while no participant data
+existed and nothing could be invalidated:
+
+| Schema 1 | Schema 2 | Why |
+| --- | --- | --- |
+| `time` | `travel_time_min` | Bare `time` sat next to `timestamp_s` in a 90-column table, and the unit was only in the codebook. |
+| `city_avg_time` | `city_avg_travel_time_min` | Same. |
+| `credits_spent` / `credits_remaining` | `budget_spent` / `budget_remaining` | The budget is dollars, not coins. "Credits" read as a count of something. |
+| `own_route_upgrade_share` | removed | Only ever valid for the seat holding the shared budget, so it reported "nothing spent" for the other players in a group session even in rounds where the group spent most of its money. |
+| `group_spend_on_my_route_share` | `own_route_spend_share` | The correct measure becomes the obvious name. |
+| `cumulative_own_route_upgrade_share` | `own_route_spend_share_cumulative` | Rebuilt on the correct per-seat measure, as a spend-weighted running mean. |
+| `true` / `false` | `1` / `0` | The words load as text and need recoding before they can be averaged. The survey "don't know" flags were already 1/0. |
+| `-1` in share columns | blank | `-1` is outside a proportion's real 0..1 range, and no reader rejects it, so it entered means silently. Blank is read as missing everywhere. Use `budget_spent` to tell "spent nothing" from "not applicable". |
+
+`events.json` is the source of record and keeps its original field names, so a
+few fields there still read `time` and `credits_spent`. The tables are the
+analysis surface and are the ones that were renamed.

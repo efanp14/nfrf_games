@@ -555,10 +555,10 @@ func _build_session_summary() -> Dictionary:
 	var consent_timestamp_s: Variant = (parts["consent"] as Dictionary).get("timestamp_s")
 	var consent_process: Variant = (parts["consent"] as Dictionary).get("consent_process")
 
-	var total_credits_spent: int = 0
+	var total_budget_spent: int = 0
 	var total_decision_time_s: float = 0.0
 	for r: Dictionary in round_entries:
-		total_credits_spent += int(r.get("credits_spent", 0))
+		total_budget_spent += int(r.get("credits_spent", 0))
 		total_decision_time_s += float(r.get("decision_time_s", 0.0))
 
 	var round1_safety_before: Variant = null
@@ -600,14 +600,13 @@ func _build_session_summary() -> Dictionary:
 		"alpha":                 final_entry.get("alpha"),
 		"rounds_played":         round_entries.size(),
 		"total_decision_time_s": total_decision_time_s,
-		"total_credits_spent":   total_credits_spent,
-		"baseline_time":         final_entry.get("baseline_time"),
-		"final_time":            final_entry.get("final_time"),
-		"total_time_saved":      final_entry.get("total_time_saved"),
+		"total_budget_spent":    total_budget_spent,
+		"baseline_travel_time_min": final_entry.get("baseline_time"),
+		"final_travel_time_min": final_entry.get("final_time"),
+		"total_travel_time_saved_min": final_entry.get("total_time_saved"),
 		"safety_round1_before":  round1_safety_before,
 		"final_safety":          final_entry.get("final_safety"),
 		"city_coverage_pct":     final_entry.get("city_coverage_pct"),
-		"cumulative_own_route_upgrade_share": final_entry.get("cumulative_own_route_upgrade_share"),
 		"final_residents_total":                   last_round.get("residents_total"),
 		"final_residents_time_improved_pct":       last_round.get("residents_time_improved_pct"),
 		"final_residents_time_improvement_mean":   last_round.get("residents_time_improvement_mean"),
@@ -753,6 +752,16 @@ func _rounds_rows(parts: Dictionary) -> Array:
 	for e: Dictionary in parts["pre"]:
 		alpha_source_by_player[int(e.get("player_num", 0))] = e.get("alpha_source", null)
 
+	# Running totals behind own_route_spend_share_cumulative, one pair per seat.
+	# Accumulated here rather than taken from the Player object because the
+	# Player-side tally is kept only for whoever holds the shared budget, which
+	# is what made the old cumulative column meaningless for the other seats in
+	# a group session. Reconstructing it from each round's share weighted by
+	# that round's spend gives the same answer for seat 1 and a real one for
+	# the rest.
+	var spend_by_seat: Dictionary = {}
+	var own_spend_by_seat: Dictionary = {}
+
 	var rows: Array = []
 	for entry: Dictionary in parts["rounds"]:
 		var players: Array = entry.get("players", [])
@@ -793,9 +802,9 @@ func _rounds_rows(parts: Dictionary) -> Array:
 				"timestamp_s":    entry.get("timestamp_s"),
 				"decision_time_s": entry.get("decision_time_s"),
 				"budget_available":  entry.get("budget_available"),
-				"credits_spent":     entry.get("credits_spent"),
-				"credits_spent_cumulative": entry.get("credits_spent_cumulative"),
-				"credits_remaining": entry.get("credits_remaining"),
+				"budget_spent":      entry.get("credits_spent"),
+				"budget_spent_cumulative": entry.get("credits_spent_cumulative"),
+				"budget_remaining":  entry.get("credits_remaining"),
 				"home_node":      p.get("home"),
 				"work_node":      p.get("work"),
 				"route_changed":  p.get("route_changed"),
@@ -804,9 +813,11 @@ func _rounds_rows(parts: Dictionary) -> Array:
 				"route_links":    route_links,
 				"route_links_baseline": p.get("route_links_baseline", []),
 				"upgraded_links_on_new_route_n": (p.get("upgraded_links_on_new_route", []) as Array).size(),
-				"own_route_upgrade_share": p.get("own_route_upgrade_share"),
-				"cumulative_own_route_upgrade_share": p.get("cumulative_own_route_upgrade_share"),
-				"group_spend_on_my_route_share": p.get("group_spend_on_my_route_share"),
+				"own_route_spend_share": p.get("group_spend_on_my_route_share"),
+				"own_route_spend_share_cumulative": _accumulate_own_route_share(
+						spend_by_seat, own_spend_by_seat, i,
+						entry.get("credits_spent", 0),
+						p.get("group_spend_on_my_route_share")),
 				"n_upgrades":            upgrades.size(),
 				"n_upgrades_painted":    painted,
 				"n_upgrades_protected":  protected_count,
@@ -816,20 +827,25 @@ func _rounds_rows(parts: Dictionary) -> Array:
 				"city_metrics_shown":    entry.get("city_metrics_shown"),
 			}
 			# Per-player metric quads. The player rows name these without the
-			# "personal_" prefix the top-level fields carry.
-			for metric: String in ["time", "safety", "stress", "impedance"]:
-				row[metric]              = p.get(metric)
-				row[metric + "_before"]  = p.get(metric + "_before")
-				row[metric + "_baseline"] = p.get(metric + "_baseline")
-				row[metric + "_delta"]   = p.get(metric + "_delta")
+			# "personal_" prefix the top-level fields carry. Read through
+			# LogSchema.source_field(), since a column and the events.json field
+			# behind it do not always share a name.
+			for col: String in ["travel_time_min", "safety", "stress", "impedance"]:
+				var src: String = LogSchema.source_field(col)
+				row[col]               = p.get(src)
+				row[col + "_before"]   = p.get(src + "_before")
+				row[col + "_baseline"] = p.get(src + "_baseline")
+				row[col + "_delta"]    = p.get(src + "_delta")
 			# City and resident figures describe the whole session, so they
 			# REPEAT across a group's rows. Summing them down the column would
 			# count one city three times over.
-			for key: String in ["city_avg_time", "city_avg_safety", "city_avg_stress"]:
-				row[key]               = entry.get(key)
-				row[key + "_before"]   = entry.get(key + "_before")
-				row[key + "_baseline"] = entry.get(key + "_baseline")
-				row[key + "_delta"]    = entry.get(key + "_delta")
+			for col: String in ["city_avg_travel_time_min", "city_avg_safety",
+					"city_avg_stress"]:
+				var src: String = LogSchema.source_field(col)
+				row[col]               = entry.get(src)
+				row[col + "_before"]   = entry.get(src + "_before")
+				row[col + "_baseline"] = entry.get(src + "_baseline")
+				row[col + "_delta"]    = entry.get(src + "_delta")
 			for key: String in ["city_coverage_pct", "city_coverage_pct_before",
 					"city_coverage_pct_baseline"]:
 				row[key] = entry.get(key)
@@ -839,6 +855,23 @@ func _rounds_rows(parts: Dictionary) -> Array:
 					row[col] = entry.get(col)
 			rows.append(row)
 	return rows
+
+
+## Folds one round into a seat's running own-route spend, and returns the share
+## so far. Null until the seat has seen any spending at all, matching the
+## per-round column: a share of nothing is undefined rather than zero.
+func _accumulate_own_route_share(spend_by_seat: Dictionary,
+		own_spend_by_seat: Dictionary, seat: int, spent: Variant,
+		share: Variant) -> Variant:
+	var round_spend: float = float(spent if spent != null else 0)
+	if round_spend > 0.0 and share != null:
+		spend_by_seat[seat] = float(spend_by_seat.get(seat, 0.0)) + round_spend
+		own_spend_by_seat[seat] = float(own_spend_by_seat.get(seat, 0.0)) \
+				+ round_spend * float(share)
+	var total: float = float(spend_by_seat.get(seat, 0.0))
+	if total <= 0.0:
+		return null
+	return float(own_spend_by_seat.get(seat, 0.0)) / total
 
 
 ## Fallback shape for a round that carries no `players` array. Should never fire
@@ -867,8 +900,6 @@ func _player_view_from_entry(entry: Dictionary) -> Dictionary:
 		"impedance_delta":    entry.get("impedance_delta"),
 		"route_links":   entry.get("route_links", []),
 		"route_changed": entry.get("route_changed"),
-		"own_route_upgrade_share": entry.get("own_route_upgrade_share"),
-		"cumulative_own_route_upgrade_share": entry.get("cumulative_own_route_upgrade_share"),
 		"group_spend_on_my_route_share": entry.get("group_spend_on_my_route_share"),
 		"upgraded_links_on_new_route": entry.get("upgraded_links_on_new_route", []),
 	}
@@ -1099,7 +1130,7 @@ func _residents_rows() -> Array:
 					"home":       r.get("home"),
 					"work":       r.get("work"),
 					"alpha":      r.get("alpha"),
-					"time":       r.get("time"),
+					"travel_time_min": r.get("time"),
 					"stress":     r.get("stress"),
 					"safety":     r.get("safety"),
 					"impedance":  r.get("impedance"),

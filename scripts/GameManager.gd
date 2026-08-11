@@ -343,8 +343,9 @@ func session_parameters() -> Dictionary:
 ## Distinct from Player.own_route_share(), which reads the BUYER's own tally.
 ## In group mode every purchase is recorded against player 0, because the group
 ## shares one screen, one mouse and one budget — so players 2..n have an empty
-## tally and their share reads as the -1.0 "nothing spent" sentinel rather than
-## a real value. Computing it from the round's upgrades against any rider's
+## tally and their share reads as "nothing spent" rather than as a real value,
+## even in a round where the group spent most of its budget. Computing it from
+## the round's upgrades against any rider's
 ## route makes "what share of the group's spending helped MY commute" answerable
 ## for every member of the group, not only whoever's Player object holds the
 ## purse. That comparison — self-interested vs. collective allocation, alone vs.
@@ -356,9 +357,9 @@ func session_parameters() -> Dictionary:
 ## reproduces own_route_upgrade_share exactly and any disagreement between the
 ## two is a bug in one of them.
 ##
-## Returns the same -1.0 sentinel as own_route_share() when nothing was spent:
-## callers must not read it as "0% own-route".
-static func _spend_share_on_route(upgrades: Array, route_links: Array) -> float:
+## Returns null when nothing was spent, on the same terms as own_route_share():
+## a share of nothing is undefined, not zero.
+static func _spend_share_on_route(upgrades: Array, route_links: Array) -> Variant:
 	var total: int = 0
 	var own: int = 0
 	for u: Dictionary in upgrades:
@@ -367,7 +368,7 @@ static func _spend_share_on_route(upgrades: Array, route_links: Array) -> float:
 		if route_links.has(_canonical_of(u.get("link", ""))):
 			own += cost
 	if total <= 0:
-		return -1.0
+		return null
 	return float(own) / float(total)
 
 

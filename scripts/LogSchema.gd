@@ -20,7 +20,37 @@ class_name LogSchema
 ## Bumped when the meaning of an existing column changes, which should be
 ## almost never: columns are added, not repurposed (guardrail 6). Stamped on
 ## every emitted row so a session can always be read with the right dictionary.
-const SCHEMA_VERSION: int = 1
+##
+## 2 (11 Aug 2026): renames and one encoding fix, taken deliberately while no
+## participant data existed and so nothing could be invalidated. Booleans became
+## 1/0, the -1 "undefined" sentinel in the share columns became blank, the money
+## columns dropped the "credits" wording left over from when the budget was
+## coins, travel time gained its unit, and the seat-dependent
+## own_route_upgrade_share pair was replaced by own_route_spend_share, which is
+## correct for every seat. Sessions written under 1 are still readable: the
+## version is stamped on every row.
+const SCHEMA_VERSION: int = 2
+
+## Where an analysis column reads from, when the two names differ.
+##
+## events.json is the SOURCE OF RECORD and keeps the field names it has always
+## used; the analysis tables are free to name things well. Renaming the raw log
+## too would rewrite the one file that is meant never to be rewritten, for a
+## cosmetic gain, so the translation lives here instead: one declaration both
+## row builders read, rather than a rename scattered through the writers.
+const COLUMN_SOURCE: Dictionary = {
+	"travel_time_min":          "time",
+	"city_avg_travel_time_min": "city_avg_time",
+	"budget_spent":             "credits_spent",
+	"budget_spent_cumulative":  "credits_spent_cumulative",
+	"budget_remaining":         "credits_remaining",
+}
+
+
+## The events.json field a column is built from, or the column's own name when
+## it is not renamed.
+static func source_field(column: String) -> String:
+	return COLUMN_SOURCE.get(column, column)
 
 const TABLE_ROUNDS:    String = "rounds"
 const TABLE_DECISIONS: String = "decisions"
@@ -95,13 +125,13 @@ static func rounds_columns() -> Array:
 		["alpha_source", "Where alpha came from: 'survey' answered this session, 'stored' reused from an earlier session on this machine, 'default' assigned without asking (the group treatment does this). A 'default' row did NOT play at their own sensitivity, which matters when comparing them against their solo sessions."],
 		["timestamp_s", "Seconds from session start to the end of this round."],
 		["decision_time_s", "Seconds the round was open, from shown to confirmed. In the group treatment this is the deliberation time."],
-		["budget_available", "Money available this round."],
-		["credits_spent", "Money spent this round. Removals refund the wallet but are NOT subtracted here."],
-		["credits_spent_cumulative", "Money spent across every round so far. In a group session there is one shared purse, so this describes the session rather than any one player."],
-		["credits_remaining", "Money left when the round was confirmed."],
+		["budget_available", "Money available this round, in dollars."],
+		["budget_spent", "Money spent this round, in dollars. Removals refund the wallet but are NOT subtracted here."],
+		["budget_spent_cumulative", "Money spent across every round so far. In a group session there is one shared purse, so this describes the session rather than any one player."],
+		["budget_remaining", "Money left when the round was confirmed."],
 	])
 
-	cols.append_array(_quad("time", "Travel time in minutes over the chosen route", "lower"))
+	cols.append_array(_quad("travel_time_min", "Travel time in minutes over the chosen route", "lower"))
 	cols.append_array(_quad("safety", "Safety score: 100 - 50 x (this route's stress / what the SAME route's stress would be fully unimproved). Per-route normalised, so it answers 'what share of this commute's own starting risk has been removed'. Observed range is 50 (untouched) to about 95 (fully protected, cautious rider), NOT 0-100. Two riders with the same score can have very different raw stress", "higher"))
 	cols.append_array(_quad("stress", "Raw stress exposure along the route: sum of beta x base_stress x base_time. Absolute, not normalised, so it scales with how much stressful road was actually ridden. Related to safety but NOT interchangeable with it: the two are exactly linear for a fixed route and diverge when the route changes, because the normalising denominator changes with it", "lower"))
 	cols.append_array(_quad("impedance", "Impedance, the quantity Dijkstra actually minimises: time weighted by stress and infrastructure", "lower"))
@@ -109,25 +139,24 @@ static func rounds_columns() -> Array:
 	cols.append_array(_cols([
 		["home_node", "This rider's origin. Same coordinate form the residents use, so player and resident commutes are directly comparable."],
 		["work_node", "This rider's destination."],
-		["route_changed", "True if this round's route differs from the route held at the start of it."],
-		["route_changed_from_baseline", "True if this round's route differs from the Round 1 route, i.e. from the commute before any investment at all. Distinct from route_changed, which only looks back one round: someone can reroute and later return to where they started."],
+		["route_changed", "1 if this round's route differs from the route held at the start of it, otherwise 0."],
+		["route_changed_from_baseline", "1 if this round's route differs from the Round 1 route, i.e. from the commute before any investment at all. Distinct from route_changed, which only looks back one round: someone can reroute and later return to where they started."],
 		["route_n_links", "Number of links in the chosen route."],
 		["route_links", "The chosen route as link IDs, pipe separated. Joins against link_id in upgrades.csv."],
 		["route_links_baseline", "The Round 1 route, before any investment. Carried on every row so the comparison against the starting commute needs no lookup back to Round 1."],
 		["upgraded_links_on_new_route_n", "How many links bought this round ended up on the NEW route. Distinct from own_route below, which was decided before the recalculation."],
-		["own_route_upgrade_share", "Share of this round's spending that went to links on this rider's own route at the moment of purchase. -1 means nothing was spent, which is NOT the same as 0 percent. Only meaningful for the seat holding the budget; see the next column."],
-		["cumulative_own_route_upgrade_share", "The same measure across every round so far. -1 means nothing has been spent yet."],
-		["group_spend_on_my_route_share", "Share of the round's spending that landed on THIS rider's route, computed from the purchases rather than from their own wallet. Unlike own_route_upgrade_share it is a real value for every seat in a group session, so it is the column to use when comparing self-interested against collective allocation. -1 means nothing was spent."],
+		["own_route_spend_share", "Share of this round's spending that landed on THIS rider's own route, 0 to 1. The headline self-interest measure: high means the money went on their own commute, low means it went elsewhere in the city. BLANK when nothing was spent that round, because a share of no spending is undefined rather than zero; budget_spent tells those two apart. Computed from the round's purchases against each rider's own route, so it holds a real value for every seat in a group session, not only whoever's wallet the shared budget sits in."],
+		["own_route_spend_share_cumulative", "The same measure across every round so far, weighted by what was spent in each. Blank until anything has been bought."],
 		["n_upgrades", "Links bought this round."],
 		["n_upgrades_painted", "Of those, painted lanes."],
 		["n_upgrades_protected", "Of those, protected lanes."],
 		["n_removals", "Previously built upgrades taken back OFF the network this round, i.e. confirmed demolitions. This is NOT the count of selections the participant changed their mind about before confirming: a link staged and then unstaged never reaches the network, so it leaves this column at 0. For choices reconsidered during the round use changed_or_removed in decisions.csv, or n_interaction_events below."],
 		["n_interaction_events", "Staging actions before confirmation: selections, level changes and withdrawals. A measure of how much the decision was reworked."],
 		["city_feedback_shown", "The city-wide message the participant actually read this round, verbatim, pipe separated. Empty in the individual treatment, which is shown none."],
-		["city_metrics_shown", "Whether the city columns below were ON SCREEN this round. They are COMPUTED in every treatment, including T1 where they are hidden, so a city value with this set false is a genuine measurement the participant could not see, not missing data. That is what makes T1 city figures usable as the counterfactual for 'would this player have helped the city had they known'."],
+		["city_metrics_shown", "1 if the city columns below were ON SCREEN this round, otherwise 0. They are COMPUTED in every treatment, including T1 where they are hidden, so a city value with this set to 0 is a genuine measurement the participant could not see, not missing data. That is what makes T1 city figures usable as the counterfactual for 'would this player have helped the city had they known'."],
 	]))
 
-	cols.append_array(_quad("city_avg_time", "Mean travel time in minutes across all simulated residents", "lower"))
+	cols.append_array(_quad("city_avg_travel_time_min", "Mean travel time in minutes across all simulated residents", "lower"))
 	cols.append_array(_quad("city_avg_safety", "Mean safety score across all simulated residents", "higher"))
 	cols.append_array(_quad("city_avg_stress", "Mean route stress across all simulated residents", "lower"))
 
@@ -237,7 +266,7 @@ static func residents_columns() -> Array:
 		["home", "Origin node."],
 		["work", "Destination node."],
 		["alpha", "This resident's stress sensitivity."],
-		["time", "Travel time in minutes over their route in this phase."],
+		["travel_time_min", "Travel time in minutes over their route in this phase."],
 		["stress", "Raw stress exposure along their route: sum of beta x base_stress x base_time. Absolute, so a long commute reads higher than a short one at the same comfort."],
 		["safety", "Safety score for their route: 100 - 50 x (current stress / that same route's fully unimproved stress). Per-route normalised, so it is comparable across residents with commutes of different lengths in a way raw stress is not. Floor is 50, not 0."],
 		["impedance", "Impedance of their route, the quantity Dijkstra minimised."],
@@ -436,12 +465,19 @@ static func header_for(columns: Array) -> PackedStringArray:
 ##
 ## Lists of scalars join with LIST_SEP rather than being JSON encoded, so a
 ## route reads as a route in a spreadsheet instead of as an escaped blob.
+##
+## Booleans render as 1/0 rather than true/false (schema 2). The words load as
+## text in every statistics package and have to be recoded before they can be
+## averaged, counted or used as a predictor, and the survey "don't know" flags
+## beside them were already 1/0 — so the file had two encodings for the same
+## kind of value. One numeric encoding throughout, and "what fraction of rounds
+## changed the route" is just a mean.
 static func csv_cell(value: Variant) -> String:
 	var s: String
 	if value == null:
 		return ""
 	elif value is bool:
-		s = "true" if value else "false"
+		s = "1" if value else "0"
 	elif value is Array or value is PackedStringArray:
 		s = _join_scalars(value)
 	elif value is Dictionary:

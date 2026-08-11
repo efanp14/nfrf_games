@@ -378,13 +378,18 @@ static func route_contains_link(route: Dictionary, link_id: String) -> bool:
 
 
 ## Fraction (0.0-1.0) of a round's spending that went to links on the
-## player's own route at the moment of purchase. Returns -1.0 (undefined,
-## not zero) if nothing was spent that round — callers must not treat -1.0
-## as "0% own-route".
-static func own_route_share(round_log_entry: Dictionary) -> float:
+## player's own route at the moment of purchase.
+##
+## Returns null, not a number, when nothing was spent: the quantity is a
+## proportion OF the spending, so with no spending there is nothing for it to be
+## a proportion of. This used to return -1.0, which was a mistake of the same
+## kind as writing "<null>" into a CSV — a value outside the real 0..1 range
+## that no reader rejects, so it entered means silently and dragged them down.
+## Null becomes an empty cell, which every statistics package excludes.
+static func own_route_share(round_log_entry: Dictionary) -> Variant:
 	var spent: int = round_log_entry.get("credits_spent", 0)
 	if spent <= 0:
-		return -1.0
+		return null
 	var own: int = round_log_entry.get("own_route_spent", 0)
 	return float(own) / float(spent)
 
@@ -399,15 +404,16 @@ func cumulative_credits_spent() -> int:
 	return total
 
 
-## Same as own_route_share(), aggregated across every round played so far.
-func cumulative_own_route_share() -> float:
+## Same as own_route_share(), aggregated across every round played so far, and
+## null on the same terms.
+func cumulative_own_route_share() -> Variant:
 	var total_spent: int = 0
 	var total_own: int = 0
 	for entry in round_log:
 		total_spent += entry.get("credits_spent", 0)
 		total_own += entry.get("own_route_spent", 0)
 	if total_spent <= 0:
-		return -1.0
+		return null
 	return float(total_own) / float(total_spent)
 
 

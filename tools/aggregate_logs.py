@@ -45,12 +45,11 @@ from pathlib import Path
 # spreadsheet, and 70 x 3 rounds x 3 treatments is not something anyone reads.
 # Pass --wide-all for the unabridged version.
 WIDE_ROUND_COLUMNS = [
-    "time", "time_delta", "safety", "safety_delta", "stress_delta",
-    "impedance_delta", "route_changed", "decision_time_s",
-    "credits_spent", "n_upgrades", "n_upgrades_painted", "n_upgrades_protected",
-    "own_route_upgrade_share", "group_spend_on_my_route_share",
-    "cumulative_own_route_upgrade_share",
-    "city_avg_time_delta", "city_avg_safety_delta", "city_coverage_pct",
+    "travel_time_min", "travel_time_min_delta", "safety", "safety_delta",
+    "stress_delta", "impedance_delta", "route_changed", "decision_time_s",
+    "budget_spent", "n_upgrades", "n_upgrades_painted", "n_upgrades_protected",
+    "own_route_spend_share", "own_route_spend_share_cumulative",
+    "city_avg_travel_time_min_delta", "city_avg_safety_delta", "city_coverage_pct",
     "residents_time_improved_pct", "residents_safety_improved_pct",
 ]
 
@@ -152,27 +151,27 @@ def rounds_from_events(events) -> list[dict]:
                 "alpha": p.get("alpha", entry.get("alpha")),
                 "alpha_source": alpha_source.get(i + 1),
                 "decision_time_s": entry.get("decision_time_s"),
-                "credits_spent": entry.get("credits_spent"),
-                "credits_remaining": entry.get("credits_remaining"),
+                "budget_spent": entry.get("credits_spent"),
+                "budget_remaining": entry.get("credits_remaining"),
                 "n_upgrades": len(upgrades),
                 "route_changed": p.get("route_changed", entry.get("route_changed")),
-                "own_route_upgrade_share": p.get(
-                    "own_route_upgrade_share", entry.get("own_route_upgrade_share")),
-                "cumulative_own_route_upgrade_share": p.get(
-                    "cumulative_own_route_upgrade_share"),
-                "group_spend_on_my_route_share": p.get("group_spend_on_my_route_share"),
+                "own_route_spend_share": p.get("group_spend_on_my_route_share"),
             }
-            for metric, fallback in (("time", "personal_time"),
-                                     ("safety", "personal_safety"),
-                                     ("stress", "personal_stress"),
-                                     ("impedance", "personal_impedance")):
-                row[metric] = p.get(metric, entry.get(fallback))
-                row[metric + "_before"] = p.get(metric + "_before")
-                row[metric + "_baseline"] = p.get(metric + "_baseline")
-                row[metric + "_delta"] = p.get(metric + "_delta")
-            for key in ("city_avg_time", "city_avg_safety", "city_avg_stress"):
+            # (column, events.json field, top-level fallback). The raw log keeps
+            # its original field names; the tables use the schema-2 ones.
+            for col, src, fallback in (("travel_time_min", "time", "personal_time"),
+                                       ("safety", "safety", "personal_safety"),
+                                       ("stress", "stress", "personal_stress"),
+                                       ("impedance", "impedance", "personal_impedance")):
+                row[col] = p.get(src, entry.get(fallback))
+                row[col + "_before"] = p.get(src + "_before")
+                row[col + "_baseline"] = p.get(src + "_baseline")
+                row[col + "_delta"] = p.get(src + "_delta")
+            for col, src in (("city_avg_travel_time_min", "city_avg_time"),
+                             ("city_avg_safety", "city_avg_safety"),
+                             ("city_avg_stress", "city_avg_stress")):
                 for suffix in ("", "_before", "_baseline", "_delta"):
-                    row[key + suffix] = entry.get(key + suffix)
+                    row[col + suffix] = entry.get(src + suffix)
             for key, value in entry.items():
                 if key.startswith("residents_") or key.startswith("city_coverage_pct"):
                     row[key] = value
@@ -314,7 +313,7 @@ def residents_from_json(blocks) -> list[dict]:
                     "round": block.get("round"), "phase": phase,
                     "resident_index": r.get("resident_index"),
                     "home": r.get("home"), "work": r.get("work"),
-                    "alpha": r.get("alpha"), "time": r.get("time"),
+                    "alpha": r.get("alpha"), "travel_time_min": r.get("time"),
                     "stress": r.get("stress"), "safety": r.get("safety"),
                     "impedance": r.get("impedance"), "n_links": len(links),
                     "route_links": "|".join(str(x) for x in links),
@@ -358,7 +357,9 @@ def _cell(value):
     if value is None:
         return ""
     if isinstance(value, bool):
-        return "true" if value else "false"
+        # 1/0, matching LogSchema.csv_cell() since schema 2: the words load as
+        # text in every statistics package and have to be recoded before use.
+        return "1" if value else "0"
     if isinstance(value, (list, tuple)):
         return "|".join("" if v is None else str(v) for v in value)
     if isinstance(value, dict):
