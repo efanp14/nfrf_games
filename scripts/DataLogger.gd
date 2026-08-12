@@ -6,6 +6,14 @@ extends Node
 ##
 ## Attach this as a child of GameManager and connect the signals.
 
+## Root of the research output, holding one subfolder per session. Declared
+## here, where the files are written, and read from outside by the main menu's
+## button for opening it: the operating system's per-application user directory
+## is hidden on Windows and is not somewhere anyone finds by looking, so a
+## researcher collecting data off a testing machine needs a way in that does not
+## involve typing an %APPDATA% path into a file manager.
+const SESSIONS_ROOT: String = "user://research_sessions/"
+
 var session_id: String
 var treatment: int
 var log_entries: Array = []
@@ -117,7 +125,7 @@ func _ensure_session_identity() -> void:
 func _free_folder_name(base: String) -> String:
 	var candidate := base
 	var suffix := 2
-	while DirAccess.dir_exists_absolute("user://research_sessions/%s/" % candidate):
+	while DirAccess.dir_exists_absolute(SESSIONS_ROOT + candidate + "/"):
 		candidate = "%s_%d" % [base, suffix]
 		suffix += 1
 	return candidate
@@ -629,7 +637,7 @@ func _build_session_summary() -> Dictionary:
 ## both the data and the meaning of every column travel with it.
 func _session_dir() -> String:
 	_ensure_session_identity()
-	return "user://research_sessions/%s/" % session_id
+	return SESSIONS_ROOT + session_id + "/"
 
 
 func _write_session_summary() -> void:

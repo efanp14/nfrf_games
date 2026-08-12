@@ -6,6 +6,7 @@ signal game_starting(treatment: int, num_players: int, participant_ids: Array, g
 @onready var treatment_option: OptionButton = %TreatmentOption
 @onready var start_button: Button           = %StartButton
 @onready var intro_label: Label             = %IntroLabel
+@onready var data_folder_button: Button     = %DataFolderButton
 
 var _player_count_row: HBoxContainer
 var _player_count_spin: SpinBox
@@ -103,6 +104,48 @@ func _ready() -> void:
 	vbox.move_child(_status_label, group_row.get_index() + 1)
 
 	_rebuild_participant_rows()
+
+	data_folder_button.pressed.connect(_on_data_folder_pressed)
+	# A browser build has no folder to open: there, user:// is storage inside
+	# the browser rather than a path on disk.
+	data_folder_button.visible = not OS.has_feature("web")
+	_refresh_data_folder_button()
+
+
+## Opens the folder every session is written into.
+##
+## The folder is created first, so the button does the same thing before the
+## first session as after it. An empty folder is the honest answer to "where
+## does the data go"; a button that silently does nothing reads as broken, and
+## the first press is exactly when nothing has been written yet.
+func _on_data_folder_pressed() -> void:
+	DirAccess.make_dir_recursive_absolute(DataLogger.SESSIONS_ROOT)
+	var absolute := ProjectSettings.globalize_path(DataLogger.SESSIONS_ROOT)
+	if OS.shell_open(absolute) != OK:
+		# Nothing further can be done from in here, so surface the path itself:
+		# it can still be pasted into a file manager by hand.
+		_status_label.text = absolute
+		_status_label.remove_theme_color_override("font_color")
+
+
+## Counts the sessions already on disk and says so on the button, so the data
+## can be confirmed present before a testing machine is wiped or handed back.
+## Sessions written earlier in this sitting are included, the chained T1-into-T2
+## flow reloading the scene between its halves.
+func _refresh_data_folder_button() -> void:
+	var count := _session_count()
+	if count == 0:
+		data_folder_button.text = "Open Data Folder"
+	else:
+		data_folder_button.text = "Open Data Folder  (%d session%s)" % [
+				count, "" if count == 1 else "s"]
+
+
+func _session_count() -> int:
+	var dir := DirAccess.open(DataLogger.SESSIONS_ROOT)
+	if dir == null:
+		return 0
+	return dir.get_directories().size()
 
 
 ## Item id for the chained option. Not a treatment in its own right: it starts
