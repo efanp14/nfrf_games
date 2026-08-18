@@ -39,19 +39,11 @@ const BUBBLE_SIZE: float = 26.0
 ## reads at a glance from across a desk. That matters more than usual here: in
 ## the group treatment three people share one screen, and a participant who
 ## cannot tell which option is selected may answer a question twice or skip it.
-const BUBBLE_FILL:            Color = Color(0.13, 0.16, 0.23)
-const BUBBLE_BORDER:          Color = Color(0.58, 0.67, 0.79)
-const BUBBLE_HOVER_FILL:      Color = Color(0.22, 0.30, 0.43)
-const BUBBLE_HOVER_BORDER:    Color = Color(0.78, 0.87, 0.97)
-const BUBBLE_SELECTED_FILL:   Color = Color(0.42, 0.76, 1.0)
-const BUBBLE_SELECTED_BORDER: Color = Color(0.88, 0.95, 1.0)
 
 ## Faint banding behind alternate rows. With six columns of identical bubbles,
 ## banding is what keeps the eye on one question's row while travelling to the
 ## right-hand columns.
-const ROW_STRIPE: Color = Color(1.0, 1.0, 1.0, 0.035)
 
-const HEADER_COLOR: Color = Color(0.80, 0.87, 0.95)
 
 ## Presented left to right in this order. `value` is what gets stored and
 ## logged.
@@ -92,7 +84,7 @@ static func build_header_row(question_column_width: float) -> HBoxContainer:
 		lbl.custom_minimum_size = Vector2(COLUMN_WIDTH, 0)
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", HEADER_COLOR)
+		lbl.add_theme_color_override("font_color", Palette.SURVEY_HEADER)
 		row.add_child(lbl)
 	return row
 
@@ -113,7 +105,7 @@ static func _bubble_style(fill: Color, border: Color) -> StyleBoxFlat:
 static func banded_row(row: Control, index: int) -> Control:
 	var panel := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = ROW_STRIPE if index % 2 == 1 else Color(0, 0, 0, 0)
+	sb.bg_color = Palette.ROW_STRIPE if index % 2 == 1 else Color(0, 0, 0, 0)
 	sb.content_margin_left = 6
 	sb.content_margin_right = 6
 	sb.content_margin_top = 3
@@ -143,15 +135,15 @@ static func build_response_row(on_pick: Callable) -> HBoxContainer:
 		btn.tooltip_text        = (opt["label"] as String).replace("\n", " ")
 
 		btn.add_theme_stylebox_override("normal",
-			_bubble_style(BUBBLE_FILL, BUBBLE_BORDER))
+			_bubble_style(Palette.BUBBLE_FILL, Palette.BUBBLE_BORDER))
 		btn.add_theme_stylebox_override("hover",
-			_bubble_style(BUBBLE_HOVER_FILL, BUBBLE_HOVER_BORDER))
+			_bubble_style(Palette.BUBBLE_HOVER_FILL, Palette.BUBBLE_HOVER_BORDER))
 		# Both pressed states carry the selected look, so hovering an already
 		# chosen bubble does not make it appear to revert.
 		btn.add_theme_stylebox_override("pressed",
-			_bubble_style(BUBBLE_SELECTED_FILL, BUBBLE_SELECTED_BORDER))
+			_bubble_style(Palette.BUBBLE_SELECTED_FILL, Palette.BUBBLE_SELECTED_BORDER))
 		btn.add_theme_stylebox_override("hover_pressed",
-			_bubble_style(BUBBLE_SELECTED_FILL, BUBBLE_SELECTED_BORDER))
+			_bubble_style(Palette.BUBBLE_SELECTED_FILL, Palette.BUBBLE_SELECTED_BORDER))
 		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
 		# Snapshotted per iteration so each button reports its own option.

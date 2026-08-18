@@ -64,10 +64,10 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 		# to the player's original commute, not to the previous round.
 		if delta > 0.05:
 			delta_label.text = "▼  %.1f min faster than your original commute" % delta
-			delta_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
+			delta_label.add_theme_color_override("font_color", Palette.DELTA_GAIN)
 		elif delta < -0.05:
 			delta_label.text = "▲  %.1f min slower than your original commute" % absf(delta)
-			delta_label.add_theme_color_override("font_color", Color(0.95, 0.3, 0.3))
+			delta_label.add_theme_color_override("font_color", Palette.DELTA_LOSS)
 		else:
 			delta_label.text = "Same as your original commute"
 			delta_label.remove_theme_color_override("font_color")
@@ -91,7 +91,7 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 			var player_lbl := Label.new()
 			player_lbl.add_theme_font_size_override("font_size", 16)
 			player_lbl.text = "P%d:  %.1f min  Safety: %s%s" % [i + 1, time_val, SafetyDisplay.format(safety_val), delta_str]
-			var col: Color = GameManager.PLAYER_COLORS[i % GameManager.PLAYER_COLORS.size()]
+			var col: Color = Palette.PLAYER_COLORS[i % Palette.PLAYER_COLORS.size()]
 			player_lbl.add_theme_color_override("font_color", col)
 			_players_box.add_child(player_lbl)
 

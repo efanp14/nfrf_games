@@ -130,7 +130,7 @@ func _build() -> void:
 	if net.river_points.size() > 1:
 		var river := Line2D.new()
 		river.points        = net.river_points
-		river.default_color = Color(0.60, 0.80, 0.92, 0.35)
+		river.default_color = Palette.RIVER
 		river.width         = 32.0
 		river.begin_cap_mode = Line2D.LINE_CAP_ROUND
 		river.end_cap_mode   = Line2D.LINE_CAP_ROUND
@@ -265,7 +265,7 @@ func play_round_end_animation() -> void:
 	for i in range(GameManager.human_players.size()):
 		var p: Player = GameManager.human_players[i]
 		var path: Array = p.current_route.get("path", [])
-		var col: Color = GameManager.PLAYER_COLORS[i % GameManager.PLAYER_COLORS.size()]
+		var col: Color = Palette.PLAYER_COLORS[i % Palette.PLAYER_COLORS.size()]
 		var t := _spawn_bike(path, col)
 		if t:
 			last_tween = t
@@ -283,7 +283,7 @@ func play_round_end_animation() -> void:
 		var route: Dictionary = GameManager.network.find_route(
 				commuter["start"], commuter["goal"], commuter["alpha"])
 		var path: Array = route.get("path", [])
-		var t := _spawn_bike(path, NodeMarker.NPC_HOME_COLOR)
+		var t := _spawn_bike(path, Palette.NPC_HOME)
 		if t:
 			npc_last_tween = t
 	if npc_last_tween:

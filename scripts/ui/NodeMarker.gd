@@ -24,13 +24,6 @@ var _icon_shadow_radius: float = 0.0
 ## whole node would delete a junction from the map rather than an icon from it.
 var icon_hidden: bool = false
 
-const PLAYER_COLORS: Array = [
-	Color(0.42, 0.64, 0.84),   # blue
-	Color(0.88, 0.47, 0.32),   # coral
-	Color(0.35, 0.72, 0.40),   # green
-	Color(0.62, 0.42, 0.78),   # purple
-	Color(0.85, 0.68, 0.25),   # amber
-]
 ## Shrunk from the original flat-circle design (was 18.0) now that real
 ## icons sit on top — a smaller "manhole" reads as an intersection cap
 ## instead of a big black dot competing with the icon for attention, and
@@ -42,12 +35,6 @@ const RADII := {
 	MarkerType.NPC_HOME: 6.0,
 	MarkerType.NPC_WORK: 6.0,
 }
-## Simulated-resident markers: muted (desaturated, not translucent) so they
-## read as background texture without competing with the player's own
-## HOME/WORK markers.
-const NPC_HOME_COLOR := Color(0.58, 0.61, 0.54, 1.0)
-const NPC_WORK_COLOR := Color(0.46, 0.52, 0.58, 1.0)
-
 # --- Icons ---
 # All source SVGs are flat solid-black glyphs rasterized at 512x512 (viewBox
 # 0 0 24 24) — see assets/images/. Recolored per-instance via
@@ -80,16 +67,9 @@ const WORK_ICONS: Dictionary = {
 ## against a then-36px circle).
 const ICON_PX: float = 20.0
 
-## Soft shadow shared by every node/building — kept as one flat translucent
-## color (no blur/gradient) to match LinkSegment's road shadow treatment.
-const SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.16)
+## Offset of the soft shadow shared by every node and building. The colour
+## itself, like every other colour here, comes from Palette.
 const SHADOW_OFFSET := Vector2(2.0, 2.5)
-## Thin, subtle rim so the intersection reads as a paved circle with an
-## edge — kept low-contrast on purpose. At this map's on-screen scale
-## (nodes render ~50px across), a strong dark rim plus a full-radius
-## shadow reads as a heavy ink blot rather than a clean intersection.
-const NODE_RIM_COLOR := Color(0.20, 0.19, 0.20, 0.55)
-const NODE_SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.10)
 
 
 func setup(id: String, type: MarkerType = MarkerType.NORMAL, location_name: String = "", player_index: int = 0, num_players: int = 1, icon_key: String = "") -> void:
@@ -110,7 +90,7 @@ func _ready() -> void:
 	z_index = 1
 	_name_label = Label.new()
 	_name_label.add_theme_font_size_override("font_size", 13)
-	_name_label.add_theme_color_override("font_color", Color(0.45, 0.42, 0.38))
+	_name_label.add_theme_color_override("font_color", Palette.NODE_NAME_TEXT)
 	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_name_label)
 
@@ -128,8 +108,8 @@ func _ready() -> void:
 
 func _get_color() -> Color:
 	if marker_type == MarkerType.NORMAL:
-		return LinkSegment.ROAD_FILL
-	return PLAYER_COLORS[_player_index % PLAYER_COLORS.size()]
+		return Palette.ROAD_FILL
+	return Palette.PLAYER_COLORS[_player_index % Palette.PLAYER_COLORS.size()]
 
 
 func _apply_type() -> void:
@@ -166,9 +146,9 @@ func _draw() -> void:
 	# which can rasterize as a single stray off-color pixel dead in the
 	# middle of the circle on some GPU/driver combos. The AA path uses a
 	# different draw method that doesn't have that seam.
-	draw_circle(SHADOW_OFFSET, r, NODE_SHADOW_COLOR, true, -1.0, true)
-	draw_circle(Vector2.ZERO, r + 1.0, NODE_RIM_COLOR, true, -1.0, true)
-	draw_circle(Vector2.ZERO, r, LinkSegment.ROAD_FILL, true, -1.0, true)
+	draw_circle(SHADOW_OFFSET, r, Palette.NODE_SHADOW, true, -1.0, true)
+	draw_circle(Vector2.ZERO, r + 1.0, Palette.NODE_RIM, true, -1.0, true)
+	draw_circle(Vector2.ZERO, r, Palette.ROAD_FILL, true, -1.0, true)
 
 	if icon_hidden:
 		# Road node only. The circle above is the intersection and always
@@ -194,7 +174,7 @@ func set_icon_hidden(hidden: bool) -> void:
 ## Small ground shadow under the icon so it reads as standing on the
 ## intersection rather than floating on top of it.
 func _draw_shadow_blob(offset: Vector2, radius: float) -> void:
-	draw_circle(offset + SHADOW_OFFSET * 0.6, radius, SHADOW_COLOR, true, -1.0, true)
+	draw_circle(offset + SHADOW_OFFSET * 0.6, radius, Palette.ICON_SHADOW, true, -1.0, true)
 
 
 ## Swaps in the right texture/color/size for the current marker_type and
@@ -216,10 +196,10 @@ func _update_icon() -> void:
 		MarkerType.WORK:
 			_set_icon(ICON_BRIEFCASE, ICON_PX, _get_color())
 		MarkerType.NPC_HOME:
-			_set_icon(ICON_NEIGHBOURHOOD, ICON_PX, NPC_HOME_COLOR)
+			_set_icon(ICON_NEIGHBOURHOOD, ICON_PX, Palette.NPC_HOME)
 		MarkerType.NPC_WORK:
 			var tex: Texture2D = WORK_ICONS.get(work_icon_key, ICON_WORK_DEFAULT)
-			_set_icon(tex, ICON_PX, NPC_WORK_COLOR)
+			_set_icon(tex, ICON_PX, Palette.NPC_WORK)
 		_:
 			_icon.visible = false
 			_icon_shadow_radius = 0.0

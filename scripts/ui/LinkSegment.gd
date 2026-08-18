@@ -36,39 +36,20 @@ var _total_length: float = 0.0
 @onready var route_highlight: Line2D = $RouteHighlight
 @onready var hover_highlight: Line2D = $HoverHighlight
 
-## Slightly warmer/richer than the original flat monochrome grey, so the
-## road reads as asphalt rather than a wireframe line, while staying inside
-## the flat-vector style (no textures, no gradients).
-const ROAD_FILL         := Color("#3E3D42")
-const ROAD_EDGE         := Color("#18171B")
-const YELLOW_CENTER     := Color(0.95, 0.78, 0.18)
-const WHITE_MARKING     := Color(0.95, 0.95, 0.90)
-const BIKE_PAINT        := Color(0.18, 0.66, 0.34)
-const PROTECTED_ASPHALT := Color("#A79C87")
-const ROUTE_COLORS: Array = [
-	Color(0.42, 0.64, 0.84, 0.45),
-	Color(0.88, 0.47, 0.32, 0.45),
-	Color(0.35, 0.72, 0.40, 0.45),
-	Color(0.62, 0.42, 0.78, 0.45),
-	Color(0.85, 0.68, 0.25, 0.45),
-]
-const HOVER_GLOW      := Color(0.95, 0.75, 0.25, 0.45)
-## Cars cycle through a small palette instead of all being identical, so
-## the "traffic = stress" cue reads as an actual street, not repeated clones.
-const CAR_COLORS: Array = [
-	Color(0.82, 0.35, 0.30),
-	Color(0.30, 0.46, 0.74),
-	Color(0.86, 0.65, 0.22),
-	Color(0.42, 0.52, 0.36),
-]
-const CAR_WINDOW      := Color(0.65, 0.82, 0.92)
-const CAR_SHADOW      := Color(0.0, 0.0, 0.0, 0.20)
+## Colours all come from Palette. The route band is the player's own colour at
+## a fixed transparency, derived rather than listed a second time, so a seat's
+## route can never disagree with its markers or its legend entry.
+const ROUTE_ALPHA: float = 0.45
 
 ## Soft offset shadow drawn under every road for a touch of depth — still
 ## flat-shaded (a single translucent color, no blur/gradient), just enough
 ## to lift the road off the background.
-const ROAD_SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.15)
 const ROAD_SHADOW_OFFSET := Vector2(2.5, 3.0)
+
+
+static func route_color(player_index: int) -> Color:
+	var base: Color = Palette.PLAYER_COLORS[player_index % Palette.PLAYER_COLORS.size()]
+	return Color(base, ROUTE_ALPHA)
 
 ## Road width encodes BASE stress: the wider the road, the more inherently
 ## stressful it is (10 Aug 2026). This is the always-on stress cue, added
@@ -281,7 +262,7 @@ func _draw() -> void:
 	_draw_shadow()
 
 	if _is_hovered:
-		_draw_thick_line(HOVER_GLOW, _road_width + HOVER_MARGIN)
+		_draw_thick_line(Palette.HOVER_GLOW, _road_width + HOVER_MARGIN)
 
 	# Route highlight breathes gently (± a couple px) instead of sitting
 	# perfectly static, so an active route reads as "selected" at a glance.
@@ -291,7 +272,7 @@ func _draw() -> void:
 	var pulse: float = sin(_anim_t * 2.0) * 2.0
 	if _heatmap_intensity < 0.0:
 		if _route_players.size() == 1:
-			var col: Color = ROUTE_COLORS[_route_players[0] % ROUTE_COLORS.size()]
+			var col: Color = route_color(_route_players[0])
 			_draw_thick_line(col, _road_width + ROUTE_MARGIN + pulse)
 		elif _route_players.size() > 1:
 			_draw_striped_route()
@@ -299,8 +280,8 @@ func _draw() -> void:
 	# No Bike Lane roads have no curb — a plain, informal street; upgraded
 	# (painted/protected) roads get a defined edge to read as "built".
 	if _display_level() > 0:
-		_draw_thick_line(ROAD_EDGE, _road_width + EDGE_BORDER * 2.0)
-	_draw_thick_line(ROAD_FILL, _road_width)
+		_draw_thick_line(Palette.ROAD_EDGE, _road_width + EDGE_BORDER * 2.0)
+	_draw_thick_line(Palette.ROAD_FILL, _road_width)
 	_draw_road_markings()
 	_draw_cars()
 
@@ -321,7 +302,7 @@ func _draw_shadow() -> void:
 	var shifted := PackedVector2Array()
 	for p in _draw_points:
 		shifted.append(p + ROAD_SHADOW_OFFSET)
-	draw_polyline(shifted, ROAD_SHADOW_COLOR, _road_width + 3.0, true)
+	draw_polyline(shifted, Palette.ROAD_SHADOW, _road_width + 3.0, true)
 
 
 func _draw_striped_route() -> void:
@@ -336,7 +317,7 @@ func _draw_striped_route() -> void:
 		var ci := 0
 		while pos < length:
 			var pi: int = _route_players[ci % count]
-			var col: Color = ROUTE_COLORS[pi % ROUTE_COLORS.size()]
+			var col: Color = route_color(pi)
 			var end_pos := minf(pos + stripe_len, length)
 			var p1 := a + dir * pos
 			var p2 := a + dir * end_pos
@@ -364,17 +345,17 @@ func _draw_road_markings() -> void:
 		# other clutter.
 		pass
 	elif display_level == 1:
-		var pc := Color(BIKE_PAINT, alpha_mult)
+		var pc := Color(Palette.BIKE_PAINT, alpha_mult)
 		var po := _road_width / 2.0 - BIKE_PAINT_W / 2.0
 		_draw_offset_line(po, pc, BIKE_PAINT_W)
 		_draw_offset_line(-po, pc, BIKE_PAINT_W)
 	else:
 		# Protected: grey strips same width as painted, white divider just inside
 		var po := _road_width / 2.0 - BIKE_PAINT_W / 2.0
-		var ac := Color(PROTECTED_ASPHALT, alpha_mult)
+		var ac := Color(Palette.PROTECTED_ASPHALT, alpha_mult)
 		_draw_offset_line(po, ac, BIKE_PAINT_W)
 		_draw_offset_line(-po, ac, BIKE_PAINT_W)
-		var dc := Color(WHITE_MARKING, alpha_mult)
+		var dc := Color(Palette.WHITE_MARKING, alpha_mult)
 		var div_off := _road_width / 2.0 - BIKE_PAINT_W - DIVIDER_W / 2.0
 		_draw_offset_line(div_off, dc, DIVIDER_W)
 		_draw_offset_line(-div_off, dc, DIVIDER_W)
@@ -410,7 +391,7 @@ func _draw_dashed_center_line() -> void:
 		var pos := 0.0
 		while pos < length:
 			var seg_end := minf(pos + CENTER_DASH_LEN, length)
-			draw_line(a + dir * pos, a + dir * seg_end, YELLOW_CENTER, CENTER_LINE_W, true)
+			draw_line(a + dir * pos, a + dir * seg_end, Palette.YELLOW_CENTER, CENTER_LINE_W, true)
 			pos += CENTER_DASH_LEN + CENTER_DASH_GAP
 
 
@@ -512,8 +493,8 @@ func _draw_cars() -> void:
 func _draw_car(center: Vector2, angle: float, color_index: int = 0) -> void:
 	var half_l := CAR_LENGTH / 2.0
 	var hw := CAR_WIDTH_HALF
-	draw_circle(center + Vector2(0.6, 1.0), hw * 1.3, CAR_SHADOW)
-	var body_color: Color = CAR_COLORS[color_index % CAR_COLORS.size()]
+	draw_circle(center + Vector2(0.6, 1.0), hw * 1.3, Palette.CAR_SHADOW)
+	var body_color: Color = Palette.CAR_COLORS[color_index % Palette.CAR_COLORS.size()]
 	# Chamfered corners give a car-like silhouette instead of a plain rectangle.
 	var cl := half_l * 0.55
 	var cw := hw * 0.65
@@ -537,7 +518,7 @@ func _draw_car(center: Vector2, angle: float, color_index: int = 0) -> void:
 		center + Vector2(ws_off + 2.0, ws_hw).rotated(angle),
 		center + Vector2(ws_off - 2.0, ws_hw).rotated(angle),
 	])
-	draw_colored_polygon(ws_corners, CAR_WINDOW)
+	draw_colored_polygon(ws_corners, Palette.CAR_WINDOW)
 
 
 # --- Hit detection ---

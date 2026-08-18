@@ -46,10 +46,10 @@ func show_results(final_results: Dictionary) -> void:
 
 		if saved > 0.05:
 			saved_label.text = "▼  %.1f min saved vs. your first commute (%.1f min)" % [saved, baseline]
-			saved_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
+			saved_label.add_theme_color_override("font_color", Palette.DELTA_GAIN)
 		elif saved < -0.05:
 			saved_label.text = "▲  %.1f min longer vs. your first commute (%.1f min)" % [absf(saved), baseline]
-			saved_label.add_theme_color_override("font_color", Color(0.95, 0.3, 0.3))
+			saved_label.add_theme_color_override("font_color", Palette.DELTA_LOSS)
 		else:
 			saved_label.text = "Same time as your first commute (%.1f min)" % baseline
 			saved_label.remove_theme_color_override("font_color")
@@ -76,7 +76,7 @@ func show_results(final_results: Dictionary) -> void:
 			else:
 				saved_str = "no change"
 			player_lbl.text = "P%d:  %.1f min  Safety: %s  (%s)" % [i + 1, ft, SafetyDisplay.format(safety), saved_str]
-			var col: Color = GameManager.PLAYER_COLORS[i % GameManager.PLAYER_COLORS.size()]
+			var col: Color = Palette.PLAYER_COLORS[i % Palette.PLAYER_COLORS.size()]
 			player_lbl.add_theme_color_override("font_color", col)
 			_players_box.add_child(player_lbl)
 

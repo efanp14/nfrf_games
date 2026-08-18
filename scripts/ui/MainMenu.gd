@@ -258,7 +258,7 @@ func _refresh_validity() -> void:
 		_status_label.remove_theme_color_override("font_color")
 	else:
 		_status_label.text = problems[0]
-		_status_label.add_theme_color_override("font_color", Color(0.95, 0.35, 0.35))
+		_status_label.add_theme_color_override("font_color", Palette.ERROR_TEXT)
 
 
 ## The typed group, or empty outside the group treatment. Read through this

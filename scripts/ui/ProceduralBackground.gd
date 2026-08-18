@@ -18,15 +18,6 @@ const CELL_SIZE: float = 46.0
 const ROAD_CLEARANCE: float = 22.0   # keep clear of ROAD_WIDTH/2 (12) + margin
 const MARGIN: float = 60.0           # how far past the node bounds to tile
 
-const BUILDING_COLORS: Array = [
-	Color(0.80, 0.72, 0.60),
-	Color(0.70, 0.74, 0.68),
-	Color(0.76, 0.68, 0.70),
-	Color(0.70, 0.73, 0.80),
-	Color(0.82, 0.78, 0.64),
-]
-const PARK_COLOR      := Color(0.74, 0.82, 0.68)
-const PARK_TREE_COLOR := Color(0.47, 0.60, 0.42)
 const PARK_CHANCE: float  = 0.22
 const SKIP_CHANCE: float  = 0.15   # empty lot, so blocks don't feel too dense
 
@@ -71,7 +62,7 @@ func _build_cells(bounds: Rect2) -> void:
 				"center": center + jitter,
 				"size": size,
 				"is_park": is_park,
-				"color_index": int(_hash2(col * 11, row * 13) * BUILDING_COLORS.size()) % BUILDING_COLORS.size(),
+				"color_index": int(_hash2(col * 11, row * 13) * Palette.BUILDING_COLORS.size()) % Palette.BUILDING_COLORS.size(),
 			})
 
 
@@ -108,7 +99,7 @@ func _draw() -> void:
 
 
 func _draw_building(center: Vector2, size: float, color_index: int) -> void:
-	var col: Color = BUILDING_COLORS[color_index]
+	var col: Color = Palette.BUILDING_COLORS[color_index]
 	var half := size * 0.5
 	draw_rect(Rect2(center - Vector2(half, half), Vector2(size, size)), col)
 	draw_rect(Rect2(center - Vector2(half, half), Vector2(size, size * 0.2)), col.darkened(0.18))
@@ -116,11 +107,11 @@ func _draw_building(center: Vector2, size: float, color_index: int) -> void:
 
 func _draw_park(center: Vector2, size: float) -> void:
 	var half := size * 0.5
-	draw_rect(Rect2(center - Vector2(half, half), Vector2(size, size)), PARK_COLOR)
+	draw_rect(Rect2(center - Vector2(half, half), Vector2(size, size)), Palette.PARK)
 	var tree_count := 3
 	for i in range(tree_count):
 		var offset := Vector2(
 			(_hash2(i * 17, int(center.x)) - 0.5) * size * 0.6,
 			(_hash2(i * 19, int(center.y)) - 0.5) * size * 0.6
 		)
-		draw_circle(center + offset, size * 0.14, PARK_TREE_COLOR)
+		draw_circle(center + offset, size * 0.14, Palette.PARK_TREE)

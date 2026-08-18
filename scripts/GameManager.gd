@@ -45,14 +45,6 @@ const BENEFIT_EPSILON_TIME: float   = 0.01   # minutes
 const BENEFIT_EPSILON_SAFETY: float = 0.01   # points on the 0-100 safety scale
 const BENEFIT_EPSILON_STRESS: float = 0.001  # raw stress units, a smaller scale than safety
 
-const PLAYER_COLORS: Array = [
-	Color(0.42, 0.64, 0.84),   # blue
-	Color(0.88, 0.47, 0.32),   # coral
-	Color(0.35, 0.72, 0.40),   # green
-	Color(0.62, 0.42, 0.78),   # purple
-	Color(0.85, 0.68, 0.25),   # amber
-]
-
 # --- State ---
 var network: CityNetwork
 var human_players: Array[Player] = []

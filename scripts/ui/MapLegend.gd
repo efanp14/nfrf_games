@@ -7,31 +7,14 @@ const ROW_H    := SWATCH_H + 10.0
 const LABEL_X  := SWATCH_W + 8.0
 const FS       := 11
 
-const ROAD_FILL         := Color("#3E3D42")
-const ROAD_EDGE         := Color("#18171B")
-const YELLOW_CENTER     := Color(0.95, 0.78, 0.18)
-const WHITE_MARKING     := Color(0.95, 0.95, 0.90)
-const BIKE_PAINT        := Color(0.18, 0.66, 0.34)
-const PROTECTED_ASPHALT := Color("#A79C87")
-const CAR_BODY          := Color(0.82, 0.35, 0.30)
-const CAR_WINDOW        := Color(0.65, 0.82, 0.92, 0.85)
-## The legend sits in the dark HUD sidebar, so its text is white. These were
-## previously near-black (0.28) and mid-grey, which are light-background
-## colours: against the sidebar they came out barely legible. The swatch
-## colours below are unchanged, since those deliberately match how the roads
-## and markers actually draw on the map.
-const TEXT_COL          := Color(1, 1, 1)
-const HEAD_COL          := Color(1, 1, 1)
-const SEP_COL           := Color(1, 1, 1, 0.28)
-const PLAYER_COLORS     := [
-	Color(0.42, 0.64, 0.84),
-	Color(0.88, 0.47, 0.32),
-	Color(0.35, 0.72, 0.40),
-	Color(0.62, 0.42, 0.78),
-	Color(0.85, 0.68, 0.25),
-]
-const NPC_HOME_COLOR := Color(0.55, 0.58, 0.52, 0.55)
-const NPC_WORK_COLOR := Color(0.45, 0.50, 0.55, 0.55)
+## Every colour here comes from Palette, and specifically from the same
+## constants the map itself draws with, so a legend entry cannot end up
+## describing a colour the roads stopped using. The legend previously kept its
+## own copies and they had already drifted apart by a little.
+##
+## Simulated-resident swatches are the marker colour at reduced alpha, matching
+## how faint those markers read against the map.
+const NPC_SWATCH_ALPHA: float = 0.55
 
 ## Legend marker icons match the actual in-game ones (NodeMarker.gd) instead
 ## of separate hand-drawn glyphs, so this stays accurate as those icons
@@ -52,10 +35,10 @@ var _workplace_icon: Sprite2D
 
 
 func _ready() -> void:
-	_home_icon          = _make_icon(ICON_HOME, PLAYER_COLORS[0])
-	_work_icon          = _make_icon(ICON_BRIEFCASE, PLAYER_COLORS[0])
-	_neighbourhood_icon = _make_icon(ICON_NEIGHBOURHOOD, Color(NPC_HOME_COLOR, 1.0))
-	_workplace_icon     = _make_icon(ICON_WORK_DEFAULT, Color(NPC_WORK_COLOR, 1.0))
+	_home_icon          = _make_icon(ICON_HOME, Palette.PLAYER_COLORS[0])
+	_work_icon          = _make_icon(ICON_BRIEFCASE, Palette.PLAYER_COLORS[0])
+	_neighbourhood_icon = _make_icon(ICON_NEIGHBOURHOOD, Palette.NPC_HOME)
+	_workplace_icon     = _make_icon(ICON_WORK_DEFAULT, Palette.NPC_WORK)
 
 	_refresh_size()
 	GameManager.round_started.connect(func(_r, _b): _refresh_size(); queue_redraw())
@@ -107,7 +90,7 @@ func _draw() -> void:
 
 	# ── Header ──────────────────────────────────────────────────────────────
 	draw_string(font, Vector2(0, y + FS + 1), "LEGEND",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, FS + 1, HEAD_COL)
+			HORIZONTAL_ALIGNMENT_LEFT, -1, FS + 1, Palette.TEXT_HEADING)
 	y += FS + 8
 	_sep(y); y += 8
 
@@ -140,7 +123,7 @@ func _draw() -> void:
 	var num := GameManager.human_players.size() if GameManager.game_running else 1
 	if num > 1:
 		for i in range(num):
-			var col: Color = PLAYER_COLORS[i % PLAYER_COLORS.size()]
+			var col: Color = Palette.PLAYER_COLORS[i % Palette.PLAYER_COLORS.size()]
 			draw_rect(Rect2(0, y + 3, SWATCH_W, 8), Color(col, 0.50))
 			_label("Player %d route" % (i + 1), y, font)
 			y += ROW_H - 4
@@ -176,11 +159,11 @@ func _draw() -> void:
 
 func _label(text: String, y: float, font: Font) -> void:
 	draw_string(font, Vector2(LABEL_X, y + FS + 1),
-			text, HORIZONTAL_ALIGNMENT_LEFT, -1, FS, TEXT_COL)
+			text, HORIZONTAL_ALIGNMENT_LEFT, -1, FS, Palette.TEXT_PRIMARY)
 
 
 func _sep(y: float) -> void:
-	draw_line(Vector2(0, y), Vector2(SWATCH_W + 96, y), SEP_COL, 1)
+	draw_line(Vector2(0, y), Vector2(SWATCH_W + 96, y), Palette.TEXT_MUTED, 1)
 
 
 func _road_swatch(level: int, y: float) -> void:
@@ -188,25 +171,25 @@ func _road_swatch(level: int, y: float) -> void:
 	var h  := SWATCH_H
 	var cy := y + h * 0.5
 
-	draw_rect(Rect2(0, y, w, h), ROAD_FILL)
-	draw_rect(Rect2(0, y, w, h), ROAD_EDGE, false, 1.0)
+	draw_rect(Rect2(0, y, w, h), Palette.ROAD_FILL)
+	draw_rect(Rect2(0, y, w, h), Palette.ROAD_EDGE, false, 1.0)
 
 	match level:
 		1:
 			# Green painted strips on outer edges
-			draw_rect(Rect2(0, y,           w, 2.5), BIKE_PAINT)
-			draw_rect(Rect2(0, y + h - 2.5, w, 2.5), BIKE_PAINT)
+			draw_rect(Rect2(0, y,           w, 2.5), Palette.BIKE_PAINT)
+			draw_rect(Rect2(0, y + h - 2.5, w, 2.5), Palette.BIKE_PAINT)
 		2:
 			# Grey strips same width as painted (2.5px), white divider just inside
-			draw_rect(Rect2(0, y,             w, 2.5), PROTECTED_ASPHALT)
-			draw_rect(Rect2(0, y + h - 2.5,   w, 2.5), PROTECTED_ASPHALT)
-			draw_line(Vector2(0, y + 2.5),     Vector2(w, y + 2.5),     WHITE_MARKING, 1.0)
-			draw_line(Vector2(0, y + h - 2.5), Vector2(w, y + h - 2.5), WHITE_MARKING, 1.0)
+			draw_rect(Rect2(0, y,             w, 2.5), Palette.PROTECTED_ASPHALT)
+			draw_rect(Rect2(0, y + h - 2.5,   w, 2.5), Palette.PROTECTED_ASPHALT)
+			draw_line(Vector2(0, y + 2.5),     Vector2(w, y + 2.5),     Palette.WHITE_MARKING, 1.0)
+			draw_line(Vector2(0, y + h - 2.5), Vector2(w, y + h - 2.5), Palette.WHITE_MARKING, 1.0)
 		_:
 			pass  # No Bike Lane: plain road, no lane dividers (matches LinkSegment.gd)
 
 	# Yellow centre line (all levels)
-	draw_line(Vector2(0, cy), Vector2(w, cy), YELLOW_CENTER, 1.5)
+	draw_line(Vector2(0, cy), Vector2(w, cy), Palette.YELLOW_CENTER, 1.5)
 
 
 ## Same road drawn at the width a given base stress would give it on the map,
@@ -217,9 +200,9 @@ func _width_swatch(stress: float, y: float) -> void:
 	var frac: float = (LinkSegment.ROAD_WIDTH + LinkSegment.STRESS_WIDTH_BONUS * stress) / full
 	var h := SWATCH_H * frac
 	var top := y + (SWATCH_H - h) * 0.5
-	draw_rect(Rect2(0, top, SWATCH_W, h), ROAD_FILL)
-	draw_rect(Rect2(0, top, SWATCH_W, h), ROAD_EDGE, false, 1.0)
-	draw_line(Vector2(0, top + h * 0.5), Vector2(SWATCH_W, top + h * 0.5), YELLOW_CENTER, 1.5)
+	draw_rect(Rect2(0, top, SWATCH_W, h), Palette.ROAD_FILL)
+	draw_rect(Rect2(0, top, SWATCH_W, h), Palette.ROAD_EDGE, false, 1.0)
+	draw_line(Vector2(0, top + h * 0.5), Vector2(SWATCH_W, top + h * 0.5), Palette.YELLOW_CENTER, 1.5)
 
 
 func _car_swatch(y: float) -> void:
@@ -230,8 +213,8 @@ func _car_swatch(y: float) -> void:
 	for i in range(car_x.size()):
 		var cx: float = car_x[i]
 		var cy: float = y + h * 0.5 + car_side[i] * h * 0.20
-		draw_rect(Rect2(cx - 4, cy - 2, 8, 4), CAR_BODY)
-		draw_rect(Rect2(cx - 0.5, cy - 1.5, 2.5, 3), CAR_WINDOW)
+		draw_rect(Rect2(cx - 4, cy - 2, 8, 4), Palette.CAR_COLORS[0])
+		draw_rect(Rect2(cx - 0.5, cy - 1.5, 2.5, 3), Color(Palette.CAR_WINDOW, 0.85))
 
 
 func _place_icon(icon: Sprite2D, y: float) -> void:
