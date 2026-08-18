@@ -39,9 +39,9 @@ var _chain_to_t2: bool = false
 ## fact in the data rather than something inferred from adjacent timestamps.
 var _chained_from_session_id: String = ""
 
-## Layout of the map area. The HUD occupies a fixed strip down the left, so the
-## map is fitted into what is left rather than into the whole window.
-const HUD_LEFT: float = 240.0
+## Layout of the map area. The HUD floats over the board rather than taking a
+## strip of it, so the map is fitted to the whole window less a margin and the
+## cards sit on top.
 const PAD: float      = 20.0
 ## get_bounds() only spans node CENTER positions. Roads (half-width), node
 ## shadows and rims, and especially the building icons (towers rise up to ~45px
@@ -352,23 +352,20 @@ func _map_bounds() -> Rect2:
 	return GameManager.network.get_bounds().grow(VISUAL_MARGIN)
 
 
-## The area of the window the map is allowed to occupy.
+## The area of the window the map is allowed to occupy: all of it, less a margin.
 ##
-## The sidebar's real width is measured rather than assumed. HUD_LEFT is only a
-## floor: the sidebar is a PanelContainer, so it grows past its 240px offset
-## whenever its contents demand more, and the group treatment is where that is
-## most likely, since the legend gains a row per player. A hardcoded 240 would
-## then leave the map running underneath it with roads hidden behind the panel.
+## This used to subtract the sidebar's measured width so the map sat beside the
+## HUD. The HUD is now floating cards in the corners, and letting the board run
+## underneath them is the point of that change: the map is the game, and it was
+## permanently confined to about 87% of the window, less in the group treatment
+## where the sidebar grew a legend row per seat.
+##
+## The cards are small and cornered, and _map_bounds() grows the network by
+## VISUAL_MARGIN before fitting, so what actually ends up beneath a card is
+## margin rather than road.
 func _map_viewport() -> Rect2:
 	var vp: Vector2 = get_viewport_rect().size
-	# HUD_LEFT until the HUD exists, which is only during the first frames.
-	var left: float = HUD_LEFT
-	if game_hud != null:
-		left = maxf(HUD_LEFT, game_hud.sidebar_width())
-	return Rect2(
-		Vector2(left + PAD, PAD),
-		Vector2(vp.x - left - PAD * 2.0, vp.y - PAD * 2.0)
-	)
+	return Rect2(Vector2(PAD, PAD), vp - Vector2(PAD, PAD) * 2.0)
 
 
 ## Scale at which the whole city just fits. Zoom multiplies this rather than

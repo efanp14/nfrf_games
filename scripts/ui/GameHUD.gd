@@ -16,7 +16,7 @@ signal resident_visuals_toggled(hidden: bool)
 @onready var budget_label: Label        = %BudgetLabel
 @onready var time_label: RichTextLabel  = %TimeLabel
 @onready var safety_label: RichTextLabel = %SafetyLabel
-@onready var city_panel: VBoxContainer  = %CityPanel
+@onready var city_panel: PanelContainer  = %CityPanel
 @onready var city_time_label: Label     = %CityTimeLabel
 @onready var city_safety_label: RichTextLabel = %CitySafetyLabel
 @onready var coverage_label: Label      = %CoverageLabel
@@ -27,6 +27,8 @@ signal resident_visuals_toggled(hidden: bool)
 @onready var debug_button: Button       = %DebugButton
 @onready var resident_visuals_button: Button = %ResidentVisualsButton
 @onready var map_legend: Control        = %MapLegend
+@onready var legend_button: Button      = %LegendButton
+@onready var legend_popover: PanelContainer = %LegendPopover
 
 ## Cached so toggling debug mode can re-render immediately without waiting
 ## for the next GameManager signal.
@@ -50,6 +52,7 @@ func _ready() -> void:
 	_refresh_resident_visuals_button()
 	city_view_button.pressed.connect(_on_city_view_pressed)
 	stress_view_button.pressed.connect(_on_stress_view_pressed)
+	legend_button.pressed.connect(_on_legend_pressed)
 	GameManager.round_started.connect(_on_round_started)
 	GameManager.round_ended.connect(_on_round_ended)
 	GameManager.city_metrics_updated.connect(_on_city_metrics_updated)
@@ -73,31 +76,49 @@ func _on_stress_view_pressed() -> void:
 ## action rather than a status. Both are refreshed on every change because
 ## switching straight from one view to the other has to reset the label on the
 ## button that was not pressed.
+##
+## The active view also takes the gold PillButtonActive style. On the old sidebar
+## the label was the only signal, and reading two lines of text is a poor way to
+## answer "which view am I in"; with the rail floating over the map it has to be
+## answerable at a glance.
 func _set_view_mode(mode: int) -> void:
 	_view_mode = mode
-	city_view_button.text = ("View: My Route"
-			if _view_mode == CityGrid.ViewMode.NPC_HEATMAP else "View: City Routes")
-	stress_view_button.text = ("View: My Route"
-			if _view_mode == CityGrid.ViewMode.STRESS else "View: Road Stress")
+	var heatmap_on: bool = _view_mode == CityGrid.ViewMode.NPC_HEATMAP
+	var stress_on: bool  = _view_mode == CityGrid.ViewMode.STRESS
+	city_view_button.text = "Back: My Route" if heatmap_on else "City routes"
+	stress_view_button.text = "Back: My Route" if stress_on else "Road stress"
+	_style_toggle(city_view_button, heatmap_on)
+	_style_toggle(stress_view_button, stress_on)
 	view_mode_changed.emit(_view_mode)
+
+
+## A rail button that is currently "on" reads gold; everything else is quiet.
+func _style_toggle(button: Button, active: bool) -> void:
+	button.theme_type_variation = &"PillButtonActive" if active else &"PillButton"
+
+
+## The legend is a floating card rather than a permanent column, so it starts
+## closed and the map starts clear. The label names the state the way the debug
+## and resident buttons do.
+func _on_legend_pressed() -> void:
+	legend_popover.visible = not legend_popover.visible
+	legend_button.text = "Hide legend" if legend_popover.visible else "Legend"
+	_style_toggle(legend_button, legend_popover.visible)
+	if legend_popover.visible:
+		# Rebuilt on open rather than kept live: it is hidden most of the time,
+		# and the player count and the resident toggle can both have moved since
+		# it was last drawn.
+		map_legend.refresh()
 
 
 func _on_debug_pressed() -> void:
 	SafetyDisplay.debug_mode = not SafetyDisplay.debug_mode
 	debug_button.text = "Debug: ON" if SafetyDisplay.debug_mode else "Debug: OFF"
+	_style_toggle(debug_button, SafetyDisplay.debug_mode)
 	if not _last_round_results.is_empty():
 		_render_personal(_last_round_results)
 	if not _last_city_metrics.is_empty():
 		_render_city(_last_city_metrics)
-
-
-## How much of the window's left edge the sidebar actually occupies, so the map
-## can be fitted beside it rather than under it. Measured rather than assumed
-## because a PanelContainer sizes to its contents, and the sidebar's contents
-## grow with the player count.
-func sidebar_width() -> float:
-	var sidebar := get_node_or_null("HUDRoot/LeftSidebar") as Control
-	return sidebar.size.x if sidebar != null else 0.0
 
 
 ## Sits beside the debug toggle because both are researcher controls rather than
@@ -120,6 +141,7 @@ func _on_resident_visuals_pressed() -> void:
 
 func _refresh_resident_visuals_button(hidden: bool = CityGrid.hide_resident_visuals) -> void:
 	resident_visuals_button.text = "Residents: Hidden" if hidden else "Residents: Shown"
+	_style_toggle(resident_visuals_button, hidden)
 
 
 func _sync_initial_state() -> void:
@@ -127,14 +149,29 @@ func _sync_initial_state() -> void:
 		return
 	round_label.text  = "Round %d / %d" % [GameManager.current_round, GameManager.total_rounds]
 	budget_label.text = "Budget: " + Player.format_dollars(GameManager.human_player.credits_per_round)
-	city_panel.visible = GameManager.treatment != GameManager.Treatment.INDIVIDUAL
+	_apply_treatment_visibility()
 
 
 func _on_round_started(round_num: int, budget: int) -> void:
 	round_label.text       = "Round %d / %d" % [round_num, GameManager.total_rounds]
 	budget_label.text      = "Budget: " + Player.format_dollars(budget)
-	city_panel.visible     = GameManager.treatment != GameManager.Treatment.INDIVIDUAL
+	_apply_treatment_visibility()
 	end_round_button.disabled = false
+
+
+## Everything collective, hidden in T1: the city card and the button that
+## switches the map to the city's routes.
+##
+## The button used to live inside the city panel and inherited this for free.
+## It now sits on the rail with the personal controls, so it needs saying out
+## loud, and it needs saying in both places the card's visibility is set.
+## Guardrail 1 is that treatment decides what is SHOWN and nothing else; a
+## collective view reachable from T1 would break it, quietly, in a way only a
+## participant would notice.
+func _apply_treatment_visibility() -> void:
+	var collective: bool = GameManager.treatment != GameManager.Treatment.INDIVIDUAL
+	city_panel.visible       = collective
+	city_view_button.visible = collective
 
 
 func _on_round_ended(_round_num: int, results: Dictionary) -> void:
@@ -157,11 +194,15 @@ func _render_personal(results: Dictionary) -> void:
 	# A ROW PER PLAYER, not one line listing everybody.
 	#
 	# Both figures used to be laid out along a single line each ("Time  P1: 28.6
-	# P2: 20.8 ..."), and a Label reports the width of its longest line as its
-	# minimum. Five players made that line about 590px, which the sidebar's
-	# PanelContainer had to honour, so the panel grew from 240px to over 600 and
-	# swallowed a third of the map. Rows are bounded by the widest single row
-	# instead, which stays inside the sidebar however many players there are.
+	# P2: 20.8 ..."), and a label reports the width of its longest line as its
+	# minimum. Five players made that line about 590px, which the card containing
+	# it has to honour, so it stretched from 226px to over 600 and reached a third
+	# of the way across the map. Rows are bounded by the widest single row
+	# instead, so the card stays the same width whatever the player count.
+	#
+	# This mattered when the card was a fixed sidebar and matters more now that it
+	# floats over the board, where the width it takes is width the player cannot
+	# see through.
 	#
 	# Time and safety share a row, so five players cost five lines rather than
 	# ten, and each player's two numbers read together.

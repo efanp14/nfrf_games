@@ -12,136 +12,185 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="LeftSidebar" type="PanelContainer" parent="HUDRoot"]
-anchor_bottom = 1.0
-offset_right = 240.0
-theme_type_variation = &"SidebarPanel"
+[node name="LeftColumn" type="VBoxContainer" parent="HUDRoot"]
+offset_left = 20.0
+offset_top = 20.0
+theme_override_constants/separation = 16
 
-[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/LeftSidebar"]
+[node name="StatusCard" type="PanelContainer" parent="HUDRoot/LeftColumn"]
+size_flags_horizontal = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/LeftColumn/StatusCard"]
+custom_minimum_size = Vector2(226, 0)
 theme_override_constants/margin_left = 18
 theme_override_constants/margin_right = 18
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_bottom = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
 
-[node name="Outer" type="VBoxContainer" parent="HUDRoot/LeftSidebar/MarginContainer"]
-theme_override_constants/separation = 10
+[node name="VBoxContainer" type="VBoxContainer" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer"]
+theme_override_constants/separation = 6
 
-[node name="Scroll" type="ScrollContainer" parent="HUDRoot/LeftSidebar/MarginContainer/Outer"]
-unique_name_in_owner = true
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="VBoxContainer" type="VBoxContainer" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll"]
-size_flags_horizontal = 3
-theme_override_constants/separation = 10
-
-[node name="RoundLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="RoundLabel" type="Label" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer/VBoxContainer"]
 theme_type_variation = &"Heading"
 unique_name_in_owner = true
 text = "Round ? / 3"
-horizontal_alignment = 1
 theme_override_font_sizes/font_size = 26
 
-[node name="HSep1" type="HSeparator" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
-
-[node name="BudgetLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="BudgetLabel" type="Label" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer/VBoxContainer"]
 theme_type_variation = &"Heading"
 unique_name_in_owner = true
 text = "Budget: $--"
-horizontal_alignment = 1
 theme_override_font_sizes/font_size = 20
 
-[node name="HSep2" type="HSeparator" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="HSep1" type="HSeparator" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer/VBoxContainer"]
 
-[node name="PersonalHeader" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="PersonalHeader" type="Label" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer/VBoxContainer"]
 text = "Your Route"
 theme_override_font_sizes/font_size = 14
 
-[node name="TimeLabel" type="RichTextLabel" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="TimeLabel" type="RichTextLabel" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer/VBoxContainer"]
 bbcode_enabled = true
 fit_content = true
 unique_name_in_owner = true
 text = "Time: -- min"
 theme_override_font_sizes/normal_font_size = 16
 
-[node name="SafetyLabel" type="RichTextLabel" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="SafetyLabel" type="RichTextLabel" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer/VBoxContainer"]
 bbcode_enabled = true
 fit_content = true
 unique_name_in_owner = true
 text = "Safety: --"
 theme_override_font_sizes/normal_font_size = 16
 
-[node name="CityPanel" type="VBoxContainer" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="ControlRail" type="VBoxContainer" parent="HUDRoot/LeftColumn"]
+theme_override_constants/separation = 8
+
+[node name="CityViewButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "City routes"
+theme_override_font_sizes/font_size = 13
+
+[node name="StressViewButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "Road stress"
+theme_override_font_sizes/font_size = 13
+
+[node name="LegendButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "Legend"
+theme_override_font_sizes/font_size = 13
+
+[node name="RailGap" type="Control" parent="HUDRoot/LeftColumn/ControlRail"]
+custom_minimum_size = Vector2(0, 18)
+
+[node name="DebugButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "Debug: OFF"
+theme_override_font_sizes/font_size = 13
+
+[node name="ResidentVisualsButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "Residents: Shown"
+theme_override_font_sizes/font_size = 13
+
+[node name="CityPanel" type="PanelContainer" parent="HUDRoot"]
 unique_name_in_owner = true
 visible = false
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -20.0
+offset_top = 20.0
+offset_right = -20.0
+grow_horizontal = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/CityPanel"]
+custom_minimum_size = Vector2(258, 0)
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUDRoot/CityPanel/MarginContainer"]
 theme_override_constants/separation = 6
 
-[node name="HSep3" type="HSeparator" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
-
-[node name="CityHeader" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
+[node name="CityHeader" type="Label" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
+theme_type_variation = &"Heading"
 text = "City-wide"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 18
 
-[node name="CityTimeLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
+[node name="CityTimeLabel" type="Label" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 autowrap_mode = 2
 text = "City: -- min"
 theme_override_font_sizes/font_size = 16
 
-[node name="CitySafetyLabel" type="RichTextLabel" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
+[node name="CitySafetyLabel" type="RichTextLabel" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
 bbcode_enabled = true
 fit_content = true
 unique_name_in_owner = true
 text = "City safety: --"
 theme_override_font_sizes/normal_font_size = 16
 
-[node name="CoverageLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
+[node name="CoverageLabel" type="Label" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 autowrap_mode = 2
 text = "Cover: 0%"
 theme_override_font_sizes/font_size = 16
 
-[node name="BenefitLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
+[node name="BenefitLabel" type="Label" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 visible = false
 autowrap_mode = 2
 text = ""
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 14
 
-[node name="CityViewButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
-theme_type_variation = &"SecondaryButton"
+[node name="LegendPopover" type="PanelContainer" parent="HUDRoot"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 28)
-text = "View: City Routes"
-theme_override_font_sizes/font_size = 12
+visible = false
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 204.0
+offset_right = 204.0
+grow_vertical = 2
 
-[node name="StressViewButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
-theme_type_variation = &"SecondaryButton"
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 28)
-text = "View: Road Stress"
-theme_override_font_sizes/font_size = 12
+[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/LegendPopover"]
+custom_minimum_size = Vector2(230, 0)
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
 
-[node name="MapLegend" type="Control" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="MapLegend" type="Control" parent="HUDRoot/LegendPopover/MarginContainer"]
 unique_name_in_owner = true
 script = ExtResource("2_legend")
 
-[node name="DebugButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
-theme_type_variation = &"SecondaryButton"
+[node name="EndRoundButton" type="Button" parent="HUDRoot"]
+theme_type_variation = &"PillButtonPrimary"
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 32)
-text = "Debug: OFF"
-theme_override_font_sizes/font_size = 12
-
-[node name="ResidentVisualsButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
-theme_type_variation = &"SecondaryButton"
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 28)
-text = "Residents: Shown"
-theme_override_font_sizes/font_size = 12
-
-[node name="EndRoundButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 48)
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -28.0
+offset_top = -28.0
+offset_right = -28.0
+offset_bottom = -28.0
+grow_horizontal = 0
+grow_vertical = 0
 text = "End Round"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 18
