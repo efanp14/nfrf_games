@@ -306,6 +306,10 @@ func _on_post_survey_completed(player_num: int, responses: Dictionary) -> void:
 	if player_num < _num_players:
 		post_survey.show_survey(int(GameManager.treatment), player_num + 1, _num_players)
 		return
+	# Everyone has answered, so the survey comes down here rather than inside
+	# PostSurvey itself: it is still needed right up to this point, once per
+	# group member.
+	post_survey.hide()
 	# Queued here rather than at the menu so the follow-on treatment exists only
 	# once the first one is genuinely finished and its survey recorded. T2 gets
 	# its own session ID, folder and summary row; the two are joined afterwards

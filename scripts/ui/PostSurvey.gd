@@ -101,6 +101,12 @@ func _on_scale_pick(key: String, value: Variant) -> void:
 	submit_button.disabled = false
 
 
+## Emits without hiding, and the caller decides what happens next — the same
+## division of labour PreSurvey uses.
+##
+## This must not hide itself. Emission is synchronous, so in the group treatment
+## the handler has already called show_survey() for the next player by the time
+## this returns; hiding here wiped that survey off the screen and left the
+## session with nothing to click on after the first member submitted.
 func _on_submit() -> void:
 	survey_completed.emit(_player_num, _responses.duplicate())
-	hide()
