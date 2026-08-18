@@ -89,25 +89,6 @@ size_flags_horizontal = 0
 text = "Legend"
 theme_override_font_sizes/font_size = 13
 
-[node name="RailGap" type="Control" parent="HUDRoot/LeftColumn/ControlRail"]
-custom_minimum_size = Vector2(0, 18)
-
-[node name="DebugButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
-theme_type_variation = &"PillButton"
-unique_name_in_owner = true
-custom_minimum_size = Vector2(168, 0)
-size_flags_horizontal = 0
-text = "Debug: OFF"
-theme_override_font_sizes/font_size = 13
-
-[node name="ResidentVisualsButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
-theme_type_variation = &"PillButton"
-unique_name_in_owner = true
-custom_minimum_size = Vector2(168, 0)
-size_flags_horizontal = 0
-text = "Residents: Shown"
-theme_override_font_sizes/font_size = 13
-
 [node name="CityPanel" type="PanelContainer" parent="HUDRoot"]
 unique_name_in_owner = true
 visible = false
@@ -159,25 +140,46 @@ autowrap_mode = 2
 text = ""
 theme_override_font_sizes/font_size = 14
 
-[node name="LegendPopover" type="PanelContainer" parent="HUDRoot"]
+[node name="LegendPopover" type="PanelContainer" parent="HUDRoot/LeftColumn"]
 unique_name_in_owner = true
 visible = false
-anchor_top = 0.5
-anchor_bottom = 0.5
-offset_left = 204.0
-offset_right = 204.0
-grow_vertical = 2
+size_flags_horizontal = 0
 
-[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/LegendPopover"]
+[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/LeftColumn/LegendPopover"]
 custom_minimum_size = Vector2(230, 0)
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_top = 14
 theme_override_constants/margin_bottom = 14
 
-[node name="MapLegend" type="Control" parent="HUDRoot/LegendPopover/MarginContainer"]
+[node name="MapLegend" type="Control" parent="HUDRoot/LeftColumn/LegendPopover/MarginContainer"]
 unique_name_in_owner = true
 script = ExtResource("2_legend")
+
+[node name="BottomLeftRail" type="VBoxContainer" parent="HUDRoot"]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -20.0
+offset_bottom = -20.0
+grow_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="DebugButton" type="Button" parent="HUDRoot/BottomLeftRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "Debug: OFF"
+theme_override_font_sizes/font_size = 13
+
+[node name="ResidentVisualsButton" type="Button" parent="HUDRoot/BottomLeftRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "Residents: Shown"
+theme_override_font_sizes/font_size = 13
 
 [node name="EndRoundButton" type="Button" parent="HUDRoot"]
 theme_type_variation = &"PillButtonPrimary"
