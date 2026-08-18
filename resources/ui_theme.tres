@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=21 format=3]
+[gd_resource type="Theme" load_steps=20 format=3]
 
 [sub_resource type="StyleBoxFlat" id="btn_normal"]
 bg_color = Color(0.839, 0, 0.109, 1)
@@ -87,11 +87,6 @@ corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="panel_sidebar"]
-bg_color = Color(0.11, 0.102, 0.114, 1)
-border_width_right = 2
-border_color = Color(1, 0.804, 0, 0.55)
 
 [sub_resource type="StyleBoxFlat" id="panel_summary"]
 bg_color = Color(0.11, 0.102, 0.114, 1)
@@ -282,8 +277,6 @@ Heading/base_type = &"Label"
 Heading/colors/font_color = Color(1, 0.804, 0, 1)
 Panel/styles/panel = SubResource("panel_card")
 PanelContainer/styles/panel = SubResource("panel_card")
-SidebarPanel/base_type = &"PanelContainer"
-SidebarPanel/styles/panel = SubResource("panel_sidebar")
 SummaryPanel/base_type = &"PanelContainer"
 SummaryPanel/styles/panel = SubResource("panel_summary")
 PillButton/base_type = &"Button"
