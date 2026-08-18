@@ -21,7 +21,7 @@ class_name CityFeedback
 static func lines(metrics: Dictionary) -> PackedStringArray:
 	return PackedStringArray([
 		"City average commute:   %.1f min" % metrics.get("avg_time", 0.0),
-		"City safety:   %s" % SafetyDisplay.format(metrics.get("avg_safety", 0.0)),
+		"City safety:   %s" % SafetyDisplay.format_bb(metrics.get("avg_safety", 0.0)),
 		"Network upgraded:   %d%%" % int(round(metrics.get("coverage", 0.0))),
 	])
 
@@ -40,7 +40,7 @@ static func lines_with_change(metrics: Dictionary, baseline: Dictionary) -> Pack
 			metrics.get("avg_time", 0.0),
 			_change_suffix(before.get("avg_time", 0.0) - metrics.get("avg_time", 0.0), "min", 0.05)],
 		"City safety:   %s%s" % [
-			SafetyDisplay.format(metrics.get("avg_safety", 0.0)),
+			SafetyDisplay.format_bb(metrics.get("avg_safety", 0.0)),
 			_change_suffix(metrics.get("avg_safety", 0.0) - before.get("avg_safety", 0.0), "pts", 0.05)],
 		# "pts", not "%", so a rise from 12% to 13% reads as "1.4 pts" rather
 		# than the ambiguous "1.4 % better" (relative change or percentage

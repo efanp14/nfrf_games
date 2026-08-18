@@ -33,10 +33,11 @@ theme_override_constants/separation = 10
 text = "Upgrade Infrastructure"
 horizontal_alignment = 1
 
-[node name="LinkInfoLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="LinkInfoLabel" type="RichTextLabel" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+bbcode_enabled = true
+fit_content = true
 unique_name_in_owner = true
 text = ""
-autowrap_mode = 3
 
 [node name="CurrentLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true

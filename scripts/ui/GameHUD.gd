@@ -14,11 +14,11 @@ signal resident_visuals_toggled(hidden: bool)
 
 @onready var round_label: Label         = %RoundLabel
 @onready var budget_label: Label        = %BudgetLabel
-@onready var time_label: Label          = %TimeLabel
-@onready var safety_label: Label        = %SafetyLabel
+@onready var time_label: RichTextLabel  = %TimeLabel
+@onready var safety_label: RichTextLabel = %SafetyLabel
 @onready var city_panel: VBoxContainer  = %CityPanel
 @onready var city_time_label: Label     = %CityTimeLabel
-@onready var city_safety_label: Label   = %CitySafetyLabel
+@onready var city_safety_label: RichTextLabel = %CitySafetyLabel
 @onready var coverage_label: Label      = %CoverageLabel
 @onready var benefit_label: Label       = %BenefitLabel
 @onready var city_view_button: Button   = %CityViewButton
@@ -145,13 +145,13 @@ func _on_round_ended(_round_num: int, results: Dictionary) -> void:
 
 ## Time stays a raw number (travel time + money are the only raw numbers
 ## shown to participants); safety is star-rating-only unless debug mode is
-## on (SafetyDisplay.format handles that).
+## on (SafetyDisplay.format_bb handles that).
 func _render_personal(results: Dictionary) -> void:
 	var players_data: Array = results.get("players", [])
 	if players_data.size() <= 1:
 		safety_label.visible = true
 		time_label.text   = "Time: %.1f min" % results.get("personal_time", 0.0)
-		safety_label.text = "Safety: " + SafetyDisplay.format(results.get("personal_safety", 0.0))
+		safety_label.text = "Safety: " + SafetyDisplay.format_bb(results.get("personal_safety", 0.0))
 		return
 
 	# A ROW PER PLAYER, not one line listing everybody.
@@ -170,7 +170,7 @@ func _render_personal(results: Dictionary) -> void:
 	for i in range(players_data.size()):
 		var pd: Dictionary = players_data[i]
 		rows.append("P%d   %.1f min   %s" % [
-			i + 1, pd.get("time", 0.0), SafetyDisplay.format(pd.get("safety", 0.0))])
+			i + 1, pd.get("time", 0.0), SafetyDisplay.format_bb(pd.get("safety", 0.0))])
 	time_label.text = "\n".join(rows)
 
 

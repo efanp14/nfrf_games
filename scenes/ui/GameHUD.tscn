@@ -57,17 +57,19 @@ theme_override_font_sizes/font_size = 20
 text = "Your Route"
 theme_override_font_sizes/font_size = 14
 
-[node name="TimeLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="TimeLabel" type="RichTextLabel" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+bbcode_enabled = true
+fit_content = true
 unique_name_in_owner = true
-autowrap_mode = 2
 text = "Time: -- min"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/normal_font_size = 16
 
-[node name="SafetyLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+[node name="SafetyLabel" type="RichTextLabel" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+bbcode_enabled = true
+fit_content = true
 unique_name_in_owner = true
-autowrap_mode = 2
 text = "Safety: --"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/normal_font_size = 16
 
 [node name="CityPanel" type="VBoxContainer" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
 unique_name_in_owner = true
@@ -86,11 +88,12 @@ autowrap_mode = 2
 text = "City: -- min"
 theme_override_font_sizes/font_size = 16
 
-[node name="CitySafetyLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
+[node name="CitySafetyLabel" type="RichTextLabel" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
+bbcode_enabled = true
+fit_content = true
 unique_name_in_owner = true
-autowrap_mode = 2
 text = "City safety: --"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/normal_font_size = 16
 
 [node name="CoverageLabel" type="Label" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
 unique_name_in_owner = true

@@ -100,6 +100,11 @@ const SURVEY_HEADER          := BRAND_GOLD
 const SURVEY_PLAYER_LABEL    := BRAND_GOLD
 const SURVEY_SECTION_TITLE   := BRAND_GOLD
 
+## Safety is shown as a five-star rating. Earned stars take the brand gold; the
+## rest sit at roughly the surface's own brightness so they read as empty slots
+## rather than as more rating.
+const STAR_EMPTY_COLOR := Color("#5A5257")
+
 
 # =======================================================================
 #  PLAYER IDENTITY

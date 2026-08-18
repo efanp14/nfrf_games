@@ -16,10 +16,10 @@ signal next_round_pressed
 @onready var title_label: Label          = %TitleLabel
 @onready var time_label: Label           = %TimeLabel
 @onready var delta_label: Label          = %DeltaLabel
-@onready var safety_label: Label         = %SafetyLabel
+@onready var safety_label: RichTextLabel = %SafetyLabel
 @onready var city_section: VBoxContainer = %CitySection
 @onready var city_time_label: Label      = %CityTimeLabel
-@onready var city_safety_label: Label    = %CitySafetyLabel
+@onready var city_safety_label: RichTextLabel = %CitySafetyLabel
 @onready var coverage_label: Label       = %CoverageLabel
 @onready var benefit_label: Label        = %BenefitLabel
 @onready var next_button: Button         = %NextButton
@@ -71,7 +71,7 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 		else:
 			delta_label.text = "Same as your original commute"
 			delta_label.remove_theme_color_override("font_color")
-		safety_label.text = "Safety: " + SafetyDisplay.format(safety)
+		safety_label.text = "Safety: " + SafetyDisplay.format_bb(safety)
 	else:
 		time_label.visible = false
 		delta_label.visible = false
@@ -88,11 +88,15 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 				delta_str = " (▼%.1f)" % delta_val
 			elif delta_val < -0.05:
 				delta_str = " (▲%.1f)" % absf(delta_val)
-			var player_lbl := Label.new()
-			player_lbl.add_theme_font_size_override("font_size", 16)
-			player_lbl.text = "P%d:  %.1f min  Safety: %s%s" % [i + 1, time_val, SafetyDisplay.format(safety_val), delta_str]
+			# Rich text, so the stars in this row are gold like every other
+			# rating. The seat colour moves to default_color for the same reason.
+			var player_lbl := RichTextLabel.new()
+			player_lbl.bbcode_enabled = true
+			player_lbl.fit_content = true
+			player_lbl.add_theme_font_size_override("normal_font_size", 16)
+			player_lbl.text = "P%d:  %.1f min  Safety: %s%s" % [i + 1, time_val, SafetyDisplay.format_bb(safety_val), delta_str]
 			var col: Color = Palette.PLAYER_COLORS[i % Palette.PLAYER_COLORS.size()]
-			player_lbl.add_theme_color_override("font_color", col)
+			player_lbl.add_theme_color_override("default_color", col)
 			_players_box.add_child(player_lbl)
 
 	city_section.visible = treatment != GameManager.Treatment.INDIVIDUAL

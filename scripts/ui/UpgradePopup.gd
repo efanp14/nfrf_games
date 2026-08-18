@@ -5,7 +5,7 @@ signal upgrade_chosen(link_id: String, level: int)
 signal downgrade_requested(link_id: String)
 signal cancelled
 
-@onready var link_info_label: Label   = %LinkInfoLabel
+@onready var link_info_label: RichTextLabel = %LinkInfoLabel
 @onready var current_label: Label     = %CurrentLabel
 @onready var painted_button: Button   = %PaintedButton
 @onready var protected_button: Button = %ProtectedButton
@@ -45,7 +45,7 @@ func show_for_link(link_id: String, credits_remaining: int, alpha: float, pendin
 			link.effective_time(), link.stress_score, int(link_safety)]
 	else:
 		link_info_label.text = "Time: %.1f min  |  Safety: %s" % [
-			link.effective_time(), SafetyDisplay.format(link_safety)]
+			link.effective_time(), SafetyDisplay.format_bb(link_safety)]
 
 	# Abstract effect arrows instead of raw stress/time deltas — protected
 	# relief is always stronger than painted, hence the extra ↓. Cost is

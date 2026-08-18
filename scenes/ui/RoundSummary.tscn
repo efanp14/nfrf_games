@@ -49,10 +49,12 @@ unique_name_in_owner = true
 text = ""
 theme_override_font_sizes/font_size = 16
 
-[node name="SafetyLabel" type="Label" parent="SidePanel/MarginContainer/VBoxContainer"]
+[node name="SafetyLabel" type="RichTextLabel" parent="SidePanel/MarginContainer/VBoxContainer"]
+bbcode_enabled = true
+fit_content = true
 unique_name_in_owner = true
 text = "Safety score:   —"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/normal_font_size = 18
 
 [node name="CitySection" type="VBoxContainer" parent="SidePanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
@@ -69,10 +71,12 @@ unique_name_in_owner = true
 text = "City avg time:   — min"
 theme_override_font_sizes/font_size = 18
 
-[node name="CitySafetyLabel" type="Label" parent="SidePanel/MarginContainer/VBoxContainer/CitySection"]
+[node name="CitySafetyLabel" type="RichTextLabel" parent="SidePanel/MarginContainer/VBoxContainer/CitySection"]
+bbcode_enabled = true
+fit_content = true
 unique_name_in_owner = true
 text = "City safety:   —"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/normal_font_size = 18
 
 [node name="CoverageLabel" type="Label" parent="SidePanel/MarginContainer/VBoxContainer/CitySection"]
 unique_name_in_owner = true

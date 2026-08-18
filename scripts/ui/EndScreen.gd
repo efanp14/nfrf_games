@@ -5,7 +5,7 @@ signal finished
 
 @onready var final_time_label: Label = %FinalTimeLabel
 @onready var saved_label: Label      = %SavedLabel
-@onready var safety_label: Label     = %SafetyLabel
+@onready var safety_label: RichTextLabel = %SafetyLabel
 @onready var coverage_label: Label   = %CoverageLabel
 @onready var finish_button: Button   = %FinishButton
 
@@ -57,7 +57,7 @@ func show_results(final_results: Dictionary) -> void:
 			saved_label.text = "Same time as your first commute (%.1f min)" % baseline
 			saved_label.remove_theme_color_override("font_color")
 
-		safety_label.text = "Final safety: " + SafetyDisplay.format(safety)
+		safety_label.text = "Final safety: " + SafetyDisplay.format_bb(safety)
 	else:
 		final_time_label.visible = false
 		saved_label.visible = false
@@ -69,8 +69,12 @@ func show_results(final_results: Dictionary) -> void:
 			var ft: float = pd.get("final_time", 0.0)
 			var saved: float = pd.get("total_time_saved", 0.0)
 			var safety: float = pd.get("final_safety", 0.0)
-			var player_lbl := Label.new()
-			player_lbl.add_theme_font_size_override("font_size", 12)
+			# Rich text, so the stars in this row are gold like every other
+			# rating. The seat colour moves to default_color for the same reason.
+			var player_lbl := RichTextLabel.new()
+			player_lbl.bbcode_enabled = true
+			player_lbl.fit_content = true
+			player_lbl.add_theme_font_size_override("normal_font_size", 12)
 			var saved_str := ""
 			if saved > 0.05:
 				saved_str = "saved %.1f min" % saved
@@ -78,9 +82,9 @@ func show_results(final_results: Dictionary) -> void:
 				saved_str = "+%.1f min slower" % absf(saved)
 			else:
 				saved_str = "no change"
-			player_lbl.text = "P%d:  %.1f min  Safety: %s  (%s)" % [i + 1, ft, SafetyDisplay.format(safety), saved_str]
+			player_lbl.text = "P%d:  %.1f min  Safety: %s  (%s)" % [i + 1, ft, SafetyDisplay.format_bb(safety), saved_str]
 			var col: Color = Palette.PLAYER_COLORS[i % Palette.PLAYER_COLORS.size()]
-			player_lbl.add_theme_color_override("font_color", col)
+			player_lbl.add_theme_color_override("default_color", col)
 			_players_box.add_child(player_lbl)
 
 	# Network coverage is a backend metric — debug-only.

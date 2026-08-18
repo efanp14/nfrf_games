@@ -51,7 +51,9 @@ unique_name_in_owner = true
 text = ""
 autowrap_mode = 3
 
-[node name="SafetyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="SafetyLabel" type="RichTextLabel" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+bbcode_enabled = true
+fit_content = true
 unique_name_in_owner = true
 text = "Final safety score:   —"
 

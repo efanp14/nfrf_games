@@ -18,14 +18,35 @@ const STAR_EMPTY: String  = "☆"
 static var debug_mode: bool = false
 
 
+## How many of the five stars a score earns.
+static func filled_stars(score: float) -> int:
+	return clampi(int(round(score / 100.0 * STARS_MAX)), 0, STARS_MAX)
+
+
+## Plain text, no markup. Kept as the readable form for anywhere BBCode is not
+## being rendered: probes, printouts, and anything read rather than displayed.
 static func stars_for(score: float) -> String:
-	var filled: int = clampi(int(round(score / 100.0 * STARS_MAX)), 0, STARS_MAX)
+	var filled: int = filled_stars(score)
 	return STAR_FILLED.repeat(filled) + STAR_EMPTY.repeat(STARS_MAX - filled)
 
 
-## Label text for a single safety score: stars only, or stars + raw number
-## when debug mode is on.
-static func format(score: float) -> String:
+## The rating marked up for a RichTextLabel, with the earned stars in gold. This
+## is what every screen shows.
+##
+## An earned star should look like something earned. In the body text colour the
+## rating read as punctuation, and an empty star carried exactly as much weight
+## as a filled one, so the count had to be read rather than seen.
+##
+## The debug number stays in the default colour on purpose: it is a testing aid,
+## not part of what a participant is meant to take in.
+static func format_bb(score: float) -> String:
+	var filled: int = filled_stars(score)
+	var out := "[color=#%s]%s[/color]" % [
+			Palette.BRAND_GOLD.to_html(false), STAR_FILLED.repeat(filled)]
+	if filled < STARS_MAX:
+		out += "[color=#%s]%s[/color]" % [
+				Palette.STAR_EMPTY_COLOR.to_html(false),
+				STAR_EMPTY.repeat(STARS_MAX - filled)]
 	if debug_mode:
-		return "%s (%d)" % [stars_for(score), int(score)]
-	return stars_for(score)
+		out += " (%d)" % int(score)
+	return out

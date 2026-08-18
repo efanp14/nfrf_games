@@ -181,6 +181,7 @@ Button/styles/pressed = SubResource("btn_pressed")
 Button/styles/disabled = SubResource("btn_disabled")
 Button/styles/focus = SubResource("btn_focus")
 Label/colors/font_color = Color(0.949, 0.937, 0.918, 1)
+RichTextLabel/colors/default_color = Color(0.949, 0.937, 0.918, 1)
 Heading/base_type = &"Label"
 Heading/colors/font_color = Color(1, 0.804, 0, 1)
 Panel/styles/panel = SubResource("panel_card")
