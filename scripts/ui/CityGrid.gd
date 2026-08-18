@@ -7,6 +7,9 @@ signal link_clicked(link_id: String)
 @onready var nodes_container: Node2D = $Nodes
 
 var _segments: Dictionary = {}
+## from_node of each canonical segment, so a route step can be told apart from
+## the same road travelled the other way. Filled in alongside _segments.
+var _segment_from_node: Dictionary = {}
 var _markers: Dictionary = {}
 
 ## PLAYER_ROUTES (default): each human player's current route highlighted in
@@ -156,6 +159,10 @@ func _build() -> void:
 		seg.setup(link_id, pts, link.upgrade_level, link.stress_score)
 		seg.clicked.connect(_on_segment_clicked)
 		_segments[canonical] = seg
+		# Segments are stored under one canonical id for an undirected edge, so
+		# the node its points start from is recorded here. The route flow arrows
+		# need it to tell which way along the road a given rider is going.
+		_segment_from_node[canonical] = link.from_node
 
 	# --- Simulated-resident home/work nodes ---
 	# Purely a visual cue for where the city-wide averages come from; never
@@ -325,7 +332,8 @@ func _on_route_updated(player_id: String, route: Dictionary) -> void:
 	for i in range(path.size() - 1):
 		var canonical := _canonical(path[i], path[i + 1])
 		if _segments.has(canonical):
-			_segments[canonical].set_on_route(true, player_index)
+			var forward: bool = _segment_from_node.get(canonical) == path[i]
+			_segments[canonical].set_on_route(true, player_index, forward)
 	# NPC routes are recalculated the same round the player's are, so a
 	# heatmap left open needs refreshing here too, not just on toggle.
 	if _view_mode == ViewMode.NPC_HEATMAP:

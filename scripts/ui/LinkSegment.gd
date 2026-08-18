@@ -7,6 +7,11 @@ var link_id: String = ""
 var _upgrade_level: int = 0
 var _pending_level: int = -1
 var _route_players: Array[int] = []
+## Which way each rider in _route_players travels along this link: true means
+## from _draw_points[0] towards the far end, matching the order CityGrid built
+## the points in. Needed only by the flow arrows; a link is stored under one
+## canonical id and does not otherwise care which direction anyone crosses it.
+var _route_forward: Dictionary = {}
 ## -1 = not in heatmap mode (draw the normal per-player route highlight
 ## instead); 0..1 = NPC-heatmap mode, set by CityGrid._show_npc_heatmap().
 var _heatmap_intensity: float = -1.0
@@ -39,7 +44,12 @@ var _total_length: float = 0.0
 ## Colours all come from Palette. The route band is the player's own colour at
 ## a fixed transparency, derived rather than listed a second time, so a seat's
 ## route can never disagree with its markers or its legend entry.
-const ROUTE_ALPHA: float = 0.45
+##
+## Nearly opaque. It used to be 0.45, which on a 1280x720 laptop left the route
+## as a faint tint four pixels wider than the road, and participants lost track
+## of their own commute. Transparency was buying nothing: the band sits behind
+## the road, so the only thing showing through it is the background art.
+const ROUTE_ALPHA: float = 0.92
 
 ## Soft offset shadow drawn under every road for a touch of depth — still
 ## flat-shaded (a single translucent color, no blur/gradient), just enough
@@ -50,6 +60,14 @@ const ROAD_SHADOW_OFFSET := Vector2(2.5, 3.0)
 static func route_color(player_index: int) -> Color:
 	var base: Color = Palette.PLAYER_COLORS[player_index % Palette.PLAYER_COLORS.size()]
 	return Color(base, ROUTE_ALPHA)
+
+
+## The arrow colour for a seat: its own colour lifted towards white, so the
+## arrows stay legible against the band they sit on without introducing a sixth
+## hue that would have to be kept distinct from everything else on the map.
+static func route_arrow_color(player_index: int) -> Color:
+	var base: Color = Palette.PLAYER_COLORS[player_index % Palette.PLAYER_COLORS.size()]
+	return base.lerp(Color.WHITE, 0.72)
 
 ## Road width encodes BASE stress: the wider the road, the more inherently
 ## stressful it is (10 Aug 2026). This is the always-on stress cue, added
@@ -78,12 +96,34 @@ static func route_color(player_index: int) -> Color:
 const ROAD_WIDTH         := 24.0
 const STRESS_WIDTH_BONUS := 12.0
 const EDGE_BORDER    := 1.5
-## Margins ADDED to the road's own width, not absolute widths. These two are
-## drawn behind the road, so a fixed 32/36 would disappear underneath a wide
-## arterial. The values preserve the old look on a minimum-width road (24 + 8
-## = the previous 32, 24 + 12 = the previous 36).
-const ROUTE_MARGIN   := 8.0
+## Margins ADDED to the road's own width, not absolute widths. These are drawn
+## behind the road, so a fixed 32/36 would disappear underneath a wide arterial.
+##
+## ROUTE_MARGIN was 8, which left only four pixels of colour showing on each side
+## of the road. That is fine on a 1920 wide screen and close to invisible on the
+## 1280x720 laptops the game is actually run on, which is the whole reason the
+## route reads as an afterthought. At 20 it clears the road by ten pixels a side
+## and survives being scaled down.
+const ROUTE_MARGIN   := 20.0
 const HOVER_MARGIN   := 12.0
+## The route band gets a dark outline of its own. Without it the band relies on
+## contrasting with whatever is behind the map, and the background art is not
+## something this code controls.
+const ROUTE_CASING   := 5.0
+
+## Flow arrows: chevrons that drift along the route in the direction the rider
+## travels. They do two jobs that the band alone cannot: they say which way the
+## commute runs, and motion is the one channel that survives any amount of
+## shrinking, so the route stays findable on a small screen.
+const ARROW_SPACING  := 34.0
+const ARROW_LENGTH   := 7.0
+const ARROW_HALF_W   := 6.0
+const ARROW_WIDTH    := 2.6
+const ARROW_SPEED    := 26.0   # pixels per second along the road
+## Riders sharing a link get their arrows side by side rather than overlapping,
+## up to this many; beyond it the stripes on the band carry the information and
+## more lanes of arrows would not fit inside the road.
+const ARROW_MAX_LANES := 3
 const CENTER_LINE_W  := 1.8
 ## Width of the centre line when it is carrying the NPC heatmap colour.
 const CENTER_HEATMAP_W := 4.0
@@ -169,17 +209,23 @@ func set_pending_level(level: int) -> void:
 	queue_redraw()
 
 
-func set_on_route(on_route: bool, player_index: int = 0) -> void:
+## `forward` is true when the rider travels from this segment's first drawn point
+## towards its last, which is the from_node to to_node order CityGrid built the
+## points in. It only steers the flow arrows.
+func set_on_route(on_route: bool, player_index: int = 0, forward: bool = true) -> void:
 	if on_route:
 		if not _route_players.has(player_index):
 			_route_players.append(player_index)
+		_route_forward[player_index] = forward
 	else:
 		_route_players.erase(player_index)
+		_route_forward.erase(player_index)
 	queue_redraw()
 
 
 func clear_routes() -> void:
 	_route_players.clear()
+	_route_forward.clear()
 	queue_redraw()
 
 
@@ -270,11 +316,16 @@ func _draw() -> void:
 	# a wide band behind the road, so nothing is drawn out here and the player
 	# route highlight stays hidden, keeping the two views distinct.
 	var pulse: float = sin(_anim_t * 2.0) * 2.0
-	if _heatmap_intensity < 0.0:
+	var show_route: bool = _heatmap_intensity < 0.0 and not _route_players.is_empty()
+	if show_route:
+		# Dark casing first, so the band separates from the background rather
+		# than relying on whatever art happens to be underneath it.
+		_draw_thick_line(Palette.ROAD_EDGE,
+				_road_width + ROUTE_MARGIN + ROUTE_CASING + pulse)
 		if _route_players.size() == 1:
-			var col: Color = route_color(_route_players[0])
-			_draw_thick_line(col, _road_width + ROUTE_MARGIN + pulse)
-		elif _route_players.size() > 1:
+			_draw_thick_line(route_color(_route_players[0]),
+					_road_width + ROUTE_MARGIN + pulse)
+		else:
 			_draw_striped_route()
 
 	# No Bike Lane roads have no curb — a plain, informal street; upgraded
@@ -284,6 +335,10 @@ func _draw() -> void:
 	_draw_thick_line(Palette.ROAD_FILL, _road_width)
 	_draw_road_markings()
 	_draw_cars()
+	# Arrows go on last, over the road surface and over the cars: they are the
+	# thing a participant is meant to find first.
+	if show_route:
+		_draw_flow_arrows()
 
 
 ## The level to visually render as — the pending upgrade if one is staged
@@ -303,6 +358,53 @@ func _draw_shadow() -> void:
 	for p in _draw_points:
 		shifted.append(p + ROAD_SHADOW_OFFSET)
 	draw_polyline(shifted, Palette.ROAD_SHADOW, _road_width + 3.0, true)
+
+
+## Chevrons drifting along the route. Riders sharing a link are given their own
+## lane across the road's width so two commutes read as two streams rather than
+## one flickering line.
+func _draw_flow_arrows() -> void:
+	var lanes: int = mini(_route_players.size(), ARROW_MAX_LANES)
+	# Lanes have to stay inside the plain road fill. On painted and protected
+	# roads the outer BIKE_PAINT_W strip on each side is lane paint, so the
+	# usable band is narrower than the road.
+	var usable: float = _road_width - BIKE_PAINT_W * 2.0
+	var lane_gap: float = 0.0 if lanes < 2 else minf(usable / float(lanes), 9.0)
+	for i in range(lanes):
+		var player_index: int = _route_players[i]
+		var offset: float = (float(i) - (lanes - 1) * 0.5) * lane_gap
+		_draw_arrow_lane(player_index, offset)
+
+
+func _draw_arrow_lane(player_index: int, lateral: float) -> void:
+	var forward: bool = _route_forward.get(player_index, true)
+	var color: Color = route_arrow_color(player_index)
+	# Phase runs the same way the rider does, so the arrows travel with them.
+	var phase: float = fposmod(_anim_t * ARROW_SPEED, ARROW_SPACING)
+	if not forward:
+		phase = ARROW_SPACING - phase
+	var travelled: float = 0.0
+	for i in range(_draw_points.size() - 1):
+		var a: Vector2 = _draw_points[i]
+		var b: Vector2 = _draw_points[i + 1]
+		var seg_len: float = a.distance_to(b)
+		if seg_len < 0.001:
+			continue
+		var dir: Vector2 = (b - a) / seg_len
+		var normal := Vector2(-dir.y, dir.x)
+		var point: Vector2 = dir if forward else -dir
+		# First arrow position at or after the start of this segment.
+		var first: float = ceilf((travelled - phase) / ARROW_SPACING) * ARROW_SPACING + phase
+		var d: float = first - travelled
+		while d < seg_len:
+			# Skipped near the ends so arrows do not run under the node circles.
+			if travelled + d > NODE_RADIUS and travelled + d < _total_length - NODE_RADIUS:
+				var tip: Vector2 = a + dir * d + normal * lateral
+				var back: Vector2 = tip - point * ARROW_LENGTH
+				draw_line(back + normal * ARROW_HALF_W, tip, color, ARROW_WIDTH, true)
+				draw_line(back - normal * ARROW_HALF_W, tip, color, ARROW_WIDTH, true)
+			d += ARROW_SPACING
+		travelled += seg_len
 
 
 func _draw_striped_route() -> void:

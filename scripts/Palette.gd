@@ -107,12 +107,26 @@ const SURVEY_SECTION_TITLE   := BRAND_GOLD
 ## One colour per seat, used for that player's home and work markers, their
 ## route on the map, their legend entry, their round-end bike and their rows on
 ## the summary screens. One list, so those can no longer drift apart.
+##
+## Drawn from the Okabe-Ito set, which is chosen to stay separable under the
+## common forms of colour vision deficiency. Real lab participants are involved
+## and roughly one man in twelve has some red-green deficiency, so a seat that
+## two people cannot tell apart is a data problem, not a taste problem.
+##
+## No green anywhere in the list. Green belongs to painted bike lanes on the map,
+## and a green route running over a green lane was the one pairing guaranteed to
+## be read wrong. Yellow is out for the same reason: it would collide with the
+## gold centre line and the gold safety stars.
+##
+## Seats 2 and 5, vermillion and orange, are the closest pair here. They only
+## ever appear together at five players, which is above the group sizes actually
+## run, and separating them further would have cost the other four their spacing.
 const PLAYER_COLORS: Array = [
-	Color(0.42, 0.64, 0.84),   # blue
-	Color(0.88, 0.47, 0.32),   # coral
-	Color(0.35, 0.72, 0.40),   # green
-	Color(0.62, 0.42, 0.78),   # purple
-	Color(0.85, 0.68, 0.25),   # amber
+	Color("#0072B2"),   # blue
+	Color("#D55E00"),   # vermillion
+	Color("#CC79A7"),   # reddish purple
+	Color("#56B4E9"),   # sky blue
+	Color("#E69F00"),   # orange
 ]
 
 

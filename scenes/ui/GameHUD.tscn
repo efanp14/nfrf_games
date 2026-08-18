@@ -106,12 +106,14 @@ text = ""
 theme_override_font_sizes/font_size = 13
 
 [node name="CityViewButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer/CityPanel"]
+theme_type_variation = &"SecondaryButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
 text = "View: City Routes"
 theme_override_font_sizes/font_size = 12
 
 [node name="StressViewButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+theme_type_variation = &"SecondaryButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
 text = "View: Road Stress"
@@ -122,12 +124,14 @@ unique_name_in_owner = true
 script = ExtResource("2_legend")
 
 [node name="DebugButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+theme_type_variation = &"SecondaryButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 text = "Debug: OFF"
 theme_override_font_sizes/font_size = 12
 
 [node name="ResidentVisualsButton" type="Button" parent="HUDRoot/LeftSidebar/MarginContainer/Outer/Scroll/VBoxContainer"]
+theme_type_variation = &"SecondaryButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
 text = "Residents: Shown"

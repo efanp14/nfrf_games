@@ -76,8 +76,7 @@ func _total_height() -> float:
 	h += 8 + ROW_H * 2 + 4       # sep + road-width rows (quiet / busy)
 	h += ROW_H + 4               # cars row
 	h += 8                        # sep before markers
-	if n > 1:
-		h += (ROW_H - 4) * n + 16
+	h += (ROW_H - 4) * n + 16
 	h += ROW_H * 2               # home + work
 	if not CityGrid.hide_resident_visuals:
 		h += ROW_H * 2           # neighbourhood + workplace
@@ -119,16 +118,18 @@ func _draw() -> void:
 	_label("Traffic", y, font); y += ROW_H + 4
 	_sep(y); y += 8
 
-	# ── Player routes (multi-player only) ───────────────────────────────────
+	# ── Routes ──────────────────────────────────────────────────────────────
+	# Shown with one player too, where it used to be skipped. The whole point of
+	# the widened band and the flow arrows is that a participant can find their
+	# own commute at a glance, and the legend is where they are told that the
+	# coloured road with arrows on it is theirs.
 	var num := GameManager.human_players.size() if GameManager.game_running else 1
-	if num > 1:
-		for i in range(num):
-			var col: Color = Palette.PLAYER_COLORS[i % Palette.PLAYER_COLORS.size()]
-			draw_rect(Rect2(0, y + 3, SWATCH_W, 8), Color(col, 0.50))
-			_label("Player %d route" % (i + 1), y, font)
-			y += ROW_H - 4
-		y += 8
-		_sep(y); y += 8
+	for i in range(num):
+		_route_swatch(i, y)
+		_label("Your route" if num == 1 else "Player %d route" % (i + 1), y, font)
+		y += ROW_H - 4
+	y += 8
+	_sep(y); y += 8
 
 	# ── Markers ─────────────────────────────────────────────────────────────
 	_place_icon(_home_icon, y)
@@ -203,6 +204,20 @@ func _width_swatch(stress: float, y: float) -> void:
 	draw_rect(Rect2(0, top, SWATCH_W, h), Palette.ROAD_FILL)
 	draw_rect(Rect2(0, top, SWATCH_W, h), Palette.ROAD_EDGE, false, 1.0)
 	draw_line(Vector2(0, top + h * 0.5), Vector2(SWATCH_W, top + h * 0.5), Palette.YELLOW_CENTER, 1.5)
+
+
+## Casing, band and a chevron, in the same order and proportions the map draws
+## them, so the legend keeps describing what is actually on screen.
+func _route_swatch(player_index: int, y: float) -> void:
+	var mid: float = y + SWATCH_H * 0.5
+	var col: Color = Palette.PLAYER_COLORS[player_index % Palette.PLAYER_COLORS.size()]
+	draw_line(Vector2(0, mid), Vector2(SWATCH_W, mid), Palette.ROAD_EDGE, SWATCH_H)
+	draw_line(Vector2(0, mid), Vector2(SWATCH_W, mid), col, SWATCH_H - 4.0)
+	draw_line(Vector2(0, mid), Vector2(SWATCH_W, mid), Palette.ROAD_FILL, SWATCH_H - 9.0)
+	var arrow: Color = LinkSegment.route_arrow_color(player_index)
+	var tip := Vector2(SWATCH_W * 0.62, mid)
+	draw_line(tip - Vector2(5, 3.5), tip, arrow, 2.0, true)
+	draw_line(tip - Vector2(5, -3.5), tip, arrow, 2.0, true)
 
 
 func _car_swatch(y: float) -> void:

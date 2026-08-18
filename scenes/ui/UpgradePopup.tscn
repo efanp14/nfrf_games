@@ -53,6 +53,7 @@ unique_name_in_owner = true
 text = "Protected Track  —  $300"
 
 [node name="RemoveButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+theme_type_variation = &"SecondaryButton"
 unique_name_in_owner = true
 visible = false
 text = "Remove Upgrade"
@@ -60,5 +61,6 @@ text = "Remove Upgrade"
 [node name="HSeparator2" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 
 [node name="CancelButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+theme_type_variation = &"SecondaryButton"
 unique_name_in_owner = true
 text = "Cancel"
