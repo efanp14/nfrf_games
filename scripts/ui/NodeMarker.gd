@@ -24,16 +24,24 @@ var _icon_shadow_radius: float = 0.0
 ## whole node would delete a junction from the map rather than an icon from it.
 var icon_hidden: bool = false
 
-## Shrunk from the original flat-circle design (was 18.0) now that real
-## icons sit on top — a smaller "manhole" reads as an intersection cap
-## instead of a big black dot competing with the icon for attention, and
-## keeps icons (see ICON_PX below) from overhanging it.
+## The cap a marker is drawn on, per type.
+##
+## These used to be declared per type and then ignored: _draw() read
+## RADII[NORMAL] for every marker, so the only thing the other four entries
+## affected was where the name label sat. They are now honoured, which is what
+## lets the icon-bearing types grow an anchor to match the larger ICON_PX while
+## a plain junction stays the small "manhole" it should be. Growing NORMAL too
+## turned every junction into a black blob sitting on top of the roads through
+## it.
+##
+## The rule to keep: an icon should not overhang its own cap by much. ICON_PX is
+## a diameter, so compare it against 2 x the radius here.
 const RADII := {
 	MarkerType.NORMAL:   14.0,
-	MarkerType.HOME:     12.0,
-	MarkerType.WORK:     12.0,
-	MarkerType.NPC_HOME: 6.0,
-	MarkerType.NPC_WORK: 6.0,
+	MarkerType.HOME:     20.0,
+	MarkerType.WORK:     20.0,
+	MarkerType.NPC_HOME: 16.0,
+	MarkerType.NPC_WORK: 16.0,
 }
 # --- Icons ---
 # All source SVGs are flat solid-black glyphs rasterized at 512x512 (viewBox
@@ -60,12 +68,17 @@ const WORK_ICONS: Dictionary = {
 
 ## Every marker icon (player HOME/WORK and NPC neighbourhood/workplace) is
 ## the same fixed size — no population- or role-based scaling — so the map
-## reads as one consistent icon set. Kept at or under the node circle's own
-## diameter (2 * RADII[NORMAL] = 28px): an icon scaled up past its anchor
-## circle reads as swallowing the intersection and the roads through it,
-## which is what "the icons are off" was (icons used to size up to 48px
-## against a then-36px circle).
-const ICON_PX: float = 20.0
+## reads as one consistent icon set.
+##
+## Doubled from 20px for legibility: at 20 the amenity icons were hard to tell
+## apart at a glance, and telling them apart is the point of having seven of
+## them. The rule that keeps this safe is that an icon stays inside its own
+## anchor circle. An icon scaled past its anchor reads as swallowing the
+## intersection and the roads running through it, which is what "the icons are
+## off" was the first time round, when icons reached 48px against a 36px circle.
+## RADII above grew in step, so 40px still sits inside the 48px NORMAL circle.
+## Change one of these two and the other has to move with it.
+const ICON_PX: float = 40.0
 
 ## Offset of the soft shadow shared by every node and building. The colour
 ## itself, like every other colour here, comes from Palette.
@@ -135,7 +148,7 @@ func _apply_name() -> void:
 
 
 func _draw() -> void:
-	var r: float = RADII[MarkerType.NORMAL]
+	var r: float = RADII[marker_type]
 
 	# Soft shadow first (furthest back), then a thin low-contrast rim, then
 	# the road fill on top — depth without the intersection reading as a

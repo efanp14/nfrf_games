@@ -11,7 +11,9 @@ var bike_color: Color = Color.WHITE
 
 const ICON_BIKE         := preload("res://assets/images/bike.svg")
 const ICON_TINT_SHADER  := preload("res://assets/shaders/icon_tint.gdshader")
-const ICON_PX: float = 22.0
+## Doubled alongside NodeMarker.ICON_PX, so the round-end bikes stay the same
+## visual weight as the buildings they ride between.
+const ICON_PX: float = 44.0
 
 
 func _ready() -> void:

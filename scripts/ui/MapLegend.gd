@@ -4,6 +4,10 @@ extends Control
 const SWATCH_W := 60.0
 const SWATCH_H := 14.0
 const ROW_H    := SWATCH_H + 10.0
+## Marker rows get their own height, because the icons grew and the swatches did
+## not. One shared row height would have padded every road swatch to suit the
+## icons and pushed the bottom of the legend out of the sidebar.
+const ICON_ROW_H := 40.0
 const LABEL_X  := SWATCH_W + 8.0
 const FS       := 11
 
@@ -26,7 +30,10 @@ const ICON_HOME          := preload("res://assets/images/home.svg")
 const ICON_BRIEFCASE     := preload("res://assets/images/briefcase.svg")
 const ICON_NEIGHBOURHOOD := preload("res://assets/images/threepeoplehome.svg")
 const ICON_WORK_DEFAULT  := preload("res://assets/images/workbuildings.svg")
-const ICON_PX: float = 18.0
+## Bigger, in step with the map's icons, but not the full 40px those use: the
+## legend lives in a fixed-width sidebar with a fixed height to spend, and four
+## marker rows at 40px each pushed the last of them off the bottom.
+const ICON_PX: float = 32.0
 
 var _home_icon: Sprite2D
 var _work_icon: Sprite2D
@@ -77,9 +84,9 @@ func _total_height() -> float:
 	h += ROW_H + 4               # cars row
 	h += 8                        # sep before markers
 	h += (ROW_H - 4) * n + 16
-	h += ROW_H * 2               # home + work
+	h += ICON_ROW_H * 2          # home + work
 	if not CityGrid.hide_resident_visuals:
-		h += ROW_H * 2           # neighbourhood + workplace
+		h += ICON_ROW_H * 2      # neighbourhood + workplace
 	return h
 
 
@@ -133,10 +140,10 @@ func _draw() -> void:
 
 	# ── Markers ─────────────────────────────────────────────────────────────
 	_place_icon(_home_icon, y)
-	_label("Home", y, font); y += ROW_H
+	_label("Home", y, font); y += ICON_ROW_H
 
 	_place_icon(_work_icon, y)
-	_label("Work destination", y, font); y += ROW_H
+	_label("Work destination", y, font); y += ICON_ROW_H
 
 	# Dropped along with the markers themselves, so the legend never explains a
 	# symbol that is not on the map.
@@ -150,7 +157,7 @@ func _draw() -> void:
 	_workplace_icon.visible = show_residents
 	if show_residents:
 		_place_icon(_neighbourhood_icon, y)
-		_label("Neighbourhood", y, font); y += ROW_H
+		_label("Neighbourhood", y, font); y += ICON_ROW_H
 
 		_place_icon(_workplace_icon, y)
 		_label("Workplace", y, font)
