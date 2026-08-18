@@ -37,7 +37,7 @@ var icon_hidden: bool = false
 ## The rule to keep: an icon should not overhang its own cap by much. ICON_PX is
 ## a diameter, so compare it against 2 x the radius here.
 const RADII := {
-	MarkerType.NORMAL:   14.0,
+	MarkerType.NORMAL:   28.0,
 	MarkerType.HOME:     20.0,
 	MarkerType.WORK:     20.0,
 	MarkerType.NPC_HOME: 16.0,

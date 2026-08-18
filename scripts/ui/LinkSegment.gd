@@ -132,7 +132,7 @@ const CENTER_DASH_GAP := 8.0
 const BIKE_PAINT_W   := 4.0
 const DIVIDER_W      := 1.5
 const HIT_RADIUS     := 18.0
-const NODE_RADIUS    := 6.5   # roads extend to this depth inside the node circle (14.0 radius, NodeMarker.RADII.NORMAL) so ends are hidden
+const NODE_RADIUS    := 6.5   # roads extend to this depth inside the node circle (28.0 radius, NodeMarker.RADII.NORMAL) so ends are hidden
 
 const BARRIER_SPACE  := 10.0
 const BARRIER_MARK   := 3.0
