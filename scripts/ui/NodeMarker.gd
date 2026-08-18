@@ -26,22 +26,26 @@ var icon_hidden: bool = false
 
 ## The cap a marker is drawn on, per type.
 ##
-## These used to be declared per type and then ignored: _draw() read
-## RADII[NORMAL] for every marker, so the only thing the other four entries
-## affected was where the name label sat. They are now honoured, which is what
-## lets the icon-bearing types grow an anchor to match the larger ICON_PX while
-## a plain junction stays the small "manhole" it should be. Growing NORMAL too
-## turned every junction into a black blob sitting on top of the roads through
-## it.
+## Every type is the same size today, which is deliberate: one cap for every node
+## means the map reads as a single set of places rather than as several. Kept as
+## a per-type table anyway, because _draw() and the name-label offset both read
+## it, and because differentiating one type later should not mean restructuring
+## anything.
 ##
-## The rule to keep: an icon should not overhang its own cap by much. ICON_PX is
-## a diameter, so compare it against 2 x the radius here.
+## These were declared per type and then ignored for a long time: _draw() read
+## RADII[NORMAL] for every marker, so the only thing the other four entries
+## affected was where the name label sat. They are honoured now.
+##
+## The rule to keep: an icon should not overhang its own cap. ICON_PX is a
+## diameter, so compare it against 2 x the radius here. At 40px against 56px
+## there is room to spare, which is what makes the icon read as standing on
+## something rather than as floating over the junction.
 const RADII := {
 	MarkerType.NORMAL:   28.0,
-	MarkerType.HOME:     20.0,
-	MarkerType.WORK:     20.0,
-	MarkerType.NPC_HOME: 16.0,
-	MarkerType.NPC_WORK: 16.0,
+	MarkerType.HOME:     28.0,
+	MarkerType.WORK:     28.0,
+	MarkerType.NPC_HOME: 28.0,
+	MarkerType.NPC_WORK: 28.0,
 }
 # --- Icons ---
 # All source SVGs are flat solid-black glyphs rasterized at 512x512 (viewBox
