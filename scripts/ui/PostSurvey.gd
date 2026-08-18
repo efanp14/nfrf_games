@@ -26,6 +26,9 @@ var _player_label: Label
 
 func _ready() -> void:
 	visible = false
+	# The scrim comes from Palette rather than from the scene, so every
+	# screen's backdrop is set in the one place colours are declared.
+	($Overlay as ColorRect).color = Palette.OVERLAY_FULL
 	submit_button.disabled = true
 	submit_button.pressed.connect(_on_submit)
 

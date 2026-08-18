@@ -9,7 +9,7 @@ script = ExtResource("1_narr00")
 [node name="Overlay" type="ColorRect" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.05, 0.05, 0.12, 0.94)
+color = Color(0.043, 0.039, 0.047, 0.97)
 mouse_filter = 0
 
 [node name="SpeakerLayer" type="Control" parent="."]
@@ -48,6 +48,7 @@ theme_override_constants/margin_bottom = 24
 theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+theme_type_variation = &"Heading"
 unique_name_in_owner = true
 text = "Welcome to CycleCity"
 theme_override_font_sizes/font_size = 20

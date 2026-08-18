@@ -14,6 +14,9 @@ var _players_box: VBoxContainer
 
 func _ready() -> void:
 	visible = false
+	# The scrim comes from Palette rather than from the scene, so every
+	# screen's backdrop is set in the one place colours are declared.
+	($Overlay as ColorRect).color = Palette.OVERLAY_HEAVY
 	finish_button.pressed.connect(func(): finished.emit(); hide())
 	_players_box = VBoxContainer.new()
 	_players_box.add_theme_constant_override("separation", 4)

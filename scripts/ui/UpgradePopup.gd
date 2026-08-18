@@ -17,6 +17,9 @@ var _current_link_id: String = ""
 
 func _ready() -> void:
 	visible = false
+	# The scrim comes from Palette rather than from the scene, so every
+	# screen's backdrop is set in the one place colours are declared.
+	($Overlay as ColorRect).color = Palette.OVERLAY_LIGHT
 	# Marks these two as the buttons that get the upgrade sound rather than the
 	# ordinary click. A meta flag rather than a call, so Audio.gd stays a
 	# generic service that does not need to know what an upgrade is. Remove and

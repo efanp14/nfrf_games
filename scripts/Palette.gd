@@ -49,38 +49,56 @@ const BRAND_GREY_LIGHT := Color("#C7C8CA")
 # =======================================================================
 #  CHROME
 # =======================================================================
-const PANEL_BG      := Color(0.145, 0.153, 0.176)
-const PANEL_BORDER  := Color(0.32, 0.35, 0.42)
-const OVERLAY_SCRIM := Color(0.04, 0.06, 0.10, 0.97)
-const OVERLAY_SOFT  := Color(0.05, 0.05, 0.12, 0.94)
-const OVERLAY_DIM   := Color(0, 0, 0, 0.5)
-const OVERLAY_DARK  := Color(0, 0, 0, 0.75)
+## Buttons, panels, line edits and separators are styled by
+## res://resources/ui_theme.tres, which is registered project wide and which
+## mirrors these values. A .tres cannot read a GDScript constant, so the two are
+## kept in step by hand and a change starts here, where the reasoning lives.
 
-## White, because every surface these sit on is dark. The legend's text was once
-## near-black, which is a light-background colour, and against the HUD sidebar it
-## came out barely legible.
-const TEXT_PRIMARY := Color(1, 1, 1)
-const TEXT_HEADING := Color(1, 1, 1)
-const TEXT_MUTED   := Color(1, 1, 1, 0.28)
+## Warm near-black rather than the cool blue-grey this used to be, so the red and
+## gold read as warm brand colours instead of as alerts on a blue field.
+const PANEL_BG     := Color("#1C1A1D")
+const PANEL_BORDER := Color("#3A3438")
 
-## Gain and loss on round summaries and the end screen. Both labels carry a
-## triangle glyph as well, so hue is the second channel rather than the only one.
-const DELTA_GAIN := Color(0.3, 0.9, 0.4)
-const DELTA_LOSS := Color(0.95, 0.3, 0.3)
-const ERROR_TEXT := Color(0.95, 0.35, 0.35)
+## Three depths of scrim, by how much of the map the screen behind it should keep.
+## Full takeovers hide it; the upgrade popup deliberately does not, since the
+## player is deciding about the road underneath.
+const OVERLAY_FULL  := Color(0.043, 0.039, 0.047, 0.97)
+const OVERLAY_HEAVY := Color(0.043, 0.039, 0.047, 0.80)
+const OVERLAY_LIGHT := Color(0.043, 0.039, 0.047, 0.55)
+
+## Warm off-white, because every surface these sit on is dark. The legend's text
+## was once near-black, which is a light-background colour, and against the HUD
+## sidebar it came out barely legible.
+const TEXT_PRIMARY := Color("#F2EFEA")
+## Headings take the gold, which is the cheapest way to put the identity on every
+## screen without colouring anything that carries a quantity.
+const TEXT_HEADING := BRAND_GOLD
+const TEXT_MUTED   := Color(1, 0.804, 0, 0.30)
+
+## Gain and loss on round summaries and the end screen. Gain is the brand's teal
+## accent rather than a plain green: teal separates from red far better under
+## red-green colour deficiency. Loss is the brand red lifted in luminance, since
+## #D6001C as small text on a near-black panel is too dark to read comfortably.
+## Both labels carry a triangle glyph too, so hue is never the only channel.
+const DELTA_GAIN := BRAND_TEAL
+const DELTA_LOSS := Color("#FF4D5E")
+const ERROR_TEXT := Color("#FF4D5E")
 
 ## Survey response bubbles. Drawn rather than left to the engine's checkbox
-## icons; see SurveyScale for why the contrast here is deliberately high.
-const BUBBLE_FILL            := Color(0.13, 0.16, 0.23)
-const BUBBLE_BORDER          := Color(0.58, 0.67, 0.79)
-const BUBBLE_HOVER_FILL      := Color(0.22, 0.30, 0.43)
-const BUBBLE_HOVER_BORDER    := Color(0.78, 0.87, 0.97)
-const BUBBLE_SELECTED_FILL   := Color(0.42, 0.76, 1.0)
-const BUBBLE_SELECTED_BORDER := Color(0.88, 0.95, 1.0)
+## icons; see SurveyScale for why the contrast here is deliberately high. A
+## chosen answer fills gold, which is the strongest signal available on this
+## background and matters most in the group treatment, where three people read
+## one screen from different distances.
+const BUBBLE_FILL            := Color("#232025")
+const BUBBLE_BORDER          := Color("#8C8289")
+const BUBBLE_HOVER_FILL      := Color("#3A3438")
+const BUBBLE_HOVER_BORDER    := BRAND_GOLD
+const BUBBLE_SELECTED_FILL   := BRAND_GOLD
+const BUBBLE_SELECTED_BORDER := Color("#FFE57B")
 const ROW_STRIPE             := Color(1.0, 1.0, 1.0, 0.035)
-const SURVEY_HEADER          := Color(0.80, 0.87, 0.95)
-const SURVEY_PLAYER_LABEL    := Color(0.7, 0.85, 1.0)
-const SURVEY_SECTION_TITLE   := Color(0.72, 0.85, 1.0)
+const SURVEY_HEADER          := BRAND_GOLD
+const SURVEY_PLAYER_LABEL    := BRAND_GOLD
+const SURVEY_SECTION_TITLE   := BRAND_GOLD
 
 
 # =======================================================================

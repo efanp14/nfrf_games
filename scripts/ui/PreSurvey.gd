@@ -29,6 +29,9 @@ var _gender_free_text: LineEdit
 
 func _ready() -> void:
 	visible = false
+	# The scrim comes from Palette rather than from the scene, so every
+	# screen's backdrop is set in the one place colours are declared.
+	($Overlay as ColorRect).color = Palette.OVERLAY_FULL
 	begin_button.disabled = true
 	begin_button.pressed.connect(_on_begin_pressed)
 

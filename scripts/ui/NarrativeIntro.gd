@@ -59,6 +59,9 @@ var _on_page_two: bool = false
 
 func _ready() -> void:
 	visible = false
+	# The scrim comes from Palette rather than from the scene, so every
+	# screen's backdrop is set in the one place colours are declared.
+	($Overlay as ColorRect).color = Palette.OVERLAY_FULL
 	speaker_icon.texture = SPEAKER_TEXTURE
 	continue_button.pressed.connect(_on_continue_pressed)
 

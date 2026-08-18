@@ -37,6 +37,9 @@ var _status_label: Label
 
 func _ready() -> void:
 	visible = true
+	# The scrim comes from Palette rather than from the scene, so every
+	# screen's backdrop is set in the one place colours are declared.
+	($Overlay as ColorRect).color = Palette.OVERLAY_FULL
 	# Quoted from the one place the budget is defined, so this line cannot go
 	# stale the next time the figure is re-derived.
 	intro_label.text = ("You are a citizen-planner with %s per round to upgrade roads with "
