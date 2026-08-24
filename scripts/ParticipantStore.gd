@@ -100,6 +100,27 @@ static func record_treatment(participant_id: String, treatment: int) -> void:
 	_write(participant_id, record)
 
 
+## Whether this person has already played this treatment on this machine.
+##
+## Used by the menu to warn before a session starts rather than after. Reuse of
+## a participant ID currently surfaces only weeks later, as a DUPLICATE line in
+## the aggregate report, by which point the second session has been run and one
+## of the pair has to be thrown away.
+##
+## Says nothing about sessions run on another machine: the store is local, and
+## the group treatment usually runs on a different computer. A false negative is
+## therefore possible and a false positive is not, which is the right way round
+## for a warning.
+static func has_played_treatment(participant_id: String, treatment: int) -> bool:
+	var record := load_record(participant_id)
+	if record.is_empty():
+		return false
+	for entry in record.get("treatments_played", []):
+		if entry is Dictionary and int(entry.get("treatment", -1)) == treatment:
+			return true
+	return false
+
+
 ## Which session this is for the participant: 1 for their first treatment, 2
 ## for their second, and so on. Call BEFORE record_treatment for the current
 ## session, since it counts what has already been played.

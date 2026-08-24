@@ -316,13 +316,50 @@ func _refresh_validity() -> void:
 			problems.append("Group ID may use letters, digits, hyphen and underscore only")
 
 	start_button.disabled = not problems.is_empty()
-	if problems.is_empty():
-		var who := "%d participant%s" % [ids.size(), "" if ids.size() == 1 else "s"]
-		_status_label.text = ("Group %s  ·  %s" % [group, who]) if _group_required() else who
-		_status_label.remove_theme_color_override("font_color")
-	else:
+	if not problems.is_empty():
 		_status_label.text = problems[0]
 		_status_label.add_theme_color_override("font_color", Palette.ERROR_TEXT)
+		return
+
+	# Warnings do NOT block. A re-run after a false start is legitimate and
+	# happens, so this says what the machine already knows and leaves the
+	# decision where it belongs.
+	var repeats := _already_played(ids)
+	if not repeats.is_empty():
+		_status_label.text = "Already played this treatment here: %s. Starting again will produce a second session for them." % ", ".join(repeats)
+		_status_label.add_theme_color_override("font_color", Palette.BRAND_GOLD)
+		return
+
+	var who := "%d participant%s" % [ids.size(), "" if ids.size() == 1 else "s"]
+	_status_label.text = ("Group %s  ·  %s" % [group, who]) if _group_required() else who
+	_status_label.remove_theme_color_override("font_color")
+
+
+## Which of the entered participants have already played the treatment about to
+## be started, according to this machine's participant store.
+##
+## Reuse used to surface only at analysis time, as a DUPLICATE line in the
+## aggregate report, possibly weeks after the session that caused it. By then
+## one of the two sessions has to be discarded, and the participant's time with
+## it. Two seconds at the menu is a better place to find out.
+##
+## The chained entry starts T1 and queues T2, so both count as about to be
+## played. The store is local, so a treatment played on another machine is
+## invisible here; the warning can miss, but it cannot cry wolf.
+func _already_played(ids: Array) -> PackedStringArray:
+	var selected := treatment_option.get_selected_id()
+	var about_to_play: Array = [int(GameManager.Treatment.INDIVIDUAL),
+			int(GameManager.Treatment.COLLECTIVE_INFO)] if selected == CHAINED_T1_T2 else [selected]
+	var repeats := PackedStringArray()
+	for id in ids:
+		var pid := str(id).strip_edges()
+		if pid.is_empty():
+			continue
+		for t: int in about_to_play:
+			if ParticipantStore.has_played_treatment(pid, t):
+				repeats.append(pid)
+				break
+	return repeats
 
 
 ## The typed group, or empty outside the group treatment. Read through this
