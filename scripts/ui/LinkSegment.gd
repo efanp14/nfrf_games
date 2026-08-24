@@ -25,6 +25,10 @@ var _heatmap_intensity: float = -1.0
 ## moves. Width says what kind of road this is, this view says how it feels now.
 var _stress_view: bool = false
 var _is_hovered: bool = false
+## Set from CityGrid when the player-routes toggle is off. The route itself is
+## still recorded in _route_players, so turning it back on redraws what was
+## already there rather than waiting for the next round to recompute it.
+var _routes_hidden: bool = false
 var _path_points: PackedVector2Array = []
 var _draw_points: PackedVector2Array = []
 var _stress_score: float = 0.5
@@ -99,17 +103,23 @@ const EDGE_BORDER    := 1.5
 ## Margins ADDED to the road's own width, not absolute widths. These are drawn
 ## behind the road, so a fixed 32/36 would disappear underneath a wide arterial.
 ##
-## ROUTE_MARGIN was 8, which left only four pixels of colour showing on each side
-## of the road. That is fine on a 1920 wide screen and close to invisible on the
-## 1280x720 laptops the game is actually run on, which is the whole reason the
-## route reads as an afterthought. At 20 it clears the road by ten pixels a side
-## and survives being scaled down.
-const ROUTE_MARGIN   := 20.0
+## ROUTE_MARGIN was 8, leaving four pixels of colour each side of the road,
+## which is close to invisible once the map is scaled down to the laptops the
+## game is run on. It went to 20 on 17 Aug to fix that, and back to 10 on
+## 24 Aug (owner request) because 20 read as heavy: the band was competing with
+## the road it sits under rather than marking it.
+##
+## Five pixels a side is thinner than the 17 Aug version but wider than the
+## original, and the flow chevrons carry the rest. Motion survives shrinking in
+## a way that a few pixels of colour does not, which is why they exist.
+const ROUTE_MARGIN   := 10.0
 const HOVER_MARGIN   := 12.0
 ## The route band gets a dark outline of its own. Without it the band relies on
 ## contrasting with whatever is behind the map, and the background art is not
 ## something this code controls.
-const ROUTE_CASING   := 5.0
+## Kept in proportion to ROUTE_MARGIN: a 5px casing around a 5px band would be
+## more outline than route.
+const ROUTE_CASING   := 3.0
 
 ## Flow arrows: chevrons that drift along the route in the direction the rider
 ## travels. They do two jobs that the band alone cannot: they say which way the
@@ -274,6 +284,15 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
+## Hides or shows this segment's route band and its flow arrows. Display only:
+## nothing about the route, the model or the logs changes.
+func set_routes_hidden(hidden: bool) -> void:
+	if _routes_hidden == hidden:
+		return
+	_routes_hidden = hidden
+	queue_redraw()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var was := _is_hovered
@@ -316,7 +335,7 @@ func _draw() -> void:
 	# a wide band behind the road, so nothing is drawn out here and the player
 	# route highlight stays hidden, keeping the two views distinct.
 	var pulse: float = sin(_anim_t * 2.0) * 2.0
-	var show_route: bool = _heatmap_intensity < 0.0 and not _route_players.is_empty()
+	var show_route: bool = not _routes_hidden 			and _heatmap_intensity < 0.0 and not _route_players.is_empty()
 	if show_route:
 		# Dark casing first, so the band separates from the background rather
 		# than relying on whatever art happens to be underneath it.

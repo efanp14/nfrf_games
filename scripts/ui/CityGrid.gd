@@ -210,9 +210,10 @@ func _build() -> void:
 		marker.setup(node_id, mtype, display_label, pidx, num_players, work_icon_key)
 		_markers[node_id] = marker
 
-	# The toggle is static and survives a scene reload, so a map built after it
-	# was switched on must come up already hiding them.
+	# The toggles are static and survive a scene reload, so a map built after
+	# either was switched on must come up already hiding what it hides.
 	_apply_resident_visibility()
+	_apply_player_route_visibility()
 
 
 func refresh_link(link_id: String) -> void:
@@ -338,6 +339,30 @@ func _on_route_updated(player_id: String, route: Dictionary) -> void:
 	# heatmap left open needs refreshing here too, not just on toggle.
 	if _view_mode == ViewMode.NPC_HEATMAP:
 		_show_npc_heatmap()
+
+
+## Hides the players' own route bands and their flow arrows.
+##
+## Separate from ViewMode, which decides what the CENTRE LINE carries and whose
+## options are mutually exclusive. This is the band drawn behind the road, it is
+## independent of all three view modes, and it is personal rather than
+## collective information, so it is available in every treatment.
+##
+## Static for the same reason hide_resident_visuals is: the legend needs to know
+## which rows to draw without holding a reference to the grid.
+static var hide_player_routes: bool = false
+
+
+## Called by main.gd, wired to GameHUD's player-routes button. Applies to the
+## segments already on the map, so it takes effect without rebuilding the grid.
+func set_player_routes_hidden(hidden: bool) -> void:
+	hide_player_routes = hidden
+	_apply_player_route_visibility()
+
+
+func _apply_player_route_visibility() -> void:
+	for seg: LinkSegment in _segments.values():
+		seg.set_routes_hidden(hide_player_routes)
 
 
 ## Called by main.gd, wired to GameHUD's resident-visuals button. Applies to

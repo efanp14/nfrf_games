@@ -87,6 +87,7 @@ func _ready() -> void:
 	game_hud.end_round_pressed.connect(_on_end_round)
 	game_hud.view_mode_changed.connect(_on_view_mode_changed)
 	game_hud.resident_visuals_toggled.connect(city_grid.set_resident_visuals_hidden)
+	game_hud.player_routes_toggled.connect(city_grid.set_player_routes_hidden)
 	upgrade_popup.upgrade_chosen.connect(_on_upgrade_chosen)
 	upgrade_popup.downgrade_requested.connect(_on_downgrade_requested)
 	upgrade_popup.cancelled.connect(upgrade_popup.hide)

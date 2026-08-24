@@ -11,6 +11,9 @@ signal view_mode_changed(mode: int)
 ## workplace markers, and the bikes they ride at round end. Display only; the
 ## residents are still simulated, still counted and still logged either way.
 signal resident_visuals_toggled(hidden: bool)
+## Hide or show the players' own route bands on the map. Display only: the
+## routes are still computed, still drive every metric and are still logged.
+signal player_routes_toggled(hidden: bool)
 
 @onready var round_label: Label         = %RoundLabel
 @onready var budget_label: Label        = %BudgetLabel
@@ -26,6 +29,7 @@ signal resident_visuals_toggled(hidden: bool)
 @onready var end_round_button: Button   = %EndRoundButton
 @onready var debug_button: Button       = %DebugButton
 @onready var resident_visuals_button: Button = %ResidentVisualsButton
+@onready var player_routes_button: Button = %PlayerRoutesButton
 @onready var map_legend: Control        = %MapLegend
 @onready var legend_button: Button      = %LegendButton
 @onready var legend_popover: PanelContainer = %LegendPopover
@@ -50,6 +54,8 @@ func _ready() -> void:
 	debug_button.pressed.connect(_on_debug_pressed)
 	resident_visuals_button.pressed.connect(_on_resident_visuals_pressed)
 	_refresh_resident_visuals_button()
+	player_routes_button.pressed.connect(_on_player_routes_pressed)
+	_refresh_player_routes_button()
 	city_view_button.pressed.connect(_on_city_view_pressed)
 	stress_view_button.pressed.connect(_on_stress_view_pressed)
 	legend_button.pressed.connect(_on_legend_pressed)
@@ -139,6 +145,28 @@ func _on_resident_visuals_pressed() -> void:
 	map_legend.refresh()
 
 
+## A participant control rather than a researcher one, so it sits with the view
+## toggles at the top of the rail. Three route bands on one map is a lot of
+## colour in the group treatment, and a player who wants to read the road under
+## their own route has no other way to see it.
+##
+## Same label convention as the resident toggle: one thing with two states, so
+## the label names the state.
+func _on_player_routes_pressed() -> void:
+	var hidden := not CityGrid.hide_player_routes
+	_refresh_player_routes_button(hidden)
+	# Emitted before the legend refresh, as with the resident toggle: the flag
+	# is set by CityGrid on the way through, and the legend reads it to decide
+	# whether to draw its route rows.
+	player_routes_toggled.emit(hidden)
+	map_legend.refresh()
+
+
+func _refresh_player_routes_button(hidden: bool = CityGrid.hide_player_routes) -> void:
+	player_routes_button.text = "Routes: Hidden" if hidden else "Routes: Shown"
+	_style_toggle(player_routes_button, hidden)
+
+
 func _refresh_resident_visuals_button(hidden: bool = CityGrid.hide_resident_visuals) -> void:
 	resident_visuals_button.text = "Residents: Hidden" if hidden else "Residents: Shown"
 	_style_toggle(resident_visuals_button, hidden)
@@ -172,6 +200,10 @@ func _apply_treatment_visibility() -> void:
 	var collective: bool = GameManager.treatment != GameManager.Treatment.INDIVIDUAL
 	city_panel.visible       = collective
 	city_view_button.visible = collective
+	# Every treatment. A player's own route is personal information, the same
+	# argument that puts the stress view in all three, so this is set here
+	# rather than left to inherit anything.
+	player_routes_button.visible = true
 
 
 func _on_round_ended(_round_num: int, results: Dictionary) -> void:
