@@ -1,7 +1,7 @@
 class_name MainMenu
 extends CanvasLayer
 
-signal game_starting(treatment: int, num_players: int, participant_ids: Array, group_id: String, chain_to_t2: bool)
+signal game_starting(treatment: int, num_players: int, participant_ids: Array, group_id: String, chain_to_t2: bool, session_kind: String)
 
 @onready var treatment_option: OptionButton = %TreatmentOption
 @onready var start_button: Button           = %StartButton
@@ -10,6 +10,13 @@ signal game_starting(treatment: int, num_players: int, participant_ids: Array, g
 
 var _player_count_row: HBoxContainer
 var _player_count_spin: SpinBox
+
+## What this session counts as: study data, a pilot, or a development test.
+## First control on the menu, above the treatment, because it decides whether
+## anything that follows is data at all. See ResearchConfig for why it defaults
+## to test.
+var _kind_option: OptionButton
+var _kind_note: Label
 
 ## One text field per participant, rebuilt whenever the player count changes.
 ## The researcher types the ID each person was assigned; it is what joins that
@@ -58,6 +65,8 @@ func _ready() -> void:
 	treatment_option.selected = 0
 	treatment_option.item_selected.connect(_on_treatment_changed)
 	start_button.pressed.connect(_on_start_pressed)
+
+	_build_session_kind_row()
 
 	_player_count_row = HBoxContainer.new()
 	_player_count_row.add_theme_constant_override("separation", 10)
@@ -113,6 +122,58 @@ func _ready() -> void:
 	# the browser rather than a path on disk.
 	data_folder_button.visible = not OS.has_feature("web")
 	_refresh_data_folder_button()
+
+
+## Sits above the treatment selector, since it decides whether this session is
+## data at all, and carries a plain-words note underneath rather than relying on
+## the researcher reading a dropdown entry back to themselves.
+func _build_session_kind_row() -> void:
+	var vbox := treatment_option.get_parent()
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var lbl := Label.new()
+	lbl.text = "Session type"
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(lbl)
+
+	_kind_option = OptionButton.new()
+	_kind_option.custom_minimum_size = Vector2(280, 0)
+	for i in range(ResearchConfig.SESSION_KINDS.size()):
+		var kind: String = ResearchConfig.SESSION_KINDS[i]
+		_kind_option.add_item(ResearchConfig.SESSION_KIND_LABELS[kind], i)
+	_kind_option.selected = ResearchConfig.SESSION_KINDS.find(
+			ResearchConfig.DEFAULT_SESSION_KIND)
+	_kind_option.item_selected.connect(func(_i): _refresh_kind_note())
+	row.add_child(_kind_option)
+
+	vbox.add_child(row)
+	vbox.move_child(row, treatment_option.get_index())
+
+	_kind_note = Label.new()
+	_kind_note.add_theme_font_size_override("font_size", 12)
+	_kind_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(_kind_note)
+	vbox.move_child(_kind_note, row.get_index() + 1)
+	_refresh_kind_note()
+
+
+## Study sessions are stated in the emphasis colour and the other two in the
+## muted one, so "this is being recorded as real data" is the line that catches
+## the eye rather than one of three similar sentences.
+func _refresh_kind_note() -> void:
+	var kind := selected_session_kind()
+	_kind_note.text = ResearchConfig.SESSION_KIND_NOTES[kind]
+	_kind_note.add_theme_color_override("font_color",
+			Palette.TEXT_HEADING if ResearchConfig.is_study_session(kind)
+			else Palette.TEXT_MUTED)
+
+
+func selected_session_kind() -> String:
+	var idx := _kind_option.selected
+	if idx < 0 or idx >= ResearchConfig.SESSION_KINDS.size():
+		return ResearchConfig.DEFAULT_SESSION_KIND
+	return ResearchConfig.SESSION_KINDS[idx]
 
 
 ## Opens the folder every session is written into.
@@ -287,5 +348,5 @@ func _on_start_pressed() -> void:
 	# T1's post-survey is in, so an abandoned T1 never leaves a T2 waiting.
 	var treatment := int(GameManager.Treatment.INDIVIDUAL) if chained else selected
 	game_starting.emit(treatment, _current_player_count(),
-			_participant_ids(), _entered_group_id(), chained)
+			_participant_ids(), _entered_group_id(), chained, selected_session_kind())
 	hide()

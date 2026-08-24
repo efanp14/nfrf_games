@@ -109,6 +109,7 @@ static func rounds_columns() -> Array:
 	var cols: Array = _cols([
 		["schema_version", "Version of this column dictionary."],
 		["session_id", "One run of one treatment. NOT a person: someone playing their second treatment gets a new session ID."],
+		["session_kind", "What this session was FOR: 'study' counts as participant data, 'pilot' is a rehearsal with a real person, 'test' is a development run. Filter to study before analysing anything. Non-study sessions also carry the kind as a prefix on their folder name."],
 		["sitting_id", "One SITTING. Identical on both halves of a back-to-back T1-then-T2 sitting, and equal to session_id for a session that stood alone. Group by this to treat the paired individual treatments as one visit."],
 		["group_id", "The set of people who play the group treatment together. Asked for ONLY in that treatment, so it is blank on individual sessions in the per-session files. The aggregator fills it in from the group session naming the same participant, and marks those rows group_id_derived. Blank after that means the person never played a group session, so no group was ever recorded for them."],
 		["chained_from_session_id", "The session immediately before this one, set only on the T2 half of a back-to-back T1-then-T2 sitting. Blank means this session began on its own. Use it to separate order/fatigue effects from treatment effects."],
@@ -204,6 +205,7 @@ static func decisions_columns() -> Array:
 	var cols: Array = _cols([
 		["schema_version", "Version of this column dictionary."],
 		["session_id", "The run this action belongs to."],
+		["session_kind", "What this session was FOR: 'study' counts as participant data, 'pilot' is a rehearsal with a real person, 'test' is a development run. Filter to study before analysing anything. Non-study sessions also carry the kind as a prefix on their folder name."],
 		["sitting_id", "The sitting this action belongs to; identical across a paired T1-then-T2 visit."],
 		["group_id", "The set of people this session belongs to. Blank on individual sessions, which are not asked for a group; see the fuller note on the same column in rounds.csv."],
 		["participant_id", "Who acted. BLANK in a group session, where the group is the actor; see decision_maker_type."],
@@ -231,6 +233,7 @@ static func upgrades_columns() -> Array:
 	var cols: Array = _cols([
 		["schema_version", "Version of this column dictionary."],
 		["session_id", "The run this purchase belongs to."],
+		["session_kind", "What this session was FOR: 'study' counts as participant data, 'pilot' is a rehearsal with a real person, 'test' is a development run. Filter to study before analysing anything. Non-study sessions also carry the kind as a prefix on their folder name."],
 		["sitting_id", "The sitting this run belongs to; identical across a paired T1-then-T2 visit."],
 		["group_id", "The set of people this session belongs to. Blank on individual sessions, which are not asked for a group; see the fuller note on the same column in rounds.csv."],
 		["participant_id", "Who bought it. BLANK in a group session, and blank there means 'the group decided', not 'missing': three people share one screen and one mouse, so the game cannot know whose hand it was. Attribution inside a group session comes from the audio recording, aligned via audio_manifest.json."],
@@ -257,6 +260,7 @@ static func residents_columns() -> Array:
 	var cols: Array = _cols([
 		["schema_version", "Version of this column dictionary."],
 		["session_id", "The run this snapshot belongs to."],
+		["session_kind", "What this session was FOR: 'study' counts as participant data, 'pilot' is a rehearsal with a real person, 'test' is a development run. Filter to study before analysing anything. Non-study sessions also carry the kind as a prefix on their folder name."],
 		["sitting_id", "The sitting this run belongs to."],
 		["group_id", "The set of people this session belongs to. Blank on individual sessions, which are not asked for a group; see the fuller note on the same column in rounds.csv."],
 		["treatment", "0 = individual, 1 = individual plus city metrics, 2 = group discussion."],
@@ -292,6 +296,7 @@ static func surveys_columns() -> Array:
 	var cols: Array = _cols([
 		["schema_version", "Version of this column dictionary."],
 		["session_id", "The run these answers were given in."],
+		["session_kind", "What this session was FOR: 'study' counts as participant data, 'pilot' is a rehearsal with a real person, 'test' is a development run. Filter to study before analysing anything. Non-study sessions also carry the kind as a prefix on their folder name."],
 		["group_id", "The set of people this session belongs to. Blank on individual sessions, which are not asked for a group; see the fuller note on the same column in rounds.csv."],
 		["participant_id", "Who answered. The join key across all of their sessions."],
 		["player_num", "Seat number within this session, 1-based."],
@@ -350,6 +355,7 @@ static func network_links_columns() -> Array:
 	var cols: Array = _cols([
 		["schema_version", "Version of this column dictionary."],
 		["session_id", "The run this network belongs to. The network is a fixed authored list, so this is identical across sessions of the same build; compare network_signature in parameters.json to confirm two sessions share a board."],
+		["session_kind", "What this session was FOR: 'study' counts as participant data, 'pilot' is a rehearsal with a real person, 'test' is a development run. Filter to study before analysing anything. Non-study sessions also carry the kind as a prefix on their folder name."],
 		["link_id", "Canonical undirected link ID, 'x,y-x,y' with the lower node first. This is the form every other table joins on."],
 		["from_node", "One endpoint, as 'x,y'. Direction is not meaningful: the link is undirected and stored once here."],
 		["to_node", "The other endpoint, as 'x,y'."],
@@ -376,6 +382,7 @@ static func network_nodes_columns() -> Array:
 	var cols: Array = _cols([
 		["schema_version", "Version of this column dictionary."],
 		["session_id", "The run this network belongs to."],
+		["session_kind", "What this session was FOR: 'study' counts as participant data, 'pilot' is a rehearsal with a real person, 'test' is a development run. Filter to study before analysing anything. Non-study sessions also carry the kind as a prefix on their folder name."],
 		["node_id", "Junction ID as 'x,y'. Joins against home_node and work_node in rounds.csv, and against the endpoints in network_links.csv."],
 		["name", "Fictional place name shown to participants. Invented deliberately: real street names would let local knowledge bias where people invest."],
 		["map_label", "Short label drawn on the map, empty when the node is drawn unlabelled."],

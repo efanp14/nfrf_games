@@ -65,7 +65,16 @@ Standard library only, so no `pip install` is needed. Options:
 --out DIR         where to write the results (defaults to ../aggregated)
 --no-residents    skip all_residents.csv, much the largest output
 --wide-all        put every round column in participants_wide.csv
+--kind LIST       which sessions to include: all (default), or a comma
+                  separated list of study, pilot, test, unmarked
 ```
+
+**Use `--kind study` before analysing anything.** Development runs, playtests
+and rehearsals write session folders that look exactly like participant data.
+Every session now records what it was for, and the report opens with the
+breakdown, so a corpus that mixes them says so instead of quietly averaging
+them together. Folders written before the marker existed report `unmarked`;
+treat those as development runs unless you know otherwise.
 
 It produces:
 
@@ -83,8 +92,10 @@ It produces:
 
 ## Read the report
 
-It flags four things that are easy to miss and expensive to discover later:
+It flags five things that are easy to miss and expensive to discover later:
 
+- **Session kinds**: how many study, pilot, test and unmarked sessions were
+  read. If it is not all study, the report says how to filter them out.
 - **Incomplete sessions**: no `summary.json`, meaning the session never
   reached its closing survey. Their rounds are still included; deciding whether
   to keep them is a judgement call, so the tool makes it yours.
@@ -202,6 +213,11 @@ existed and nothing could be invalidated:
 | `city_avg_time` | `city_avg_travel_time_min` | Same. |
 | `credits_spent` / `credits_remaining` | `budget_spent` / `budget_remaining` | The budget is dollars, not coins. "Credits" read as a count of something. |
 | `own_route_upgrade_share` | removed | Only ever valid for the seat holding the shared budget, so it reported "nothing spent" for the other players in a group session even in rounds where the group spent most of its money. |
+
+**Added under version 2, not a new version:** `session_kind` (24 August 2026). A new column
+changes no existing column's meaning, so folders written before and after it both read as
+schema 2 and are distinguished by whether the column is present. Its absence means the session
+was written before the marker existed, which is what the aggregator reports as `unmarked`.
 | `group_spend_on_my_route_share` | `own_route_spend_share` | The correct measure becomes the obvious name. |
 | `cumulative_own_route_upgrade_share` | `own_route_spend_share_cumulative` | Rebuilt on the correct per-seat measure, as a spend-weighted running mean. |
 | `true` / `false` | `1` / `0` | The words load as text and need recoding before they can be averaged. The survey "don't know" flags were already 1/0. |

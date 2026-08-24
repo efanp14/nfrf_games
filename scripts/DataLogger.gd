@@ -15,6 +15,16 @@ extends Node
 const SESSIONS_ROOT: String = "user://research_sessions/"
 
 var session_id: String
+
+## Study data, a rehearsal, or a development run. Pushed in by the scene layer
+## before the session identity is composed, since the folder name carries it.
+##
+## Every row this file writes is stamped with it. A single marker in one file
+## would be enough to answer "was this real", but only for someone who thought
+## to look; on every row it becomes a column any analysis can filter on without
+## knowing the marker exists.
+var session_kind: String = ResearchConfig.DEFAULT_SESSION_KIND
+
 var treatment: int
 var log_entries: Array = []
 var start_time: float
@@ -151,7 +161,13 @@ func _free_folder_name(base: String) -> String:
 ## written in the room. Timestamps INSIDE the files stay UTC, the audio manifest
 ## included; only this label is local.
 func _compose_session_id() -> String:
-	var parts := PackedStringArray(["T%d" % (treatment + 1)])
+	var parts := PackedStringArray()
+	# A non-study session says so in its own folder name, so it can be spotted
+	# in a file listing without opening anything. Study sessions carry no
+	# prefix: they are the normal case and the name is already long.
+	if not ResearchConfig.is_study_session(session_kind):
+		parts.append(session_kind.to_upper())
+	parts.append("T%d" % (treatment + 1))
 	var who := _joined_participant_ids()
 	if not who.is_empty():
 		parts.append(who)
@@ -312,6 +328,7 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 	resident_rows.append({
 		"schema_version": LogSchema.SCHEMA_VERSION,
 		"session_id": session_id,
+		"session_kind": session_kind,
 		"sitting_id": sitting_id(),
 		"group_id":   group_id,
 		"treatment":  treatment,
@@ -327,6 +344,7 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 		# break every existing reader (guardrail 6). Additive only.
 		"schema_version":         LogSchema.SCHEMA_VERSION,
 		"session_id":             session_id,
+		"session_kind":           session_kind,
 		# The same on both halves of a chained T1-into-T2 sitting.
 		"sitting_id":             sitting_id(),
 		"group_id":               group_id,
@@ -475,6 +493,7 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 func on_game_over(final_results: Dictionary) -> void:
 	var summary: Dictionary = {
 		"session_id":       session_id,
+		"session_kind":     session_kind,
 		# Carried here as well as on every other row kind. The value is
 		# recoverable by joining a FINAL row back to a round row on session_id,
 		# but a reader gathering the FINAL rows of several sessions and grouping
@@ -509,6 +528,7 @@ func on_game_over(final_results: Dictionary) -> void:
 func on_consent_external() -> void:
 	log_entries.append({
 		"session_id": session_id,
+		"session_kind": session_kind,
 		"group_id":   group_id,
 		"treatment":  treatment,
 		"round":      "CONSENT",
@@ -524,6 +544,7 @@ func on_pre_survey_completed(player_num: int, responses: Dictionary, alpha: floa
 	var idx: int = player_num - 1
 	log_entries.append({
 		"session_id": session_id,
+		"session_kind": session_kind,
 		"group_id":   group_id,
 		"participant_id": participant_id,
 		# Which treatment in the fixed order this is for this person: 1 for
@@ -564,6 +585,7 @@ func on_pre_survey_completed(player_num: int, responses: Dictionary, alpha: floa
 func on_post_survey_completed(player_num: int, _total_players: int, participant_id: String, responses: Dictionary) -> void:
 	log_entries.append({
 		"session_id": session_id,
+		"session_kind": session_kind,
 		"group_id":   group_id,
 		"participant_id": participant_id,
 		"treatment":  treatment,
@@ -643,6 +665,7 @@ func _build_session_summary() -> Dictionary:
 	return {
 		"schema_version":        LogSchema.SCHEMA_VERSION,
 		"session_id":            session_id,
+		"session_kind":          session_kind,
 		"sitting_id":            sitting_id(),
 		"group_id":              group_id,
 		"chained_from_session_id": _chained_from_or_null(),
@@ -828,6 +851,7 @@ func _rounds_rows(parts: Dictionary) -> Array:
 			var row: Dictionary = {
 				"schema_version": LogSchema.SCHEMA_VERSION,
 				"session_id":     entry.get("session_id"),
+				"session_kind":   session_kind,
 				"sitting_id":     entry.get("sitting_id"),
 				"group_id":       entry.get("group_id"),
 				"chained_from_session_id": entry.get("chained_from_session_id"),
@@ -981,6 +1005,7 @@ func _upgrade_row(entry: Dictionary, buyer: Variant, action: String, link: Varia
 	return {
 		"schema_version": LogSchema.SCHEMA_VERSION,
 		"session_id":     entry.get("session_id"),
+		"session_kind":   session_kind,
 		"sitting_id":     entry.get("sitting_id"),
 		"group_id":       entry.get("group_id"),
 		"participant_id": buyer,
@@ -1050,6 +1075,7 @@ func _decisions_rows(parts: Dictionary) -> Array:
 			rows.append({
 				"schema_version": LogSchema.SCHEMA_VERSION,
 				"session_id":     entry.get("session_id"),
+				"session_kind":   session_kind,
 				"sitting_id":     entry.get("sitting_id"),
 				"group_id":       entry.get("group_id"),
 				"participant_id": null if group_mode else entry.get("participant_id"),
@@ -1090,6 +1116,7 @@ func _surveys_rows(parts: Dictionary) -> Array:
 		var row: Dictionary = by_player.get(num, {})
 		row["schema_version"] = LogSchema.SCHEMA_VERSION
 		row["session_id"]     = e.get("session_id")
+		row["session_kind"]   = session_kind
 		row["group_id"]       = e.get("group_id")
 		row["participant_id"] = e.get("participant_id")
 		row["player_num"]     = num
@@ -1111,6 +1138,7 @@ func _surveys_rows(parts: Dictionary) -> Array:
 		var row: Dictionary = by_player.get(num, {
 			"schema_version": LogSchema.SCHEMA_VERSION,
 			"session_id": e.get("session_id"),
+			"session_kind": session_kind,
 			"group_id": e.get("group_id"),
 			"participant_id": e.get("participant_id"),
 			"player_num": num,
@@ -1165,6 +1193,7 @@ func _residents_rows() -> Array:
 				rows.append({
 					"schema_version": LogSchema.SCHEMA_VERSION,
 					"session_id": block.get("session_id"),
+					"session_kind": session_kind,
 					"sitting_id": block.get("sitting_id"),
 					"group_id":   block.get("group_id"),
 					"treatment":  block.get("treatment"),
@@ -1193,6 +1222,7 @@ func _network_rows(key: String) -> Array:
 		var row: Dictionary = entry.duplicate()
 		row["schema_version"] = LogSchema.SCHEMA_VERSION
 		row["session_id"]     = session_id
+		row["session_kind"]   = session_kind
 		rows.append(row)
 	return rows
 
@@ -1202,6 +1232,7 @@ func _write_parameters() -> void:
 	var params: Dictionary = game_parameters.duplicate()
 	params["schema_version"] = LogSchema.SCHEMA_VERSION
 	params["session_id"]     = session_id
+	params["session_kind"]   = session_kind
 	params["group_id"]       = group_id
 	params["treatment"]      = treatment
 	params["treatment_label"] = LogSchema.treatment_label(treatment)
@@ -1343,6 +1374,7 @@ func _write_audio_manifest() -> void:
 
 	var manifest: Dictionary = {
 		"session_id":          session_id,
+		"session_kind":        session_kind,
 		"group_id":            group_id,
 		"treatment":           treatment,
 		"participant_ids":     participant_ids,

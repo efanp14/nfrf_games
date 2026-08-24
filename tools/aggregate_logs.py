@@ -82,6 +82,31 @@ def read_csv(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
+SESSION_KINDS = ("study", "pilot", "test")
+UNMARKED = "unmarked"
+
+
+def session_kind_for(folder: Path) -> str:
+    """What a session folder says it was for.
+
+    Read from parameters.json first, since that is written at session start and
+    survives a run that never finished, then from any row that carries it.
+    Folders written before the marker existed report "unmarked" rather than
+    being guessed at: an unmarked session is not evidence of a real one.
+    """
+    params = read_json(folder / "parameters.json")
+    if isinstance(params, dict):
+        kind = str(params.get("session_kind") or "").strip()
+        if kind:
+            return kind
+    for name in ("rounds.csv", "surveys.csv"):
+        for row in read_csv(folder / name):
+            kind = str(row.get("session_kind") or "").strip()
+            if kind:
+                return kind
+    return UNMARKED
+
+
 def read_json(path: Path):
     if not path.is_file():
         return None
@@ -509,6 +534,11 @@ def main() -> int:
                         help="skip all_residents.csv, much the largest output")
     parser.add_argument("--wide-all", action="store_true",
                         help="put every round column in participants_wide.csv")
+    parser.add_argument("--kind", default="all",
+                        help="session kinds to include: all (default), or a "
+                             "comma-separated list of study, pilot, test, "
+                             "unmarked. Use --kind study to analyse only "
+                             "participant data.")
     args = parser.parse_args()
 
     sessions_dir: Path = args.sessions
@@ -531,6 +561,30 @@ def main() -> int:
         print("(looking for directories containing %s)" % ", ".join(markers),
               file=sys.stderr)
         return 1
+
+    # One folder is one session, so the kind is decided per folder and the
+    # excluded ones are never read at all.
+    kinds_by_folder = {f: session_kind_for(f) for f in folders}
+    wanted = {k.strip().lower() for k in args.kind.split(",") if k.strip()}
+    excluded: list[str] = []
+    if wanted and wanted != {"all"}:
+        unknown = wanted - set(SESSION_KINDS) - {UNMARKED}
+        if unknown:
+            print("Unknown --kind value(s): %s" % ", ".join(sorted(unknown)),
+                  file=sys.stderr)
+            print("Valid: all, %s, %s" % (", ".join(SESSION_KINDS), UNMARKED),
+                  file=sys.stderr)
+            return 1
+        kept = []
+        for f in folders:
+            if kinds_by_folder[f] in wanted:
+                kept.append(f)
+            else:
+                excluded.append("%s (%s)" % (f.name, kinds_by_folder[f]))
+        folders = kept
+        if not folders:
+            print("No sessions match --kind %s" % args.kind, file=sys.stderr)
+            return 1
 
     rounds, decisions, upgrades, surveys, summaries, residents = [], [], [], [], [], []
     report: list[str] = []
@@ -610,6 +664,27 @@ def main() -> int:
              "Written to %s" % out_dir, ""]
     for name, n in counts.items():
         lines.append("  %-24s %s" % (name, "%d rows" % n if isinstance(n, int) else n))
+    lines.append("")
+
+    # Said before anything else about the data: a corpus mixing development runs
+    # with participant sessions produces numbers that look fine and mean
+    # nothing, and until the session kind existed there was no way to tell them
+    # apart at all.
+    by_kind: dict[str, int] = {}
+    for f in folders:
+        k = kinds_by_folder[f]
+        by_kind[k] = by_kind.get(k, 0) + 1
+    lines.append("Sessions by kind: " + (", ".join(
+        "%s=%d" % (k, v) for k, v in sorted(by_kind.items())) or "none"))
+    if UNMARKED in by_kind:
+        lines.append("  unmarked sessions were written before the session kind"
+                     " existed; treat them as development runs unless you know"
+                     " otherwise.")
+    if by_kind.get("study", 0) < len(folders):
+        lines.append("  re-run with --kind study to keep only participant data.")
+    if excluded:
+        lines.append("Excluded by --kind %s:" % args.kind)
+        lines += ["  %s" % e for e in excluded]
     lines.append("")
 
     by_treatment: dict[str, int] = {}

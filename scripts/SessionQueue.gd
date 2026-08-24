@@ -30,16 +30,22 @@ static var _group_id: String = ""
 ## the same two treatments played on separate days does not, and that is a
 ## difference the analysis has to be able to see.
 static var _from_session_id: String = ""
+## Carried across the reload so the second half of a sitting is recorded as the
+## same kind of session as the first. A pilot whose T2 half came back as study
+## data would be worse than not marking it at all.
+static var _session_kind: String = ResearchConfig.DEFAULT_SESSION_KIND
 
 
 ## Queues the treatment to run immediately after the current scene reloads.
 static func queue_next(treatment: int, participant_ids: Array, group_id: String,
-		num_players: int, from_session_id: String = "") -> void:
+		num_players: int, from_session_id: String = "",
+		session_kind: String = ResearchConfig.DEFAULT_SESSION_KIND) -> void:
 	_pending = true
 	_treatment = treatment
 	_num_players = num_players
 	_group_id = group_id
 	_from_session_id = from_session_id
+	_session_kind = ResearchConfig.session_kind_or_default(session_kind)
 	_participant_ids = []
 	for id in participant_ids:
 		_participant_ids.append(str(id))
@@ -60,6 +66,7 @@ static func take() -> Dictionary:
 		"participant_ids": _participant_ids.duplicate(),
 		"group_id": _group_id,
 		"from_session_id": _from_session_id,
+		"session_kind": _session_kind,
 	}
 	clear()
 	return out
@@ -72,3 +79,4 @@ static func clear() -> void:
 	_participant_ids = []
 	_group_id = ""
 	_from_session_id = ""
+	_session_kind = ResearchConfig.DEFAULT_SESSION_KIND

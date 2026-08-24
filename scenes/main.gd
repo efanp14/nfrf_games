@@ -15,6 +15,9 @@ extends Node2D
 var _pending_upgrades: Array = []
 var _logger: DataLogger = null
 var _pending_treatment: int = 0
+## Study, pilot or test: chosen at the menu and carried into the log, so a
+## development run can be filtered out of the data afterwards.
+var _session_kind: String = ResearchConfig.DEFAULT_SESSION_KIND
 var _num_players: int = 1
 var _player_alphas: Array[float] = []
 var _player_survey_responses: Array = []
@@ -115,11 +118,16 @@ func _start_queued_treatment_if_any() -> void:
 	# chain_to_t2 false: this IS the follow-on, so it queues nothing further.
 	_on_game_starting(queued["treatment"], queued["num_players"],
 			queued["participant_ids"], queued["group_id"], false,
+			str(queued.get("session_kind", ResearchConfig.DEFAULT_SESSION_KIND)),
 			str(queued.get("from_session_id", "")))
 
 
-func _on_game_starting(treatment: int, num_players: int, participant_ids: Array, group_id: String, chain_to_t2: bool = false, from_session_id: String = "") -> void:
+func _on_game_starting(treatment: int, num_players: int, participant_ids: Array,
+		group_id: String, chain_to_t2: bool = false,
+		session_kind: String = ResearchConfig.DEFAULT_SESSION_KIND,
+		from_session_id: String = "") -> void:
 	_pending_treatment = treatment
+	_session_kind = ResearchConfig.session_kind_or_default(session_kind)
 	_chain_to_t2 = chain_to_t2
 	_chained_from_session_id = from_session_id
 	_num_players = num_players
@@ -212,6 +220,9 @@ func _on_survey_completed(alpha: float, responses: Dictionary) -> void:
 func _on_narrative_finished() -> void:
 	GameManager.start_game(_player_alphas, _pending_treatment)
 	_logger.treatment = int(GameManager.treatment)
+	# Set before the identity, which is what composes the folder name: a
+	# non-study session is named so it can be spotted without opening it.
+	_logger.session_kind = _session_kind
 	# Taken after start_game(), so the network exists and its fingerprint can be
 	# recorded along with the rest of the settings this session ran under.
 	_logger.game_parameters = GameManager.session_parameters()
@@ -321,7 +332,8 @@ func _on_post_survey_completed(player_num: int, responses: Dictionary) -> void:
 	# by participant ID, which keeps the one-row-per-session schema intact.
 	if _chain_to_t2:
 		SessionQueue.queue_next(int(GameManager.Treatment.COLLECTIVE_INFO),
-				_participant_ids, _group_id, _num_players, _logger.session_id)
+				_participant_ids, _group_id, _num_players, _logger.session_id,
+				_session_kind)
 	get_tree().reload_current_scene()
 
 
