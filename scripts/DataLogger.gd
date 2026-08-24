@@ -786,6 +786,37 @@ func _write_session_summary() -> void:
 	_verify_codebook_coverage()
 
 
+## What this session actually left on disk, read back from the folder rather
+## than assumed from what the writers were asked to do.
+##
+## Used for the confirmation the researcher sees when a session ends. Reading
+## the directory is the point: a report built from a list of intended writes
+## would say "saved" just as confidently after a failed one.
+func session_report() -> Dictionary:
+	var dir_path: String = _session_dir()
+	var files: Array = []
+	var total: int = 0
+	var dir: DirAccess = DirAccess.open(dir_path)
+	if dir != null:
+		var names: PackedStringArray = dir.get_files()
+		names.sort()
+		for name: String in names:
+			var f: FileAccess = FileAccess.open(dir_path.path_join(name), FileAccess.READ)
+			var size: int = 0
+			if f != null:
+				size = f.get_length()
+				f.close()
+			files.append({"name": name, "bytes": size})
+			total += size
+	return {
+		"session_id":   session_id,
+		"session_kind": session_kind,
+		"path":         ProjectSettings.globalize_path(dir_path),
+		"files":        files,
+		"total_bytes":  total,
+	}
+
+
 ## Warns if the folder contains a file the codebook does not describe.
 ##
 ## The codebook is generated from the column declarations, so a COLUMN cannot go

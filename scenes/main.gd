@@ -18,6 +18,9 @@ var _pending_treatment: int = 0
 ## Study, pilot or test: chosen at the menu and carried into the log, so a
 ## development run can be filtered out of the data afterwards.
 var _session_kind: String = ResearchConfig.DEFAULT_SESSION_KIND
+## Latched once the end-of-session reload is under way, so a dialog that emits
+## more than one dismissal signal cannot trigger it twice.
+var _reloading: bool = false
 var _num_players: int = 1
 var _player_alphas: Array[float] = []
 var _player_survey_responses: Array = []
@@ -335,6 +338,35 @@ func _on_post_survey_completed(player_num: int, responses: Dictionary) -> void:
 		SessionQueue.queue_next(int(GameManager.Treatment.COLLECTIVE_INFO),
 				_participant_ids, _group_id, _num_players, _logger.session_id,
 				_session_kind)
+	# Everything is on disk by now: on_post_survey_completed writes the events,
+	# the analysis tables and the summary before returning. So this is the first
+	# moment the folder can be reported honestly, and the last moment anyone is
+	# looking at this session.
+	_confirm_session_saved_then_reload()
+
+
+## Shows the researcher what the session wrote, and moves on only once they have
+## seen it.
+##
+## The reload is deferred behind the dialog rather than run alongside it: a
+## chained sitting would otherwise start the second treatment over the top of
+## the confirmation for the first, which is the case where losing the data
+## quietly would cost the most.
+func _confirm_session_saved_then_reload() -> void:
+	var dialog := SessionSavedDialog.new()
+	add_child(dialog)
+	dialog.confirmed.connect(_reload_after_confirmation)
+	dialog.canceled.connect(_reload_after_confirmation)
+	dialog.show_for(_logger.session_report())
+
+
+## Guarded because AcceptDialog can emit both confirmed and canceled for one
+## dismissal depending on how it is closed, and reloading twice would restart a
+## session that had already begun.
+func _reload_after_confirmation() -> void:
+	if _reloading:
+		return
+	_reloading = true
 	get_tree().reload_current_scene()
 
 
