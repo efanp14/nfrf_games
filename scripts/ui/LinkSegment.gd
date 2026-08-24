@@ -29,6 +29,11 @@ var _is_hovered: bool = false
 ## still recorded in _route_players, so turning it back on redraws what was
 ## already there rather than waiting for the next round to recompute it.
 var _routes_hidden: bool = false
+
+## Where the finger landed, and whether that landing was a candidate for a tap
+## on this road. Touch only; see _handle_touch_press().
+var _press_position: Vector2 = Vector2.ZERO
+var _press_valid: bool = false
 var _path_points: PackedVector2Array = []
 var _draw_points: PackedVector2Array = []
 var _stress_score: float = 0.5
@@ -141,7 +146,32 @@ const CENTER_DASH_LEN := 11.0
 const CENTER_DASH_GAP := 8.0
 const BIKE_PAINT_W   := 4.0
 const DIVIDER_W      := 1.5
-const HIT_RADIUS     := 18.0
+## Hit target for a mouse, in the map's own units, unchanged since the desktop
+## build was tuned.
+const HIT_RADIUS       := 18.0
+
+## Hit target for a finger, in SCREEN pixels, converted to map units at use.
+##
+## Two differences from the mouse value, both deliberate. It is larger because a
+## fingertip needs about 9mm, which on a 1920-wide 11-inch tablet is roughly 36
+## screen pixels against a road drawn 24 wide. And it is measured on SCREEN
+## rather than on the map, because the hit test runs in coordinates that shrink
+## with the zoom, which would otherwise make the target smallest exactly when
+## the roads are already hardest to hit.
+##
+## The mouse deliberately keeps the old fixed-in-map-units behaviour. Making it
+## screen-relative too would be defensible, but it would change the feel of a
+## build that is already being played, to fix a problem only touch has.
+const HIT_RADIUS_TOUCH := 36.0
+
+## Ceiling on how far the touch target may grow once converted to map units.
+## Zoomed right out, an unbounded radius would reach across to the next street
+## and the wrong road would answer.
+const HIT_RADIUS_MAX_SCALED := 3.0
+
+## How far a finger may travel between landing and lifting and still count as a
+## tap rather than a drag, in screen pixels.
+const TAP_SLOP_PX := 24.0
 const NODE_RADIUS    := 6.5   # roads extend to this depth inside the node circle (28.0 radius, NodeMarker.RADII.NORMAL) so ends are hidden
 
 const BARRIER_SPACE  := 10.0
@@ -308,12 +338,42 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and _is_mouse_near():
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if _touch_input():
+			_handle_touch_press(mb)
+			return
+		if mb.pressed and _is_mouse_near():
 			# Clicking a road opens the upgrade popup, so this is an ordinary
 			# click. The upgrade sound belongs to the buttons inside that popup.
 			Audio.play_click()
 			clicked.emit(link_id)
 			get_viewport().set_input_as_handled()
+
+
+## On a touch screen a road opens on the finger LIFTING, not landing.
+##
+## Godot emulates the mouse from the first finger, so acting on the press meant
+## that starting a pinch, or beginning to drag the map, opened the upgrade popup
+## for whichever road happened to be under that first finger. Waiting for the
+## lift gives two things to check that a press cannot: whether the finger stayed
+## put, and whether a second finger arrived in the meantime.
+func _handle_touch_press(mb: InputEventMouseButton) -> void:
+	if mb.pressed:
+		_press_position = mb.position
+		_press_valid = _is_mouse_near() and not MapGestures.is_active()
+		return
+	var was_valid := _press_valid
+	_press_valid = false
+	if not was_valid or MapGestures.is_active():
+		return
+	if mb.position.distance_to(_press_position) > TAP_SLOP_PX:
+		return
+	if not _is_mouse_near():
+		return
+	Audio.play_click()
+	clicked.emit(link_id)
+	get_viewport().set_input_as_handled()
 
 
 # =======================================================================
@@ -648,7 +708,25 @@ func _draw_car(center: Vector2, angle: float, color_index: int = 0) -> void:
 ## would not be clickable. Track the drawn width, never shrinking below the
 ## original radius on a narrow road.
 func _hit_radius() -> float:
-	return maxf(HIT_RADIUS, _road_width / 2.0)
+	# A wide arterial is drawn past the target, so its visible edge would not be
+	# clickable; neither branch may shrink below half the drawn width.
+	var floor_px: float = _road_width / 2.0
+	if not _touch_input():
+		return maxf(HIT_RADIUS, floor_px)
+	# Into map units, so the target keeps its size on screen at any zoom.
+	var map_scale: float = maxf(global_scale.x, 0.001)
+	var scaled: float = minf(HIT_RADIUS_TOUCH / map_scale,
+			HIT_RADIUS_TOUCH * HIT_RADIUS_MAX_SCALED)
+	return maxf(scaled, floor_px)
+
+
+## Cached: DisplayServer is asked once per run, not once per hit test, and the
+## answer cannot change while the game is open.
+static var _is_touch: int = -1
+static func _touch_input() -> bool:
+	if _is_touch < 0:
+		_is_touch = 1 if DisplayServer.is_touchscreen_available() else 0
+	return _is_touch == 1
 
 
 func _is_mouse_near() -> bool:

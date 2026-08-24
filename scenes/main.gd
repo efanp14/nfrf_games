@@ -21,6 +21,16 @@ var _session_kind: String = ResearchConfig.DEFAULT_SESSION_KIND
 ## Latched once the end-of-session reload is under way, so a dialog that emits
 ## more than one dismissal signal cannot trigger it twice.
 var _reloading: bool = false
+
+## Fingers currently down, by touch index, for the two-finger map gestures.
+var _touch_points: Dictionary = {}
+var _pinch_distance: float = 0.0
+var _pinch_midpoint: Vector2 = Vector2.ZERO
+var _pinch_zoom: float = 1.0
+## How long roads stay deaf to taps after a gesture touches them. Long enough
+## to cover two fingers lifting a moment apart, short enough that a deliberate
+## tap straight after a pinch still lands.
+const GESTURE_LOCKOUT_MS: int = 220
 var _num_players: int = 1
 var _player_alphas: Array[float] = []
 var _player_survey_responses: Array = []
@@ -87,7 +97,28 @@ func _enter_tree() -> void:
 	GameManager.game_over.connect(_logger.on_game_over)
 
 
+## Two things a tablet does by default that would end a session.
+##
+## A tablet dims and sleeps on its own, and a round can sit untouched for
+## minutes while a group argues about it. Keeping the screen on for the whole
+## app rather than only during play, because a researcher setting up at the menu
+## should not have it go dark either.
+##
+## The back gesture quits a Godot app outright. Mid-session that ends the
+## session, and on a touch screen it is a swipe from the edge, which is to say
+## an accident waiting to happen with three people reaching across one tablet.
+## Turning off quit-on-back makes the gesture do nothing at all; there is no
+## screen in this game that a participant should be navigating backwards out of.
+##
+## Both are no-ops on desktop, so this runs unconditionally rather than behind a
+## platform check that would go stale.
+func _configure_for_device() -> void:
+	DisplayServer.screen_set_keep_on(true)
+	get_tree().set_quit_on_go_back(false)
+
+
 func _ready() -> void:
+	_configure_for_device()
 	get_tree().root.size_changed.connect(_on_viewport_resized)
 	city_grid.link_clicked.connect(_on_link_clicked)
 	game_hud.end_round_pressed.connect(_on_end_round)
@@ -473,6 +504,8 @@ func _zoom_at(new_zoom: float, focus: Vector2) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not GameManager.game_running:
 		return
+	if _handle_touch(event):
+		return
 	var mb := event as InputEventMouseButton
 	if mb == null or not mb.pressed:
 		return
@@ -484,6 +517,81 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 		_zoom_at(_zoom_level / ZOOM_STEP, mb.position)
 		get_viewport().set_input_as_handled()
+
+
+## Two-finger pinch to zoom and two-finger drag to pan.
+##
+## Returns true when the event was a touch the map has taken responsibility for.
+##
+## One finger is deliberately left alone: it selects a road, which is the game's
+## only action, and a map where a stray finger slides the city under you while
+## you are trying to press a street is worse than one that cannot be panned.
+## Two fingers is the gesture nobody performs by accident.
+##
+## Android sends no magnify gesture, so the pinch is measured by hand from the
+## two touch points. Zoom is anchored to the midpoint between the fingers, the
+## same way the mouse wheel anchors to the pointer, so the city grows out of
+## the place being pinched rather than out of the middle of the screen.
+func _handle_touch(event: InputEvent) -> bool:
+	var touch := event as InputEventScreenTouch
+	if touch != null:
+		if touch.pressed:
+			_touch_points[touch.index] = touch.position
+		else:
+			_touch_points.erase(touch.index)
+		if _touch_points.size() >= 2:
+			_begin_pinch()
+		elif _touch_points.size() < 2:
+			_pinch_distance = 0.0
+			# Held briefly after the fingers leave, because they lift a few
+			# milliseconds apart and the last one would otherwise register as a
+			# tap on whatever road it happened to be over.
+			if not touch.pressed:
+				MapGestures.lock(GESTURE_LOCKOUT_MS)
+		return _touch_points.size() >= 2
+
+	var drag := event as InputEventScreenDrag
+	if drag == null:
+		return false
+	if not _touch_points.has(drag.index):
+		return false
+	_touch_points[drag.index] = drag.position
+	if _touch_points.size() < 2:
+		return false
+
+	var keys: Array = _touch_points.keys()
+	keys.sort()
+	var a: Vector2 = _touch_points[keys[0]]
+	var b: Vector2 = _touch_points[keys[1]]
+	var midpoint: Vector2 = (a + b) * 0.5
+	var distance: float = a.distance_to(b)
+
+	if _pinch_distance > 0.0 and distance > 0.0:
+		# Pan first, then zoom about the new midpoint, so a gesture that both
+		# spreads and slides does both rather than fighting itself.
+		var pan: Vector2 = midpoint - _pinch_midpoint
+		if pan.length_squared() > 0.0:
+			city_grid.position = _clamped_position(city_grid.position + pan,
+					city_grid.scale.x)
+		_zoom_at(_pinch_zoom * (distance / _pinch_distance), midpoint)
+
+	_pinch_midpoint = midpoint
+	MapGestures.lock(GESTURE_LOCKOUT_MS)
+	get_viewport().set_input_as_handled()
+	return true
+
+
+## Records where a pinch started, so the zoom is measured against the moment the
+## second finger landed rather than accumulating rounding drift frame by frame.
+func _begin_pinch() -> void:
+	var keys: Array = _touch_points.keys()
+	keys.sort()
+	var a: Vector2 = _touch_points[keys[0]]
+	var b: Vector2 = _touch_points[keys[1]]
+	_pinch_distance = maxf(a.distance_to(b), 1.0)
+	_pinch_midpoint = (a + b) * 0.5
+	_pinch_zoom = _zoom_level
+	MapGestures.lock(GESTURE_LOCKOUT_MS)
 
 
 func _on_viewport_resized() -> void:
