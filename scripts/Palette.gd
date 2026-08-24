@@ -144,7 +144,14 @@ const ROAD_FILL         := Color("#3E3D42")
 const ROAD_EDGE         := Color("#18171B")
 const YELLOW_CENTER     := Color(0.95, 0.78, 0.18)
 const WHITE_MARKING     := Color(0.95, 0.95, 0.90)
-const BIKE_PAINT        := Color(0.18, 0.66, 0.34)
+## Darkened from #2EA857 on 24 Aug 2026, owner request. Green stays the painted
+## lane's colour throughout (the legend swatch reads this same constant), so
+## nothing that encodes a quantity moved; this is the same cue in a deeper
+## shade. Note it sits against ROAD_FILL, which is dark, so darkening the paint
+## lowers its contrast with the road rather than raising it. If it reads worse
+## on the map than it does here, add a light edge to the strip in LinkSegment
+## rather than reverting the colour.
+const BIKE_PAINT        := Color("#1B7A3C")
 const PROTECTED_ASPHALT := Color("#A79C87")
 const HOVER_GLOW        := Color(0.95, 0.75, 0.25, 0.45)
 
