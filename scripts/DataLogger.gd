@@ -213,6 +213,37 @@ func set_participant_identity(ids: Array, entered_group_id: String, ordinals: Ar
 	_adopt_session_id(_compose_session_id())
 
 
+## Creates the session folder and writes what is already known into it, at the
+## moment the first round begins.
+##
+## Call this once the participants and the treatment are settled, so the folder
+## carries its final readable name. Nothing used to touch disk until the session
+## was over, which meant a crash, a Windows update or an impatient Alt-F4 at
+## round 2 of 3 left no trace that a person had ever sat down: no partial file,
+## no folder, nothing but forty minutes of their time. A session now announces
+## itself on disk before it can be lost, and an abandoned one leaves a folder
+## holding the settings it ran under and every round it managed to complete.
+func begin_session() -> void:
+	_ensure_session_identity()
+	DirAccess.make_dir_recursive_absolute(_session_dir())
+	_write_parameters()
+	_write_to_disk()
+
+
+## Flushes on the way out of a window close, which is otherwise the one ending
+## that skips every write.
+##
+## Godot delivers this notification to the whole tree and quits afterwards, and
+## this handler is synchronous, so the write completes before the process goes.
+## The quit is deliberately NOT intercepted: holding it open to save would risk
+## a researcher meeting a window that will not close, and losing the last
+## unwritten round is a smaller harm than that.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if not log_entries.is_empty():
+			_write_to_disk()
+
+
 ## Switches to the final session ID, carrying the change into anything already
 ## recorded under the provisional one.
 ##
@@ -432,12 +463,24 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 		"city_metrics_shown":     results.get("city_metrics_shown", null),
 	}
 	log_entries.append(entry)
+	# Round rows reach disk as they are produced, not at the end of the session.
+	# This handler is connected ahead of the round-end animation (main.gd), and
+	# Godot dispatches to listeners synchronously in connection order, so the
+	# write lands in the pause between End Round being clicked and the first bike
+	# moving rather than during the animation.
+	_write_to_disk()
 
 
 ## Connect this to GameManager.game_over
 func on_game_over(final_results: Dictionary) -> void:
 	var summary: Dictionary = {
 		"session_id":       session_id,
+		# Carried here as well as on every other row kind. The value is
+		# recoverable by joining a FINAL row back to a round row on session_id,
+		# but a reader gathering the FINAL rows of several sessions and grouping
+		# them by sitting should not have to perform that join to do it.
+		"sitting_id":       sitting_id(),
+		"chained_from_session_id": _chained_from_or_null(),
 		"group_id":         group_id,
 		"participant_id":   (participant_ids[0] as Variant) if participant_ids.size() > 0 else null,
 		"treatment":        treatment,
@@ -508,9 +551,17 @@ func on_pre_survey_completed(player_num: int, responses: Dictionary, alpha: floa
 
 
 ## Connect this to PostSurvey.survey_completed. Called once per player in the
-## session (T3 groups complete one each); only the last player's call
-## triggers the file write, since that's when the session is truly done.
-func on_post_survey_completed(player_num: int, total_players: int, participant_id: String, responses: Dictionary) -> void:
+## session (T3 groups complete one each).
+##
+## Every call writes, rather than only the last one. The write used to be
+## conditional on `player_num >= total_players`, which is when the session is
+## truly complete — but in a group session that makes the first two people's
+## answers hostage to the third finishing theirs. Someone leaving early meant
+## their groupmates' completed surveys, and the entire analysis-table set, were
+## never written at all. The tables are rebuilt from scratch each time, so
+## writing three times in a group session costs a little work and ends at
+## exactly the same content as writing once.
+func on_post_survey_completed(player_num: int, _total_players: int, participant_id: String, responses: Dictionary) -> void:
 	log_entries.append({
 		"session_id": session_id,
 		"group_id":   group_id,
@@ -520,9 +571,8 @@ func on_post_survey_completed(player_num: int, total_players: int, participant_i
 		"player_num": player_num,
 		"responses":  responses,
 	})
-	if player_num >= total_players:
-		_write_to_disk()
-		_write_session_summary()
+	_write_to_disk()
+	_write_session_summary()
 
 
 ## Rolls up the per-round/pre-survey/post-survey/final entries already in
@@ -646,35 +696,26 @@ func _write_session_summary() -> void:
 	_write_analysis_tables()
 
 	var json_path: String = _session_dir() + "summary.json"
-	var json_file: FileAccess = FileAccess.open(json_path, FileAccess.WRITE)
-	if json_file:
-		json_file.store_string(JSON.stringify(summary, "\t"))
-		json_file.close()
-	else:
-		push_error("[DataLogger] Could not write session summary to %s" % json_path)
-		return
+	var wrote_json: bool = _store_atomic(json_path, JSON.stringify(summary, "\t"))
 
 	# CSV alongside the JSON — one header row + one data row, so a
 	# researcher can drop it straight into a spreadsheet without parsing
 	# JSON. Nested values (e.g. post_survey_responses) are JSON-encoded
 	# into a single quoted cell so the row still parses as one line.
-	var csv_path: String = _session_dir() + "summary.csv"
-	var csv_file: FileAccess = FileAccess.open(csv_path, FileAccess.WRITE)
-	if csv_file:
-		var header: PackedStringArray = []
-		var values: PackedStringArray = []
-		for key in summary.keys():
-			header.append(str(key))
-			values.append(_csv_cell(summary[key]))
-		csv_file.store_line(",".join(header))
-		csv_file.store_line(",".join(values))
-		csv_file.close()
+	var header: PackedStringArray = []
+	var values: PackedStringArray = []
+	for key in summary.keys():
+		header.append(str(key))
+		values.append(_csv_cell(summary[key]))
+	var wrote_csv: bool = _store_lines_atomic(_session_dir() + "summary.csv",
+			PackedStringArray([",".join(header), ",".join(values)]))
+	if wrote_json and wrote_csv:
 		print("[DataLogger] Session summary saved to %s and .csv" % json_path)
-	else:
-		push_error("[DataLogger] Could not write session summary to %s" % csv_path)
 
 	# Last, because it reads the finished folder: everything this session emits
-	# must exist by now for the check to see it.
+	# must exist by now for the check to see it. It runs even when a write
+	# above failed, since a half-written folder is exactly the case worth
+	# hearing about; a failed summary write used to return early and skip it.
 	_verify_codebook_coverage()
 
 
@@ -737,15 +778,10 @@ func _write_analysis_tables() -> void:
 ## rows: a headerless empty file breaks concatenation across sessions, while an
 ## empty table with a header simply contributes nothing.
 func _write_table(filename: String, columns: Array, rows: Array) -> void:
-	var path: String = _session_dir() + filename
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
-		push_error("[DataLogger] Could not write %s" % path)
-		return
-	file.store_line(",".join(LogSchema.header_for(columns)))
+	var lines := PackedStringArray([",".join(LogSchema.header_for(columns))])
 	for row: Dictionary in rows:
-		file.store_line(LogSchema.csv_row(LogSchema.row_values(columns, row)))
-	file.close()
+		lines.append(LogSchema.csv_row(LogSchema.row_values(columns, row)))
+	_store_lines_atomic(_session_dir() + filename, lines)
 
 
 ## One row per participant per round: three rows for a solo session, three per
@@ -1170,13 +1206,7 @@ func _write_parameters() -> void:
 	params["treatment"]      = treatment
 	params["treatment_label"] = LogSchema.treatment_label(treatment)
 	params["chained_from_session_id"] = _chained_from_or_null()
-	var path: String = _session_dir() + "parameters.json"
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(params, "\t"))
-		file.close()
-	else:
-		push_error("[DataLogger] Could not write %s" % path)
+	_store_atomic(_session_dir() + "parameters.json", JSON.stringify(params, "\t"))
 
 
 ## Value in the codebook's `column` field for a row describing a whole file
@@ -1189,12 +1219,7 @@ const WHOLE_FILE: String = "(whole file)"
 ## anything else. Generated from the same declarations the writers use, so a
 ## column can never appear here with a stale description or go undescribed.
 func _write_codebook() -> void:
-	var path: String = _session_dir() + "codebook.csv"
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
-		push_error("[DataLogger] Could not write %s" % path)
-		return
-	file.store_line("file,column,description")
+	var lines := PackedStringArray(["file,column,description"])
 
 	# What each file IS, before what each column means. The codebook used to
 	# describe five CSVs and say nothing about the JSON beside them, so a folder
@@ -1204,16 +1229,16 @@ func _write_codebook() -> void:
 	var filenames: Array = notes.keys()
 	filenames.sort()
 	for filename: String in filenames:
-		file.store_line(LogSchema.csv_row([filename, WHOLE_FILE, notes[filename]]))
+		lines.append(LogSchema.csv_row([filename, WHOLE_FILE, notes[filename]]))
 
 	var tables: Dictionary = LogSchema.all_tables()
 	var names: Array = tables.keys()
 	names.sort()
 	for table_name: String in names:
 		for c: Dictionary in tables[table_name]:
-			file.store_line(LogSchema.csv_row(
+			lines.append(LogSchema.csv_row(
 					["%s.csv" % table_name, c["col"], c["desc"]]))
-	file.close()
+	_store_lines_atomic(_session_dir() + "codebook.csv", lines)
 
 
 ## Delegated so every CSV this file writes renders values the same way. The
@@ -1224,16 +1249,51 @@ func _csv_cell(value: Variant) -> String:
 	return LogSchema.csv_cell(value)
 
 
+## Writes `text` to `path` by way of a neighbouring .part file, which is then
+## renamed over the target.
+##
+## Every file here is truncated and rewritten in full on each write, so a
+## failure part way through (a full disk, a permission, the process going away)
+## destroyed the good copy that was already there in order to produce a broken
+## one. That was a small risk while a session wrote once at the end. It is a
+## much larger one now that a session rewrites its files every round.
+##
+## Not atomic in the strict sense on Windows, where a rename removes the
+## existing target first and leaves a moment in which neither file is in place.
+## It is still far narrower than the serialize-and-write it replaces, and a
+## failure now leaves BOTH the previous copy and the .part file rather than
+## neither. A stray .part is reported by _verify_codebook_coverage() as a file
+## the codebook does not describe, which is the right complaint to make about
+## it: it means a write did not finish.
+func _store_atomic(path: String, text: String) -> bool:
+	var part: String = path + ".part"
+	var file: FileAccess = FileAccess.open(part, FileAccess.WRITE)
+	if file == null:
+		push_error("[DataLogger] Could not open %s: %s"
+				% [part, error_string(FileAccess.get_open_error())])
+		return false
+	file.store_string(text)
+	file.close()
+	var err: int = DirAccess.rename_absolute(part, path)
+	if err != OK:
+		push_error("[DataLogger] Could not replace %s: %s. The new copy is at %s."
+				% [path, error_string(err), part])
+		return false
+	return true
+
+
+## Same, for the line-oriented files. The trailing newline is deliberate: a CSV
+## whose last row has no line ending is read as truncated by some tools and run
+## onto the next file's first row by others.
+func _store_lines_atomic(path: String, lines: PackedStringArray) -> bool:
+	return _store_atomic(path, "\n".join(lines) + "\n")
+
+
 func _write_to_disk() -> void:
 	var path: String = _session_dir() + "events.json"
 	DirAccess.make_dir_recursive_absolute(_session_dir())
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(log_entries, "\t"))
-		file.close()
+	if _store_atomic(path, JSON.stringify(log_entries, "\t")):
 		print("[DataLogger] Session saved to %s" % path)
-	else:
-		push_error("[DataLogger] Could not write to %s" % path)
 	_write_residents()
 	_write_audio_manifest()
 
@@ -1300,13 +1360,8 @@ func _write_audio_manifest() -> void:
 	}
 
 	var path: String = _session_dir() + "audio_manifest.json"
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(manifest, "\t"))
-		file.close()
+	if _store_atomic(path, JSON.stringify(manifest, "\t")):
 		print("[DataLogger] Audio manifest saved to %s" % path)
-	else:
-		push_error("[DataLogger] Could not write to %s" % path)
 
 
 static func _iso_utc(unix_s: Variant) -> Variant:
@@ -1322,10 +1377,5 @@ func _write_residents() -> void:
 	if resident_rows.is_empty():
 		return
 	var path: String = _session_dir() + "residents.json"
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(resident_rows, "\t"))
-		file.close()
+	if _store_atomic(path, JSON.stringify(resident_rows, "\t")):
 		print("[DataLogger] Resident detail saved to %s" % path)
-	else:
-		push_error("[DataLogger] Could not write to %s" % path)

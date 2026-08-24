@@ -225,6 +225,10 @@ func _on_narrative_finished() -> void:
 		# a session abandoned at the menu does not consume a participant's slot
 		# in the fixed treatment order.
 		ParticipantStore.record_treatment(_participant_ids[i], int(GameManager.treatment))
+	# The session folder appears on disk here, before round 1 rather than after
+	# the closing survey, so a session that ends unexpectedly still leaves the
+	# settings it ran under and every round it completed.
+	_logger.begin_session()
 	# Every session opens on the whole city, whatever the previous one left.
 	_zoom_level = 1.0
 	_center_grid()
