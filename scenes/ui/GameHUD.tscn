@@ -189,6 +189,14 @@ size_flags_horizontal = 0
 text = "Residents: Shown"
 theme_override_font_sizes/font_size = 13
 
+[node name="MuteButton" type="Button" parent="HUDRoot/BottomLeftRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "Sound: On"
+theme_override_font_sizes/font_size = 13
+
 [node name="EndRoundButton" type="Button" parent="HUDRoot"]
 theme_type_variation = &"PillButtonPrimary"
 unique_name_in_owner = true

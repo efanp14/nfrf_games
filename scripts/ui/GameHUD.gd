@@ -14,6 +14,12 @@ signal resident_visuals_toggled(hidden: bool)
 ## Hide or show the players' own route bands on the map. Display only: the
 ## routes are still computed, still drive every metric and are still logged.
 signal player_routes_toggled(hidden: bool)
+## The researcher controls, emitted so the log can record what was on screen.
+## One signal carrying which control moved, rather than three: they are recorded
+## the same way and differ only by name.
+##
+## `kind` is one of DataLogger's DISPLAY_* names.
+signal display_toggled(kind: String, value: bool)
 
 @onready var round_label: Label         = %RoundLabel
 @onready var budget_label: Label        = %BudgetLabel
@@ -30,6 +36,7 @@ signal player_routes_toggled(hidden: bool)
 @onready var debug_button: Button       = %DebugButton
 @onready var resident_visuals_button: Button = %ResidentVisualsButton
 @onready var player_routes_button: Button = %PlayerRoutesButton
+@onready var mute_button: Button = %MuteButton
 @onready var map_legend: Control        = %MapLegend
 @onready var legend_button: Button      = %LegendButton
 @onready var legend_popover: PanelContainer = %LegendPopover
@@ -54,6 +61,8 @@ func _ready() -> void:
 	debug_button.pressed.connect(_on_debug_pressed)
 	resident_visuals_button.pressed.connect(_on_resident_visuals_pressed)
 	_refresh_resident_visuals_button()
+	mute_button.pressed.connect(_on_mute_pressed)
+	_refresh_mute_button()
 	player_routes_button.pressed.connect(_on_player_routes_pressed)
 	_refresh_player_routes_button()
 	city_view_button.pressed.connect(_on_city_view_pressed)
@@ -121,6 +130,11 @@ func _on_debug_pressed() -> void:
 	SafetyDisplay.debug_mode = not SafetyDisplay.debug_mode
 	debug_button.text = "Debug: ON" if SafetyDisplay.debug_mode else "Debug: OFF"
 	_style_toggle(debug_button, SafetyDisplay.debug_mode)
+	# One press reveals every number the design deliberately hides: numeric
+	# safety, raw stress in the upgrade popup, network coverage on the end
+	# screen. Recording it turns "we cannot know what was on screen" into a
+	# fact, which is the same service city_metrics_shown performs.
+	display_toggled.emit(DataLogger.DISPLAY_DEBUG, SafetyDisplay.debug_mode)
 	if not _last_round_results.is_empty():
 		_render_personal(_last_round_results)
 	if not _last_city_metrics.is_empty():
@@ -140,6 +154,7 @@ func _on_resident_visuals_pressed() -> void:
 	# passes this to CityGrid, and the legend reads that flag to decide which
 	# rows to draw. Refreshing first would repaint against the old value.
 	resident_visuals_toggled.emit(hidden)
+	display_toggled.emit(DataLogger.DISPLAY_RESIDENTS_HIDDEN, hidden)
 	# The legend drops its neighbourhood and workplace rows to match, so it
 	# never explains a symbol that is no longer on the map.
 	map_legend.refresh()
@@ -165,6 +180,26 @@ func _on_player_routes_pressed() -> void:
 func _refresh_player_routes_button(hidden: bool = CityGrid.hide_player_routes) -> void:
 	player_routes_button.text = "Routes: Hidden" if hidden else "Routes: Shown"
 	_style_toggle(player_routes_button, hidden)
+
+
+## Silences the interface sounds. A researcher control, not a preference: the
+## group treatment records the discussion on a separate device, and game audio
+## over the tablet speaker lands on that recording and degrades the speaker
+## separation the participation-equity measure depends on.
+##
+## Audio is an autoload, so the setting survives the scene reload between the
+## two halves of a chained sitting and does not need setting twice.
+func _on_mute_pressed() -> void:
+	Audio.enabled = not Audio.enabled
+	_refresh_mute_button()
+	display_toggled.emit(DataLogger.DISPLAY_SOUND_MUTED, not Audio.enabled)
+
+
+func _refresh_mute_button() -> void:
+	mute_button.text = "Sound: On" if Audio.enabled else "Sound: Muted"
+	# Gold when muted, matching the other toggles: the pill marks the state that
+	# is not the default, which is the one worth noticing at a glance.
+	_style_toggle(mute_button, not Audio.enabled)
 
 
 func _refresh_resident_visuals_button(hidden: bool = CityGrid.hide_resident_visuals) -> void:

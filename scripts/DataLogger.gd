@@ -25,6 +25,28 @@ var session_id: String
 ## knowing the marker exists.
 var session_kind: String = ResearchConfig.DEFAULT_SESSION_KIND
 
+## The researcher controls, named once here because GameHUD emits them and this
+## file records them.
+const DISPLAY_DEBUG: String = "debug"
+const DISPLAY_RESIDENTS_HIDDEN: String = "residents_hidden"
+const DISPLAY_SOUND_MUTED: String = "sound_muted"
+
+## What the researcher controls were set to, and how often they moved during the
+## current round.
+##
+## None of these were recorded anywhere, which meant a session where someone
+## pressed Debug, and so saw every number the design hides, was indistinguishable
+## afterwards from one where nobody touched it. Playtesters are exactly the
+## people most likely to press an unfamiliar button. The state is what the
+## participant experienced; the count says whether it moved mid-round, which the
+## end-of-round state alone would hide.
+var _display_state: Dictionary = {
+	DISPLAY_DEBUG: false,
+	DISPLAY_RESIDENTS_HIDDEN: false,
+	DISPLAY_SOUND_MUTED: false,
+}
+var _display_changes: Dictionary = {}
+
 var treatment: int
 var log_entries: Array = []
 var start_time: float
@@ -479,14 +501,36 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 		# every treatment, so without this a T1 city value is indistinguishable
 		# from a value the participant actually saw. Hidden is not missing.
 		"city_metrics_shown":     results.get("city_metrics_shown", null),
+		# What the researcher controls were set to as this round ended, and how
+		# many times each moved during it.
+		"debug_shown":            bool(_display_state[DISPLAY_DEBUG]),
+		"debug_toggle_count":     int(_display_changes.get(DISPLAY_DEBUG, 0)),
+		"residents_hidden":       bool(_display_state[DISPLAY_RESIDENTS_HIDDEN]),
+		"residents_toggle_count": int(_display_changes.get(DISPLAY_RESIDENTS_HIDDEN, 0)),
+		"sound_muted":            bool(_display_state[DISPLAY_SOUND_MUTED]),
+		"sound_toggle_count":     int(_display_changes.get(DISPLAY_SOUND_MUTED, 0)),
 	}
 	log_entries.append(entry)
+	# Counts are per round, so they start again once this one is recorded. The
+	# STATE deliberately does not reset: it carries into the next round, which is
+	# what actually happened on screen.
+	_display_changes.clear()
 	# Round rows reach disk as they are produced, not at the end of the session.
 	# This handler is connected ahead of the round-end animation (main.gd), and
 	# Godot dispatches to listeners synchronously in connection order, so the
 	# write lands in the pause between End Round being clicked and the first bike
 	# moving rather than during the animation.
 	_write_to_disk()
+
+
+## Connect this to GameHUD.display_toggled, via main.gd.
+##
+## Display only, in both directions: nothing here reaches the model, and the
+## controls themselves change only what is drawn. Recording them is what makes
+## "hidden is not missing" checkable for the researcher controls too.
+func on_display_toggled(kind: String, value: bool) -> void:
+	_display_state[kind] = value
+	_display_changes[kind] = int(_display_changes.get(kind, 0)) + 1
 
 
 ## Connect this to GameManager.game_over
@@ -893,6 +937,12 @@ func _rounds_rows(parts: Dictionary) -> Array:
 				"n_interaction_events":  (entry.get("interaction_events", []) as Array).size(),
 				"city_feedback_shown":   entry.get("city_feedback_shown", []),
 				"city_metrics_shown":    entry.get("city_metrics_shown"),
+				"debug_shown":            entry.get("debug_shown"),
+				"debug_toggle_count":     entry.get("debug_toggle_count"),
+				"residents_hidden":       entry.get("residents_hidden"),
+				"residents_toggle_count": entry.get("residents_toggle_count"),
+				"sound_muted":            entry.get("sound_muted"),
+				"sound_toggle_count":     entry.get("sound_toggle_count"),
 			}
 			# Per-player metric quads. The player rows name these without the
 			# "personal_" prefix the top-level fields carry. Read through

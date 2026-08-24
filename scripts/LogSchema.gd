@@ -154,6 +154,12 @@ static func rounds_columns() -> Array:
 		["n_removals", "Previously built upgrades taken back OFF the network this round, i.e. confirmed demolitions. This is NOT the count of selections the participant changed their mind about before confirming: a link staged and then unstaged never reaches the network, so it leaves this column at 0. For choices reconsidered during the round use changed_or_removed in decisions.csv, or n_interaction_events below."],
 		["n_interaction_events", "Staging actions before confirmation: selections, level changes and withdrawals. A measure of how much the decision was reworked."],
 		["city_feedback_shown", "The city-wide message the participant actually read this round, verbatim, pipe separated. Empty in the individual treatment, which is shown none."],
+		["debug_shown", "1 if the researcher's debug view was ON as this round ended. Debug reveals every number the design deliberately hides from participants: numeric safety, raw link stress in the upgrade popup, network coverage on the end screen. A round with this set to 1 is not a clean observation of the hidden-number condition."],
+		["debug_toggle_count", "How many times debug was switched during this round. A round can end with debug off having spent most of itself on, which the state column alone would hide."],
+		["residents_hidden", "1 if the simulated residents' markers and round-end bikes were hidden this round. Display only: the residents are still simulated, routed, counted in every city metric and logged either way."],
+		["residents_toggle_count", "How many times the resident display was switched during this round."],
+		["sound_muted", "1 if the interface sounds were muted this round. Muting is used in the group treatment so game audio does not bleed into the separately recorded discussion."],
+		["sound_toggle_count", "How many times the sound was switched during this round."],
 		["city_metrics_shown", "1 if the city columns below were ON SCREEN this round, otherwise 0. They are COMPUTED in every treatment, including T1 where they are hidden, so a city value with this set to 0 is a genuine measurement the participant could not see, not missing data. That is what makes T1 city figures usable as the counterfactual for 'would this player have helped the city had they known'."],
 	]))
 
