@@ -9,7 +9,27 @@ const ROW_H    := SWATCH_H + 10.0
 ## icons and pushed the bottom of the legend out of the sidebar.
 const ICON_ROW_H := 40.0
 const LABEL_X  := SWATCH_W + 8.0
-const FS       := 11
+## Raised from 11 on 24 Aug 2026. The legend is read by participants across a
+## table, on a laptop or a tablet, and 11px was set when it lived in a fixed
+## sidebar that could not afford anything larger. The panel measures its own
+## text now (see _content_width), so this can be changed on its own.
+const FS       := 15
+
+## Every label in one place, because two things need them: _draw() writes them
+## and _content_width() measures them. A legend narrower than its own text is
+## the failure mode, and it would only appear after a reword.
+const L_NO_LANE       := "No Bike Lane"
+const L_PAINTED       := "Painted lane"
+const L_PROTECTED     := "Protected track"
+const L_QUIET         := "Quiet street"
+const L_BUSY          := "Busy road (more stress)"
+const L_TRAFFIC       := "Traffic"
+const L_YOUR_ROUTE    := "Your route"
+const L_PLAYER_ROUTE  := "Player %d route"
+const L_HOME          := "Home"
+const L_WORK          := "Work destination"
+const L_NEIGHBOURHOOD := "Neighbourhood"
+const L_WORKPLACE     := "Workplace"
 
 ## Every colour here comes from Palette, and specifically from the same
 ## constants the map itself draws with, so a legend entry cannot end up
@@ -73,7 +93,28 @@ func refresh() -> void:
 
 
 func _refresh_size() -> void:
-	custom_minimum_size = Vector2(0, _total_height())
+	custom_minimum_size = Vector2(_content_width(ThemeDB.fallback_font), _total_height())
+
+
+## Width of the widest row, measured with the font actually used to draw it.
+##
+## The popover used to be a fixed 230px, which fitted the labels at 11px with
+## nothing to spare. Measuring means the font size is a single number to change
+## rather than a number plus a guess at how wide it makes the panel.
+func _content_width(font: Font) -> float:
+	var labels := PackedStringArray([L_NO_LANE, L_PAINTED, L_PROTECTED, L_QUIET,
+			L_BUSY, L_TRAFFIC, L_HOME, L_WORK, L_NEIGHBOURHOOD, L_WORKPLACE])
+	if not CityGrid.hide_player_routes:
+		var n := GameManager.human_players.size() if GameManager.game_running else 1
+		if n == 1:
+			labels.append(L_YOUR_ROUTE)
+		else:
+			for i in range(n):
+				labels.append(L_PLAYER_ROUTE % (i + 1))
+	var widest := 0.0
+	for text: String in labels:
+		widest = maxf(widest, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FS).x)
+	return LABEL_X + widest
 
 
 func _total_height() -> float:
@@ -83,7 +124,8 @@ func _total_height() -> float:
 	h += 8 + ROW_H * 2 + 4       # sep + road-width rows (quiet / busy)
 	h += ROW_H + 4               # cars row
 	h += 8                        # sep before markers
-	h += (ROW_H - 4) * n + 16
+	if not CityGrid.hide_player_routes:
+		h += (ROW_H - 4) * n + 16
 	h += ICON_ROW_H * 2          # home + work
 	if not CityGrid.hide_resident_visuals:
 		h += ICON_ROW_H * 2      # neighbourhood + workplace
@@ -102,13 +144,13 @@ func _draw() -> void:
 
 	# ── Road types ──────────────────────────────────────────────────────────
 	_road_swatch(0, y)
-	_label("No Bike Lane", y, font); y += ROW_H
+	_label(L_NO_LANE, y, font); y += ROW_H
 
 	_road_swatch(1, y)
-	_label("Painted lane", y, font); y += ROW_H
+	_label(L_PAINTED, y, font); y += ROW_H
 
 	_road_swatch(2, y)
-	_label("Protected track", y, font); y += ROW_H + 4
+	_label(L_PROTECTED, y, font); y += ROW_H + 4
 	_sep(y); y += 8
 
 	# ── Stress ──────────────────────────────────────────────────────────────
@@ -116,13 +158,13 @@ func _draw() -> void:
 	# listed first and given both ends of its range; the cars below are the
 	# secondary cue that also responds to upgrades.
 	_width_swatch(0.15, y)
-	_label("Quiet street", y, font); y += ROW_H
+	_label(L_QUIET, y, font); y += ROW_H
 
 	_width_swatch(0.90, y)
-	_label("Busy road (more stress)", y, font); y += ROW_H
+	_label(L_BUSY, y, font); y += ROW_H
 
 	_car_swatch(y)
-	_label("Traffic", y, font); y += ROW_H + 4
+	_label(L_TRAFFIC, y, font); y += ROW_H + 4
 	_sep(y); y += 8
 
 	# ── Routes ──────────────────────────────────────────────────────────────
@@ -130,20 +172,23 @@ func _draw() -> void:
 	# the widened band and the flow arrows is that a participant can find their
 	# own commute at a glance, and the legend is where they are told that the
 	# coloured road with arrows on it is theirs.
-	var num := GameManager.human_players.size() if GameManager.game_running else 1
-	for i in range(num):
-		_route_swatch(i, y)
-		_label("Your route" if num == 1 else "Player %d route" % (i + 1), y, font)
-		y += ROW_H - 4
-	y += 8
-	_sep(y); y += 8
+	# Dropped when the route toggle is off, for the same reason the resident
+	# rows are: the legend never explains something that is not on the map.
+	if not CityGrid.hide_player_routes:
+		var num := GameManager.human_players.size() if GameManager.game_running else 1
+		for i in range(num):
+			_route_swatch(i, y)
+			_label(L_YOUR_ROUTE if num == 1 else L_PLAYER_ROUTE % (i + 1), y, font)
+			y += ROW_H - 4
+		y += 8
+		_sep(y); y += 8
 
 	# ── Markers ─────────────────────────────────────────────────────────────
 	_place_icon(_home_icon, y)
-	_label("Home", y, font); y += ICON_ROW_H
+	_label(L_HOME, y, font); y += ICON_ROW_H
 
 	_place_icon(_work_icon, y)
-	_label("Work destination", y, font); y += ICON_ROW_H
+	_label(L_WORK, y, font); y += ICON_ROW_H
 
 	# Dropped along with the markers themselves, so the legend never explains a
 	# symbol that is not on the map.
@@ -157,21 +202,26 @@ func _draw() -> void:
 	_workplace_icon.visible = show_residents
 	if show_residents:
 		_place_icon(_neighbourhood_icon, y)
-		_label("Neighbourhood", y, font); y += ICON_ROW_H
+		_label(L_NEIGHBOURHOOD, y, font); y += ICON_ROW_H
 
 		_place_icon(_workplace_icon, y)
-		_label("Workplace", y, font)
+		_label(L_WORKPLACE, y, font)
 
 
 # ── Drawing helpers ──────────────────────────────────────────────────────────
 
+## Baseline placed so the text centres on the swatch beside it whatever FS is.
+## It used to be y + FS + 1, which happened to centre at 11px and drifts down as
+## the font grows.
 func _label(text: String, y: float, font: Font) -> void:
-	draw_string(font, Vector2(LABEL_X, y + FS + 1),
+	draw_string(font, Vector2(LABEL_X, y + SWATCH_H * 0.5 + FS * 0.36),
 			text, HORIZONTAL_ALIGNMENT_LEFT, -1, FS, Palette.TEXT_PRIMARY)
 
 
+## Spans the panel rather than a fixed 156px, which was shorter than the labels
+## it was meant to divide once they grew.
 func _sep(y: float) -> void:
-	draw_line(Vector2(0, y), Vector2(SWATCH_W + 96, y), Palette.TEXT_MUTED, 1)
+	draw_line(Vector2(0, y), Vector2(size.x, y), Palette.TEXT_MUTED, 1)
 
 
 func _road_swatch(level: int, y: float) -> void:
