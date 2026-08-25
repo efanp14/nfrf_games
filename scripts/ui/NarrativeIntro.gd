@@ -39,7 +39,7 @@ This time, the City will also share citywide feedback after your choices. You wi
 
 Where will you invest this round?",
 
-	GameManager.Treatment.COLLECTIVE_CHAT: "In this round, you are no longer making decisions alone.
+	GameManager.Treatment.GROUP_DISCUSSION: "In this round, you are no longer making decisions alone.
 
 You and other residents are sitting together in front of one shared city map. Each person has their own home and work location and may experience the network differently.
 

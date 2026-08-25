@@ -10,13 +10,12 @@ signal round_ended(round_num: int, results: Dictionary)
 signal game_over(final_results: Dictionary)
 signal route_updated(player_id: String, route: Dictionary)
 signal city_metrics_updated(metrics: Dictionary)        # only emitted in T2/T3
-signal chat_message_received(round_num: int, text: String)  # only emitted in T3
 
 # --- Treatment Enum ---
 enum Treatment {
 	INDIVIDUAL,        # T1: personal stats only
 	COLLECTIVE_INFO,   # T2: personal + city averages
-	COLLECTIVE_CHAT,   # T3: T2 + simulated chat/coordination
+	GROUP_DISCUSSION,  # T3: T2 + a group deciding together, out loud, at one screen
 }
 
 # --- Configuration ---
@@ -397,9 +396,6 @@ func _start_round(round_num: int) -> void:
 		p.start_round(round_num)
 	emit_signal("round_started", round_num, human_player.credits_per_round)
 
-	if treatment == Treatment.COLLECTIVE_CHAT:
-		_emit_simulated_chat_message()
-
 
 func _recalculate_and_end_round() -> void:
 	var decision_time_s: float = (Time.get_ticks_msec() / 1000.0) - _round_start_time_s
@@ -486,7 +482,7 @@ func _recalculate_and_end_round() -> void:
 	var results: Dictionary = {
 		"round":             current_round,
 		"alpha":             human_player.alpha,
-		"group_mode":        treatment == Treatment.COLLECTIVE_CHAT,
+		"group_mode":        treatment == Treatment.GROUP_DISCUSSION,
 		# Whether the city-wide figures were on screen this round. They are
 		# COMPUTED in every treatment, including T1 where they are never shown,
 		# so a blank city column would otherwise be ambiguous between "not
@@ -639,7 +635,6 @@ func _end_game() -> void:
 		"players":          players_data,
 	}
 	emit_signal("game_over", final_results)
-
 
 
 # --- AI Commuters ---
@@ -811,39 +806,3 @@ func _compute_city_metrics(residents: Array) -> Dictionary:
 	}
 
 
-# --- T3 Simulated Chat ---
-
-func _emit_simulated_chat_message() -> void:
-	var worst_link_id: String = _find_worst_unimproved_link()
-	if worst_link_id.is_empty():
-		return
-
-	var friendly_name := network.link_display_name(worst_link_id)
-	var messages = [
-		"Hey, %s is still unprotected — want to fix it together this round?" % friendly_name,
-		"If we both invest in %s, everyone's route improves." % friendly_name,
-		"That stretch at %s keeps slowing down traffic." % friendly_name,
-	]
-	# Chosen by round number rather than at random. randomize() seeds from
-	# system entropy, which made this the one unseeded choice in the build: two
-	# runs of an otherwise identical session could not be reproduced message for
-	# message. Cycling by round is deterministic and still varies each round.
-	var msg = messages[(current_round - 1) % messages.size()]
-
-	emit_signal("chat_message_received", current_round, msg)
-
-
-func _find_worst_unimproved_link() -> String:
-	var path: Array = human_player.current_route.get("path", [])
-	var worst_stress: float = -1.0
-	var worst_id: String = ""
-
-	for i in range(path.size() - 1):
-		var link_id = "%d,%d-%d,%d" % [path[i].x, path[i].y, path[i+1].x, path[i+1].y]
-		if network.links.has(link_id):
-			var link: CityNetwork.Link = network.links[link_id]
-			if link.upgrade_level == 0 and link.stress_score > worst_stress:
-				worst_stress = link.stress_score
-				worst_id = link_id
-
-	return worst_id

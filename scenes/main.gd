@@ -7,7 +7,6 @@ extends Node2D
 @onready var round_summary       = $RoundSummary as RoundSummary
 @onready var end_screen          = $EndScreen as EndScreen
 @onready var post_survey         = $PostSurvey as PostSurvey
-@onready var chat_panel          = $ChatPanel as ChatPanel
 @onready var pre_survey          = $PreSurvey as PreSurvey
 @onready var main_menu           = $MainMenu as MainMenu
 @onready var narrative_intro     = $NarrativeIntro as NarrativeIntro
@@ -74,12 +73,6 @@ const ZOOM_MAX:  float = 2.5
 const ZOOM_STEP: float = 1.12
 
 var _zoom_level: float = 1.0
-
-## Temporarily disabled at the user's request — flip to true to bring the
-## T3 "Planner Chat" panel back. ChatPanel defaults to hidden on its own
-## (ChatPanel.gd:_ready), so leaving this false is enough to fully turn it
-## off: it never becomes visible and never receives messages.
-const CHAT_PANEL_ENABLED := false
 
 
 func _enter_tree() -> void:
@@ -193,7 +186,7 @@ func _on_game_starting(treatment: int, num_players: int, participant_ids: Array,
 ## ResearchConfig.GROUP_TREATMENT_USES_DEFAULT_ALPHA for why it is allowed.
 func _uses_default_alpha() -> bool:
 	return ResearchConfig.GROUP_TREATMENT_USES_DEFAULT_ALPHA \
-			and _pending_treatment == int(GameManager.Treatment.COLLECTIVE_CHAT)
+			and _pending_treatment == int(GameManager.Treatment.GROUP_DISCUSSION)
 
 
 ## Walks the players in order, asking the opening survey only of those this
@@ -279,9 +272,6 @@ func _on_narrative_finished() -> void:
 	# Every session opens on the whole city, whatever the previous one left.
 	_zoom_level = 1.0
 	_center_grid()
-	if CHAT_PANEL_ENABLED and GameManager.treatment == GameManager.Treatment.COLLECTIVE_CHAT:
-		chat_panel.visible = true
-		GameManager.chat_message_received.connect(chat_panel.add_message)
 
 
 func _on_view_mode_changed(mode: int) -> void:

@@ -100,7 +100,7 @@ class Link:
 var links: Dictionary = {}
 var adjacency: Dictionary = {}
 var node_positions: Dictionary = {}   # Vector2i → Vector2 (screen coords)
-var node_names: Dictionary = {}       # Vector2i → String (full name for link_display_name)
+var node_names: Dictionary = {}       # Vector2i → String (exported in network_nodes.csv)
 var node_labels: Dictionary = {}      # Vector2i → String (short label for map, "" = hidden)
 var all_nodes: Array[Vector2i] = []
 var home_node: Vector2i
@@ -702,7 +702,6 @@ func downgrade_link(link_id: String) -> bool:
 	return true
 
 
-
 func upgrade_link(link_id: String, upgrade_level: int) -> bool:
 	if not links.has(link_id):
 		return false
@@ -776,19 +775,6 @@ func signature() -> String:
 		parts.append("%s:%.4f:%.4f" % [link_id, link.base_time, link.stress_score])
 	parts.append("commutes:%d" % RESIDENT_COMMUTE_PAIRS.size())
 	return "%x" % hash("|".join(parts))
-
-
-# --- Display Helpers ---
-
-func link_display_name(link_id: String) -> String:
-	var parts := link_id.split("-")
-	if parts.size() != 2:
-		return link_id
-	var a := CityNetwork.parse_node(parts[0])
-	var b := CityNetwork.parse_node(parts[1])
-	var name_a: String = node_names.get(a, parts[0])
-	var name_b: String = node_names.get(b, parts[1])
-	return "%s → %s" % [name_a, name_b]
 
 
 func get_bounds() -> Rect2:

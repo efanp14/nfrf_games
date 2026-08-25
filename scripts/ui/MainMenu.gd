@@ -56,7 +56,7 @@ func _ready() -> void:
 					Player.DEFAULT_CREDITS_PER_ROUND)
 	treatment_option.add_item("T1 — Individual  (personal stats only)", 0)
 	treatment_option.add_item("T2 — Collective Info  (city averages shown)", 1)
-	treatment_option.add_item("T3 — Coordination  (city averages + chat)", 2)
+	treatment_option.add_item("T3 — Coordination  (city averages + group discussion)", 2)
 	# The chained option, and the one a real session normally uses: the protocol
 	# has each person play T1 and then T2 individually, so the two belong in one
 	# uninterrupted sitting rather than as two runs the researcher sets up by
