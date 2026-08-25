@@ -47,6 +47,28 @@ folders, not one.
 The JSON files are the source of record and are never rewritten. The CSVs are a
 reshape of them, not a recalculation.
 
+## Checking one session, on the day
+
+```
+python tools/check_session.py --latest
+```
+
+Run this the moment a session ends, while the participant is still in the
+building. It reads one folder and checks the things that cannot be fixed later:
+that the session actually finished, that every file the codebook describes is
+present, that no round spent more than its budget, that every delta really is
+measured against the Round-1 baseline, that both surveys were answered by every
+seat, and that no half-written `.part` file was left behind.
+
+It prints "The participant can go" or a list of what failed. Exit code 0 for
+sound, 1 for failed, 2 for a folder it could not read, so it can be wired into a
+script if you want. Pass a folder path instead of `--latest` to check a
+particular session.
+
+The aggregate tool below checks a whole corpus, which is the right unit for
+analysis and the wrong one for a lab day: by the time it runs, a session that
+went wrong cannot be run again.
+
 ## Combining sessions
 
 A single participant's data spans **three folders across two sittings**: T1 and
