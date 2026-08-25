@@ -7,6 +7,7 @@ signal game_starting(treatment: int, num_players: int, participant_ids: Array, g
 @onready var start_button: Button           = %StartButton
 @onready var intro_label: Label             = %IntroLabel
 @onready var data_folder_button: Button     = %DataFolderButton
+@onready var export_data_button: Button     = %ExportDataButton
 
 var _player_count_row: HBoxContainer
 var _player_count_spin: SpinBox
@@ -118,6 +119,7 @@ func _ready() -> void:
 	_rebuild_participant_rows()
 
 	data_folder_button.pressed.connect(_on_data_folder_pressed)
+	export_data_button.pressed.connect(_on_export_data_pressed)
 	# A browser build has no folder to open: there, user:// is storage inside
 	# the browser rather than a path on disk.
 	data_folder_button.visible = not OS.has_feature("web")
@@ -174,6 +176,57 @@ func selected_session_kind() -> String:
 	if idx < 0 or idx >= ResearchConfig.SESSION_KINDS.size():
 		return ResearchConfig.DEFAULT_SESSION_KIND
 	return ResearchConfig.SESSION_KINDS[idx]
+
+
+## Packs every session into one zip and says where it went.
+##
+## The button exists mainly for the tablet, where the data is otherwise
+## unreachable: app storage on Android is not browsable over USB, so "open the
+## folder and copy it" has no meaning there. It earns its place on the desktop
+## too, since one file per machine is easier to collect than a folder of
+## folders.
+##
+## The result is reported in full rather than as "done". Where the file landed
+## is the part that matters, and on Android it is also the part that decides
+## whether the researcher can plug in a cable or has to share it off the device.
+func _on_export_data_pressed() -> void:
+	export_data_button.disabled = true
+	export_data_button.text = "Exporting..."
+	# Let the label paint before the zip blocks the frame.
+	await get_tree().process_frame
+
+	var report: Dictionary = SessionExporter.export_all()
+	export_data_button.disabled = false
+	export_data_button.text = "Export All Sessions (zip)"
+
+	var dialog := AcceptDialog.new()
+	add_child(dialog)
+	dialog.exclusive = true
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+
+	if not bool(report.get("ok", false)):
+		dialog.title = "Export failed"
+		dialog.dialog_text = str(report.get("error", "Unknown error."))
+		dialog.popup_centered()
+		return
+
+	var lines := PackedStringArray()
+	lines.append("%d session%s, %d files" % [int(report.get("sessions", 0)),
+			"" if int(report.get("sessions", 0)) == 1 else "s",
+			int(report.get("files", 0))])
+	lines.append(SessionSavedDialog._format_size(int(report.get("bytes", 0))))
+	lines.append("")
+	lines.append(str(report.get("path", "")))
+	if not bool(report.get("reachable", true)):
+		lines.append("")
+		lines.append("This folder is inside the app's own storage, which a")
+		lines.append("computer cannot see over USB. Share the file from the")
+		lines.append("device to get it off.")
+	dialog.title = "Sessions exported"
+	dialog.dialog_text = "
+".join(lines)
+	dialog.popup_centered()
 
 
 ## Opens the folder every session is written into.
