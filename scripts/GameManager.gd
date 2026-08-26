@@ -313,6 +313,9 @@ func session_parameters() -> Dictionary:
 		"beta_protected_confident": PersonalityConfig.BETA_PROTECTED_CONFIDENT,
 		"benefit_epsilon_time":   BENEFIT_EPSILON_TIME,
 		"benefit_epsilon_safety": BENEFIT_EPSILON_SAFETY,
+		# Exported alongside the other two so the benefit counts can be
+		# reproduced from this file alone, which tools/replay_upgrades.py does.
+		"benefit_epsilon_stress": BENEFIT_EPSILON_STRESS,
 		# How "a resident benefited" was defined when these numbers were
 		# produced. A percentage of residents benefiting means nothing later
 		# without it, and the definition is exactly the kind of thing that gets

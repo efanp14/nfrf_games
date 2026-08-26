@@ -204,6 +204,53 @@ the road network. Sessions with different signatures were played on different
 networks and are not directly comparable. The network was restructured during
 development, which changed route choice substantially.
 
+## What each single upgrade did
+
+Outcomes are recorded once per round, so a round in which someone bought four
+lanes leaves one before/after pair and the four purchases are indistinguishable
+inside it.
+
+```
+python tools/replay_upgrades.py --latest
+python tools/replay_upgrades.py --all --kind study
+```
+
+This rebuilds the routing model from `network_links.csv` and `parameters.json`,
+then replays the session one purchase at a time: it starts from the network as
+each round opened and applies that round's purchases in the order they were
+chosen, solving every rider's route after each one. The difference between
+consecutive steps is that single upgrade's effect, for the participant and for
+the city.
+
+It reads only what is already on disk, so it works on every session ever
+recorded and cannot affect the game, the schema or determinism. Nothing is
+written into the session folder; results go to a `replays/` folder beside the
+sessions, one directory per session holding `marginal_effects.csv`, its own
+`codebook.csv`, and `replay_report.txt`.
+
+**Read the report first.** The middle of a round is not observed anywhere, so
+the only evidence that the steps are right is that both ends of every round land
+exactly where the game recorded them. The tool recomputes each round's start and
+end state and compares travel time, safety, stress, impedance and the route
+itself against `rounds.csv` and `residents.csv`, for all 99 residents as well as
+the players, and exits non-zero if any of it disagrees. On the sessions on file
+it reproduces roughly 2,400 recorded values per session exactly.
+
+What the file is for: `link_on_own_route` says whether each purchase was on that
+rider's own commute at the moment it was made, and the `_marginal` columns say
+what it did for them and for the city. Together they put the self-interest
+versus collective-good comparison at the resolution of the individual decision
+rather than the round. A worked example from a session on file: of four
+purchases in one round, three sat on the buyer's own route and moved two
+residents between them, while the fourth sat elsewhere, did nothing for the
+buyer, and helped nine.
+
+Two things to know. Steps are ordered by `selection_order` in `decisions.csv`,
+because marginal effects are not additive and the second protected lane on a
+corridor is worth less than the first; a purchase with no matching decision row
+keeps its file position at the end. And step 0 is the round's opening state, so
+it anchors each round and carries no `_marginal` values.
+
 ## Rebuilding the model without the game
 
 `network_links.csv` and `parameters.json` together are enough to reproduce any
@@ -236,14 +283,16 @@ existed and nothing could be invalidated:
 | `credits_spent` / `credits_remaining` | `budget_spent` / `budget_remaining` | The budget is dollars, not coins. "Credits" read as a count of something. |
 | `own_route_upgrade_share` | removed | Only ever valid for the seat holding the shared budget, so it reported "nothing spent" for the other players in a group session even in rounds where the group spent most of its money. |
 
-**Added under version 2, not a new version:** `session_kind` (24 August 2026). A new column
-changes no existing column's meaning, so folders written before and after it both read as
-schema 2 and are distinguished by whether the column is present. Its absence means the session
-was written before the marker existed, which is what the aggregator reports as `unmarked`.
 | `group_spend_on_my_route_share` | `own_route_spend_share` | The correct measure becomes the obvious name. |
 | `cumulative_own_route_upgrade_share` | `own_route_spend_share_cumulative` | Rebuilt on the correct per-seat measure, as a spend-weighted running mean. |
 | `true` / `false` | `1` / `0` | The words load as text and need recoding before they can be averaged. The survey "don't know" flags were already 1/0. |
 | `-1` in share columns | blank | `-1` is outside a proportion's real 0..1 range, and no reader rejects it, so it entered means silently. Blank is read as missing everywhere. Use `budget_spent` to tell "spent nothing" from "not applicable". |
+
+**Added under version 2, not a new version:** `session_kind` (24 August 2026) and
+`benefit_epsilon_stress` in `parameters.json` (25 August 2026). A new column changes no
+existing column's meaning, so folders written before and after them both read as schema 2 and
+are distinguished by whether the column is present. A missing `session_kind` means the session
+was written before the marker existed, which is what the aggregator reports as `unmarked`.
 
 `events.json` is the source of record and keeps its original field names, so a
 few fields there still read `time` and `credits_spent`. The tables are the
