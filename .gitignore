@@ -1,8 +1,14 @@
 # Prevents local import data from bloating the repo
 .godot/
 
-# Prevents local editor settings (like which scripts you have open) from syncing
-*.uid
+# NOTE: *.uid is deliberately NOT ignored. It was, under the belief that these
+# were editor settings; they are not. Godot 4.4+ writes a .uid file beside every
+# script and resource holding its stable identity, project.godot refers to the
+# GameManager autoload by UID rather than by path, and .tscn files reference
+# scripts the same way. With them ignored, a fresh clone could not resolve the
+# autoload at all: "Unrecognized UID" then "Failed to create an autoload", after
+# which every script inferring a type from GameManager failed to parse and the
+# project would not open. Commit them.
 
 # Ignore mobile export folders if you ever create them
 /android/
