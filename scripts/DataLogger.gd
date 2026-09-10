@@ -307,7 +307,7 @@ func _adopt_session_id(new_id: String) -> void:
 ## JSON and as an empty cell in CSV instead of as a session ID that is somehow
 ## the empty string.
 func _chained_from_or_null() -> Variant:
-	return chained_from_session_id if not chained_from_session_id.is_empty() else null
+	return (chained_from_session_id as Variant) if not chained_from_session_id.is_empty() else null
 
 
 ## Identifies the SITTING rather than the run: the same value on both halves of
@@ -555,9 +555,35 @@ func on_game_over(final_results: Dictionary) -> void:
 		"final_safety":     final_results.get("final_safety", 0.0),
 		"city_coverage_pct": final_results.get("city_coverage", 0.0),
 		"cumulative_own_route_upgrade_share": final_results.get("cumulative_own_route_upgrade_share", null),
+		# EVERY SEAT, not just the one holding the budget.
+		#
+		# Every field above it comes from the top level of final_results, which
+		# GameManager fills from human_player -- seat 1. In a group session that
+		# made the FINAL row, summary.json and summary.csv describe participant 1
+		# and nobody else, silently, while the other two seats' final figures were
+		# computed and thrown away. Same failure rounds.csv was fixed for on
+		# 11 Aug; see the note above _rounds_rows().
+		#
+		# Added beside the existing fields rather than replacing them, so a reader
+		# written against the old shape still works (guardrail 6). For one player
+		# this array holds a single entry equal to those fields.
+		"players": _final_players_without_logs(final_results.get("players", [])),
 	}
 	log_entries.append(summary)
 	_write_to_disk()
+
+
+## Each seat's closing figures, minus the per-round `log` array GameManager
+## attaches to them. That log is every round this player played and it is
+## already in events.json as the round entries themselves, so copying it in here
+## would roughly double the file to say the same thing twice.
+func _final_players_without_logs(players: Array) -> Array:
+	var out: Array = []
+	for p: Dictionary in players:
+		var trimmed: Dictionary = p.duplicate()
+		trimmed.erase("log")
+		out.append(trimmed)
+	return out
 
 
 ## Records that consent for this session was obtained outside the game, on
@@ -670,6 +696,25 @@ func _partition_entries() -> Dictionary:
 	return out
 
 
+## The per-seat final figures carried on the FINAL entry, reduced to the fields
+## a summary reader wants. Returns an empty array for a session written before
+## the FINAL entry carried them, which is honest: those sessions really do not
+## record the other seats' finals anywhere but their last round row.
+func _players_final(final_entry: Dictionary) -> Array:
+	var out: Array = []
+	for p: Dictionary in final_entry.get("players", []):
+		out.append({
+			"player_id":       p.get("player_id"),
+			"alpha":           p.get("alpha"),
+			"baseline_travel_time_min":     p.get("baseline_time"),
+			"final_travel_time_min":        p.get("final_time"),
+			"total_travel_time_saved_min":  p.get("total_time_saved"),
+			"final_safety":    p.get("final_safety"),
+			"cumulative_own_route_upgrade_share": p.get("cumulative_own_route_upgrade_share"),
+		})
+	return out
+
+
 func _build_session_summary() -> Dictionary:
 	var parts: Dictionary = _partition_entries()
 	var round_entries: Array = parts["rounds"]
@@ -731,6 +776,13 @@ func _build_session_summary() -> Dictionary:
 		"total_travel_time_saved_min": final_entry.get("total_time_saved"),
 		"safety_round1_before":  round1_safety_before,
 		"final_safety":          final_entry.get("final_safety"),
+		# The four fields above describe SEAT 1. This is all of them, one entry
+		# per seat, in seat order -- the group treatment shares one screen and one
+		# budget but not one commute, so a group session has three final travel
+		# times and three final safety scores. JSON-encoded into a single cell in
+		# summary.csv, the way post_survey_responses is; the tidy per-seat form is
+		# rounds.csv's last round.
+		"players_final":         _players_final(final_entry),
 		"city_coverage_pct":     final_entry.get("city_coverage_pct"),
 		"final_residents_total":                   last_round.get("residents_total"),
 		"final_residents_time_improved_pct":       last_round.get("residents_time_improved_pct"),
@@ -800,13 +852,14 @@ func session_report() -> Dictionary:
 	if dir != null:
 		var names: PackedStringArray = dir.get_files()
 		names.sort()
-		for name: String in names:
-			var f: FileAccess = FileAccess.open(dir_path.path_join(name), FileAccess.READ)
+		# file_name, not name: a bare `name` shadows Node's own property.
+		for file_name: String in names:
+			var f: FileAccess = FileAccess.open(dir_path.path_join(file_name), FileAccess.READ)
 			var size: int = 0
 			if f != null:
 				size = f.get_length()
 				f.close()
-			files.append({"name": name, "bytes": size})
+			files.append({"name": file_name, "bytes": size})
 			total += size
 	return {
 		"session_id":   session_id,
@@ -814,6 +867,11 @@ func session_report() -> Dictionary:
 		"path":         ProjectSettings.globalize_path(dir_path),
 		"files":        files,
 		"total_bytes":  total,
+		# Carried so the closing dialog can state who this session was recorded
+		# against. The ID has to reach the group machine on a card, and the end
+		# of the session is the last moment anyone is looking at the screen with
+		# the participant still in the room.
+		"participant_ids": participant_ids.duplicate(),
 	}
 
 
@@ -850,6 +908,28 @@ func _verify_codebook_coverage() -> void:
 # The JSON is left exactly as it was (guardrail 6) and these are written beside
 # it, so nothing already collected is invalidated and anything already reading
 # the logs keeps working.
+#
+# --- On the repeated identity fields, before you "clean them up" -------------
+#
+# Every row builder in this file writes its own identity block -- some mix of
+# schema_version, session_id, session_kind, sitting_id, group_id, treatment,
+# round, participant_id, player_num. There are fourteen such blocks and they
+# look like fourteen copies of one thing. They are not: counted in September
+# 2026, they carry NINE DISTINCT FIELD SETS. The round row has all of them; the
+# consent row has session_id and session_kind only; the pre-survey row omits
+# schema_version and sitting_id; the audio manifest omits both of those and
+# round.
+#
+# So a single _identity_fields() helper cannot just be merged into each row. It
+# would either ADD fields to rows that currently lack them, which changes the
+# schema of files already collected, or it would need per-caller subsetting,
+# which is as much machinery as the copies it replaces.
+#
+# Whether the variation is deliberate or accumulated is a real question, and
+# some of it looks accumulated -- there is no obvious reason a consent row
+# should not carry schema_version. But adding a field to a logged row is a
+# schema decision and belongs to whoever owns the study, not to a tidy-up.
+# Left as it is, measured and written down, rather than quietly unified.
 
 
 ## Emits the tidy tables, the parameter snapshot and the codebook. Called from
@@ -931,7 +1011,7 @@ func _rounds_rows(parts: Dictionary) -> Array:
 				"group_id":       entry.get("group_id"),
 				"chained_from_session_id": entry.get("chained_from_session_id"),
 				"participant_id": p.get("participant_id",
-						participant_ids[i] if i < participant_ids.size() else null),
+						(participant_ids[i] as Variant) if i < participant_ids.size() else null),
 				"player_num":     i + 1,
 				"treatment":      entry.get("treatment"),
 				"treatment_label": LogSchema.treatment_label(int(entry.get("treatment", -1))),
@@ -1448,8 +1528,8 @@ func _write_audio_manifest() -> void:
 			"confirmed_unix":       confirmed,
 			# Seconds from session start — usable directly as an offset into a
 			# recording that was started at the same moment as the session.
-			"started_offset_s":     (float(started) - anchor_unix) if started != null else null,
-			"confirmed_offset_s":   (float(confirmed) - anchor_unix) if confirmed != null else null,
+			"started_offset_s":     ((float(started) - anchor_unix) as Variant) if started != null else null,
+			"confirmed_offset_s":   ((float(confirmed) - anchor_unix) as Variant) if confirmed != null else null,
 			"decision_time_s":      t.get("decision_time_s"),
 		})
 
