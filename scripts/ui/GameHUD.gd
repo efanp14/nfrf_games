@@ -20,6 +20,10 @@ signal player_routes_toggled(hidden: bool)
 ##
 ## `kind` is one of DataLogger's DISPLAY_* names.
 signal display_toggled(kind: String, value: bool)
+## The rail's Instructions pill. The orientation screens were shown once, before
+## Round 1, and there was no way back to them: a participant who forgot what a
+## protected lane was, or whether the budget carried over, had nowhere to look.
+signal instructions_pressed
 
 @onready var round_label: Label         = %RoundLabel
 @onready var budget_label: Label        = %BudgetLabel
@@ -40,6 +44,23 @@ signal display_toggled(kind: String, value: bool)
 @onready var map_legend: Control        = %MapLegend
 @onready var legend_button: Button      = %LegendButton
 @onready var legend_popover: PanelContainer = %LegendPopover
+@onready var instructions_button: Button = %InstructionsButton
+@onready var round_banner: PanelContainer = %RoundBanner
+@onready var banner_label: Label        = %BannerLabel
+## The hint sits ON the map, not on a card like everything else in the HUD, so it
+## carries its own dark panel. As a bare Label it inherited the theme's cream
+## body colour (#F2EFEA) and the map's background is #F6F1E6 beige: the two are
+## within a couple of percent of each other and the text was invisible.
+@onready var hint_panel: PanelContainer  = %HintPanel
+@onready var hint_label: Label          = %HintLabel
+
+## How long the round banner stays up, and how long it takes to fade away.
+## Short: it marks a boundary, it does not gate one, so it must never be
+## something a participant waits on.
+const BANNER_HOLD_S: float = 1.4
+const BANNER_FADE_S: float = 0.5
+
+var _banner_tween: Tween
 
 ## Cached so toggling debug mode can re-render immediately without waiting
 ## for the next GameManager signal.
@@ -68,6 +89,7 @@ func _ready() -> void:
 	city_view_button.pressed.connect(_on_city_view_pressed)
 	stress_view_button.pressed.connect(_on_stress_view_pressed)
 	legend_button.pressed.connect(_on_legend_pressed)
+	instructions_button.pressed.connect(func(): instructions_pressed.emit())
 	GameManager.round_started.connect(_on_round_started)
 	GameManager.round_ended.connect(_on_round_ended)
 	GameManager.city_metrics_updated.connect(_on_city_metrics_updated)
@@ -101,7 +123,7 @@ func _set_view_mode(mode: int) -> void:
 	var heatmap_on: bool = _view_mode == CityGrid.ViewMode.NPC_HEATMAP
 	var stress_on: bool  = _view_mode == CityGrid.ViewMode.STRESS
 	city_view_button.text = "Back: My Route" if heatmap_on else "City routes"
-	stress_view_button.text = "Back: My Route" if stress_on else "Road stress"
+	stress_view_button.text = "Back: My Route" if stress_on else "Cycling stress"
 	_style_toggle(city_view_button, heatmap_on)
 	_style_toggle(stress_view_button, stress_on)
 	view_mode_changed.emit(_view_mode)
@@ -211,7 +233,7 @@ func _sync_initial_state() -> void:
 	if not GameManager.game_running:
 		return
 	round_label.text  = "Round %d / %d" % [GameManager.current_round, GameManager.total_rounds]
-	budget_label.text = "Budget: " + Player.format_dollars(GameManager.human_player.credits_per_round)
+	budget_label.text = "Budget: " + Player.format_dollars(GameManager.human_player.budget_per_round)
 	_apply_treatment_visibility()
 
 
@@ -220,6 +242,34 @@ func _on_round_started(round_num: int, budget: int) -> void:
 	budget_label.text      = "Budget: " + Player.format_dollars(budget)
 	_apply_treatment_visibility()
 	end_round_button.disabled = false
+	_show_round_banner(round_num)
+	# Only the first round. By the second, a participant has done this once and a
+	# standing instruction becomes furniture.
+	hint_panel.visible = round_num == 1
+
+
+## Announces the round across the middle of the map, then gets out of the way.
+##
+## Nothing marked a round boundary before this: the number in the corner changed
+## and the map became live again, and playtesters asked to be told when a round
+## had started. Mouse-transparent all the way down (set in the scene), so the
+## roads underneath stay clickable while it is up.
+func _show_round_banner(round_num: int) -> void:
+	banner_label.text = "Round %d of %d" % [round_num, GameManager.total_rounds]
+	if _banner_tween != null and _banner_tween.is_valid():
+		_banner_tween.kill()
+	round_banner.modulate.a = 1.0
+	round_banner.visible = true
+	_banner_tween = create_tween()
+	_banner_tween.tween_interval(BANNER_HOLD_S)
+	_banner_tween.tween_property(round_banner, "modulate:a", 0.0, BANNER_FADE_S)
+	_banner_tween.tween_callback(func(): round_banner.visible = false)
+
+
+## Called by main.gd the first time a road is opened. The hint has done its job
+## the moment the thing it describes happens.
+func dismiss_hint() -> void:
+	hint_panel.visible = false
 
 
 ## Everything collective, hidden in T1: the city card and the button that
@@ -249,13 +299,15 @@ func _on_round_ended(_round_num: int, results: Dictionary) -> void:
 
 ## Time stays a raw number (travel time + money are the only raw numbers
 ## shown to participants); safety is star-rating-only unless debug mode is
-## on (SafetyDisplay.format_bb handles that).
+## on (SafetyDisplay.format_route_bb handles that).
 func _render_personal(results: Dictionary) -> void:
 	var players_data: Array = results.get("players", [])
 	if players_data.size() <= 1:
 		safety_label.visible = true
 		time_label.text   = "Time: %.1f min" % results.get("personal_time", 0.0)
-		safety_label.text = "Safety: " + SafetyDisplay.format_bb(results.get("personal_safety", 0.0))
+		safety_label.text = "Safety: " + SafetyDisplay.format_route_bb(
+				results.get("personal_safety", 0.0),
+				results.get("alpha", PersonalityConfig.ALPHA_AVERAGE))
 		return
 
 	# A ROW PER PLAYER, not one line listing everybody.
@@ -277,8 +329,14 @@ func _render_personal(results: Dictionary) -> void:
 	var rows: PackedStringArray = []
 	for i in range(players_data.size()):
 		var pd: Dictionary = players_data[i]
-		rows.append("P%d   %.1f min   %s" % [
-			i + 1, pd.get("time", 0.0), SafetyDisplay.format_bb(pd.get("safety", 0.0))])
+		# In the seat's own colour, which this card was not doing while the round
+		# summary and every marker on the map were. A group sharing one screen has
+		# no other way to tell which line is theirs.
+		var col: Color = Palette.seat_color(i)
+		rows.append("[color=#%s]P%d[/color]   %.1f min   %s" % [
+			col.to_html(false), i + 1, pd.get("time", 0.0),
+			SafetyDisplay.format_route_bb(
+					pd.get("safety", 0.0), pd.get("alpha", PersonalityConfig.ALPHA_AVERAGE))])
 	time_label.text = "\n".join(rows)
 
 
@@ -309,5 +367,5 @@ func _on_game_over(_final: Dictionary) -> void:
 	end_round_button.disabled = true
 
 
-func update_budget(credits_remaining: int) -> void:
-	budget_label.text = "Budget: " + Player.format_dollars(credits_remaining)
+func update_budget(budget_remaining: int) -> void:
+	budget_label.text = "Budget: " + Player.format_dollars(budget_remaining)

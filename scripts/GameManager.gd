@@ -158,9 +158,9 @@ func submit_upgrades(upgrade_requests: Array) -> void:
 				var refund: int = Player.cost_for_link(link, from_level)
 				if network.downgrade_link(req["link_id"]):
 					human_player.record_downgrade(req["link_id"], from_level, refund, link)
-					human_player.credits_remaining = mini(
-						human_player.credits_remaining + refund,
-						human_player.credits_per_round
+					human_player.budget_remaining = mini(
+						human_player.budget_remaining + refund,
+						human_player.budget_per_round
 					)
 		else:
 			human_player.buy_upgrade(req["link_id"], level, network)
@@ -299,7 +299,7 @@ func session_parameters() -> Dictionary:
 		"total_rounds":      total_rounds,
 		"num_residents":     num_ai_commuters,
 		"home_work_pair":    home_work_pair,
-		"budget_per_round":  Player.DEFAULT_CREDITS_PER_ROUND,
+		"budget_per_round":  Player.DEFAULT_BUDGET_PER_ROUND,
 		"cost_per_metre_painted":   Player.COST_PER_METRE_PAINTED,
 		"cost_per_metre_protected": Player.COST_PER_METRE_PROTECTED,
 		"time_factor_by_level":     CityNetwork.Link.TIME_FACTOR,
@@ -327,7 +327,7 @@ func session_parameters() -> Dictionary:
 		# personality instead of surveying them, so their routing input differs
 		# from their own individual sessions.
 		"group_treatment_uses_default_alpha": ResearchConfig.GROUP_TREATMENT_USES_DEFAULT_ALPHA,
-		"network_signature": network.signature() if network != null else null,
+		"network_signature": (network.signature() as Variant) if network != null else null,
 		"prospect_theory_reference": "static_round1",
 	}
 
@@ -397,16 +397,20 @@ func _start_round(round_num: int) -> void:
 		_initial_residents    = _round_start_residents.duplicate(true)
 	for p in human_players:
 		p.start_round(round_num)
-	emit_signal("round_started", round_num, human_player.credits_per_round)
+	emit_signal("round_started", round_num, human_player.budget_per_round)
 
 
 func _recalculate_and_end_round() -> void:
 	var decision_time_s: float = (Time.get_ticks_msec() / 1000.0) - _round_start_time_s
 	var confirmed_unix: float = Time.get_unix_time_from_system()
-	for p in human_players:
-		p.current_route = network.find_route(p.home, p.work, p.alpha)
-
-	for p in human_players:
+	# One solve per player. This used to run the identical Dijkstra twice, once
+	# to set current_route and again into updated_route, with nothing mutating
+	# the network in between -- and Player.end_round() then assigns the same
+	# value to current_route anyway. Safe to merge because the only listener on
+	# route_updated (CityGrid._on_route_updated) uses the route it is handed and
+	# never reads another player's current_route; check that again before adding
+	# a second listener that does.
+	for p: Player in human_players:
 		var updated_route := network.find_route(p.home, p.work, p.alpha)
 		p.end_round(updated_route)
 		# baseline_time is deliberately NOT updated here. It used to roll
@@ -516,12 +520,12 @@ func _recalculate_and_end_round() -> void:
 		"route_changed":      players_data[0]["route_changed"],
 		"route_changed_from_baseline": players_data[0]["route_changed_from_baseline"],
 		"upgraded_links_on_new_route": players_data[0]["upgraded_links_on_new_route"],
-		"budget_available":  human_player.credits_per_round,
+		"budget_available":  human_player.budget_per_round,
 		"credits_spent":     human_player.round_log.back().get("credits_spent", 0),
 		# Spend across every round so far. A group session has one shared purse,
 		# so this is a property of the session rather than of any one player.
-		"credits_spent_cumulative": human_player.cumulative_credits_spent(),
-		"credits_remaining": human_player.credits_remaining,
+		"credits_spent_cumulative": human_player.cumulative_budget_spent(),
+		"credits_remaining": human_player.budget_remaining,
 		"upgrades":          round_upgrades,
 		"removals":          human_player.round_log.back().get("removals", []),
 		"decision_time_s":   decision_time_s,

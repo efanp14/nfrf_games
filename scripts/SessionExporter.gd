@@ -56,6 +56,12 @@ static func export_all() -> Dictionary:
 	var file_count: int = 0
 	for session: String in sessions:
 		file_count += _add_folder(packer, root.path_join(session), session)
+	# The roster is a loose file at the root rather than a session folder, so
+	# the directory walk above steps straight past it. It has to travel with the
+	# sessions: it is the only record of which IDs were issued, and the only way
+	# back to one whose card was lost.
+	file_count += _add_file(packer, ParticipantId.ROSTER_PATH,
+			ParticipantId.ROSTER_PATH.get_file())
 	packer.close()
 
 	var written: FileAccess = FileAccess.open(zip_path, FileAccess.READ)
@@ -96,6 +102,21 @@ static func _add_folder(packer: ZIPPacker, folder: String, prefix: String) -> in
 		packer.close_file()
 		added += 1
 	return added
+
+
+## Adds one file at the top level of the archive. Returns 1 if it went in, so
+## the caller's file count stays honest when the file does not exist yet.
+static func _add_file(packer: ZIPPacker, path: String, name_in_zip: String) -> int:
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return 0
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
+	file.close()
+	if packer.start_file(name_in_zip) != OK:
+		return 0
+	packer.write_file(bytes)
+	packer.close_file()
+	return 1
 
 
 ## The first writable candidate, tested by writing rather than by assuming.

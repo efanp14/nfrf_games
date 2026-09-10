@@ -27,6 +27,27 @@ class_name Player
 ## cautious (β=0.1) reads 95 — on every route, not just short ones.
 const SAFETY_TARGET_DEFICIT: float = 50.0
 
+## The two ends of the safety score's ACTUAL range on any route, which are not
+## 0 and 100 and never were.
+##
+## A route with nothing improved always reads the floor exactly, whatever its
+## length or stress, because the score normalises against that same route's own
+## unimproved baseline (ratio = 1). A route protected end to end reads the
+## ceiling, which depends on personality through the protected beta: 95
+## cautious, 90 average, 70 confident.
+##
+## These exist because the star rating needs them. Mapping the raw score onto
+## five stars as though it spanned 0 to 100 put 99.4% of 3,552 logged
+## player-rounds on exactly three stars, so a participant who improved their
+## commute saw no change at all. Anything reading these must go through here
+## rather than restating 50, or the display and the model drift apart.
+static func safety_floor() -> float:
+	return 100.0 - SAFETY_TARGET_DEFICIT
+
+
+static func safety_ceiling(rider_alpha: float) -> float:
+	return 100.0 - PersonalityConfig.beta_protected_for_alpha(rider_alpha) * SAFETY_TARGET_DEFICIT
+
 # --- Upgrade Cost ---
 ## Defined here (not in the network) because cost is a game/economy rule,
 ## even though it reads the link's base_time. base_time isn't a real-world
@@ -93,9 +114,11 @@ var player_id: String
 var home: Vector2i
 var work: Vector2i
 
-## Alpha = stress sensitivity from pre-survey.
-## High alpha → player avoids high-LTS roads more strongly.
-## Range 0.5 (risk-tolerant) to 2.0 (very cautious)
+## Alpha = stress sensitivity from the pre-survey.
+## High alpha means the rider avoids high-stress roads more strongly.
+##
+## The three values are set in one place, PersonalityConfig: 0.4 confident,
+## 1.5 average, 3.0 cautious. Read them from there rather than from here.
 var alpha: float = 1.0
 
 # --- Budget ---
@@ -125,10 +148,20 @@ var alpha: float = 1.0
 ## budget without hardcoding it a second time. The main menu previously carried
 ## its own literal and was left saying $2,000,000 after this figure was
 ## re-derived, which is exactly the drift a single definition prevents.
-const DEFAULT_CREDITS_PER_ROUND: int = 1300000
+const DEFAULT_BUDGET_PER_ROUND: int = 1300000
 
-var credits_per_round: int = DEFAULT_CREDITS_PER_ROUND
-var credits_remaining: int = 0
+## These two were called `credits_per_round` and `credits_remaining` until the
+## handover tidy-up, left over from the pre-3 Aug coin budget. They have always
+## held DOLLARS, which is why Player.format_dollars() sits a few lines up.
+##
+## ⚠️ The rename stopped at the variables ON PURPOSE. The round log's keys are
+## still "credits_spent", "credits_spent_cumulative" and "credits_remaining",
+## because those strings are field names in events.json, which is the source of
+## record and is never rewritten (guardrail 6). LogSchema.COLUMN_SOURCE is what
+## translates them to budget_* for the CSVs. So: a bare credits_* identifier is
+## gone, a quoted "credits_*" key is load-bearing. Do not finish the job.
+var budget_per_round: int = DEFAULT_BUDGET_PER_ROUND
+var budget_remaining: int = 0
 
 # --- Route Cache ---
 ## Populated each round by GameManager after network updates.
@@ -159,13 +192,24 @@ var initial_baseline_impedance: float = 0.0
 var initial_baseline_route_links: Array = []
 
 # --- Round Log ---
-## Each entry: { round: int, upgrades: Array, time_before: float, time_after: float, credits_spent: int }
-## Used for data logging and post-game analysis.
+## Each entry: { round: int, upgrades: Array, time_before: float,
+##               time_after: float, credits_spent: int }
+## Used for data logging and post-game analysis. "credits_spent" is a frozen
+## events.json field name, not a stale variable — see the note on
+## budget_remaining above before renaming it.
 var round_log: Array = []
 
 # --- Safety Score ---
-## 100 minus the sum of stress weights along the current route.
-## Gives players a second axis (safety vs time) to optimize.
+## The player's current route safety, 0-100 in principle but 50 to 95 in
+## practice. Derived at the top of this file (see SAFETY_TARGET_DEFICIT and
+## safety_floor/safety_ceiling), NOT as "100 minus the sum of stress weights":
+## that flat formula is what this section used to claim, it is what the build
+## deliberately does not do, and reinstating it would break the score for every
+## route longer than average. Computed by route_safety(); gives players a second
+## axis, safety against time, to optimise.
+##
+## Initialised above the real ceiling so the first computed value always wins;
+## _compute_safety() returns this unchanged when there is no route yet.
 var safety_score: float = 100.0
 
 
@@ -178,7 +222,7 @@ func _init(pid: String, home_node: Vector2i, work_node: Vector2i, stress_alpha: 
 
 ## Called by GameManager at the start of each round.
 func start_round(round_num: int) -> void:
-	credits_remaining = credits_per_round
+	budget_remaining = budget_per_round
 	round_log.append({
 		"round": round_num,
 		"upgrades": [],
@@ -188,7 +232,7 @@ func start_round(round_num: int) -> void:
 		"credits_spent": 0,
 		# Recorded explicitly rather than left to be re-derived as
 		# spent + remaining, which refunds can make ambiguous.
-		"budget_available": credits_per_round,
+		"budget_available": budget_per_round,
 	})
 
 
@@ -201,16 +245,16 @@ func buy_upgrade(link_id: String, upgrade_level: int, network: CityNetwork) -> b
 	var cost: int = Player.cost_for_link(link, upgrade_level)
 
 	# Validate: can we afford it?
-	if credits_remaining < cost:
-		push_warning("Player %s: not enough credits for upgrade (need %d, have %d)" \
-			% [player_id, cost, credits_remaining])
+	if budget_remaining < cost:
+		push_warning("Player %s: not enough budget for upgrade (need $%d, have $%d)" \
+			% [player_id, cost, budget_remaining])
 		return false
 
 	# Delegate actual network mutation to the network object
 	if not network.upgrade_link(link_id, upgrade_level):
 		return false  # already upgraded or link not found
 
-	credits_remaining -= cost
+	budget_remaining -= cost
 
 	# Record in the current round log entry. own_route reflects the route
 	# this player was actually riding at the moment of purchase (current_route
@@ -257,7 +301,9 @@ func end_round(updated_route: Dictionary) -> void:
 	current_route = updated_route
 	var entry: Dictionary = round_log.back()
 	entry["time_after"] = updated_route.get("total_time", 0.0)
-	# Safety is now computed by GameManager which has network access
+	# safety_score is not set here. GameManager owns that call, because scoring
+	# needs the network and this class deliberately does not hold one; it calls
+	# _compute_safety() below straight after this returns.
 
 
 ## Compute safety score from the route path.
@@ -330,20 +376,26 @@ static func route_link_ids(route: Dictionary) -> Array:
 	return ids
 
 
-## Separate scale from SAFETY_STRESS_SCALE because this previews a single
-## link in isolation — no route length to sum stress-over-time across, so
-## it needs its own calibration. Recalibrated 4 Aug 2026 after the
-## network-wide stress rewrite raised the floor from 0.15 to 0.40 (average
-## 0.60) — the old scale (210) was tuned against that old 0.15 floor, so
-## stress x 210 now exceeds 100 for nearly every unimproved link, clamping
-## every single-link preview to 0 stars regardless of which road it was
-## (reported by owner: "all roads are currently zero stars"). New scale
-## (100) means safety = 100 x (1 - stress), so the network's lowest-stress
-## link (0.44) reads as exactly 3/5 stars unimproved — same design intent as
-## before (never a full 5/5 while unimproved, now generalized to "never
-## above 3/5" given the new higher floor), while the average link (~0.60)
-## reads 2/5 and the worst (~0.92) reads 0/5. Verified by script against
-## every link in the network, not just eyeballed.
+## Separate scale from SAFETY_TARGET_DEFICIT because this previews a single
+## link in isolation: there is no route length to sum stress over, so it needs
+## its own calibration. At 100, safety = 100 x (1 - stress).
+##
+## Raised from 210 on 4 Aug 2026, when stress x 210 exceeded 100 for nearly
+## every unimproved link and clamped every preview to zero stars ("all roads
+## are currently zero stars").
+##
+## ⚠️ The justification written here on 4 Aug quoted a stress floor of 0.40, an
+## average of 0.60 and a lowest link of 0.44, and concluded that no unimproved
+## link could read above 3/5. Those figures came from the distribution that the
+## 10 Aug arterial restructure then replaced, and none of them still hold.
+## Measured from CityNetwork.edges as it stands: 69 links, 45 backstreets at
+## 0.16-0.28 and 24 arterials at 0.76-0.88, mean 0.424. So the calmest
+## backstreet now previews at 100 x (1 - 0.16) = 84, which is 4/5 stars
+## unimproved, and every backstreet reads 4/5.
+##
+## Whether that matters is an owner call, not a tidy-up: the value below is a
+## calibrated parameter and changing it changes what participants see. Left as
+## it is, with the discrepancy recorded rather than silently retuned.
 const LINK_PREVIEW_STRESS_SCALE: float = 100.0
 
 ## Preview safety score for a single link in isolation, used by the upgrade
@@ -397,7 +449,7 @@ static func own_route_share(round_log_entry: Dictionary) -> Variant:
 ## Money spent across every round played so far, as distinct from this round's
 ## spend. Refunds from removals return to the wallet but are deliberately not
 ## subtracted here, matching the per-round figure this sums.
-func cumulative_credits_spent() -> int:
+func cumulative_budget_spent() -> int:
 	var total: int = 0
 	for entry in round_log:
 		total += int(entry.get("credits_spent", 0))
@@ -426,7 +478,7 @@ func export_log() -> Array:
 			"round": entry["round"],
 			"time_before": entry["time_before"],
 			"time_after": entry["time_after"],
-			"budget_available": entry.get("budget_available", credits_per_round),
+			"budget_available": entry.get("budget_available", budget_per_round),
 			"credits_spent": entry["credits_spent"],
 			"upgrades": JSON.stringify(entry["upgrades"]),
 			"removals": JSON.stringify(entry.get("removals", [])),

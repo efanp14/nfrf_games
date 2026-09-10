@@ -1,5 +1,19 @@
 class_name UpgradePopup
 extends CanvasLayer
+## UpgradePopup.gd
+## The panel for deciding what to build on one road.
+##
+## Shows the two upgrade levels with their prices and ABSTRACT EFFECT ARROWS
+## rather than numbers (README, guardrail 7): painted is "stress down, time down",
+## protected "stress down down, time down". Participants see raw numbers only
+## for travel time and money.
+##
+## Its scrim is the light one on purpose. This is the one full-screen panel that
+## must not hide the map, because the player is deciding about the road
+## underneath it -- and LinkSegment.set_selected() marks which road that is.
+##
+## Emits and hides; main.gd owns staging the choice into _pending_upgrades and
+## nothing is bought until the round is confirmed.
 
 signal upgrade_chosen(link_id: String, level: int)
 signal downgrade_requested(link_id: String)
@@ -32,7 +46,7 @@ func _ready() -> void:
 	cancel_button.pressed.connect(func(): cancelled.emit(); hide())
 
 
-func show_for_link(link_id: String, credits_remaining: int, alpha: float, pending_level: int = -1) -> void:
+func show_for_link(link_id: String, budget_remaining: int, alpha: float, pending_level: int = -1) -> void:
 	_current_link_id = link_id
 	var link: CityNetwork.Link = GameManager.network.links[link_id]
 
@@ -45,7 +59,7 @@ func show_for_link(link_id: String, credits_remaining: int, alpha: float, pendin
 			link.effective_time(), link.stress_score, int(link_safety)]
 	else:
 		link_info_label.text = "Time: %.1f min  |  Safety: %s" % [
-			link.effective_time(), SafetyDisplay.format_bb(link_safety)]
+			link.effective_time(), SafetyDisplay.format_link_bb(link_safety)]
 
 	# Abstract effect arrows instead of raw stress/time deltas — protected
 	# relief is always stronger than painted, hence the extra ↓. Cost is
@@ -66,8 +80,8 @@ func show_for_link(link_id: String, credits_remaining: int, alpha: float, pendin
 	else:
 		current_label.text = "Current: %s" % level_names[effective_level]
 
-	painted_button.disabled   = effective_level >= 1 or credits_remaining < painted_cost
-	protected_button.disabled = effective_level >= 2 or credits_remaining < protected_cost
+	painted_button.disabled   = effective_level >= 1 or budget_remaining < painted_cost
+	protected_button.disabled = effective_level >= 2 or budget_remaining < protected_cost
 
 	# Removal is offered only for what the PLAYER put here. The city starts with
 	# a few lanes nobody paid for; those are part of the board, not of anyone's

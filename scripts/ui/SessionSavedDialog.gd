@@ -50,6 +50,13 @@ func _compose(report: Dictionary) -> String:
 	lines.append(str(report.get("session_id", "")))
 	lines.append(str(report.get("path", "")))
 	lines.append("")
+	# Stated in the form a card should be written in, since this is the last
+	# moment the participant is still in the room and the ID has to travel with
+	# them to the group session on another machine.
+	var who := _participant_line(report)
+	if not who.is_empty():
+		lines.append(who)
+		lines.append("")
 
 	var missing := PackedStringArray()
 	for required: String in REQUIRED_FILES:
@@ -77,6 +84,22 @@ func _compose(report: Dictionary) -> String:
 	lines.append("Copy this whole folder to collect the data. codebook.csv inside")
 	lines.append("it describes every file and every column.")
 	return "\n".join(lines)
+
+
+## Who the session was recorded against, spaced out for reading aloud and for
+## copying onto a card. Issued IDs are shown hyphenated the way they were on the
+## menu; anything typed by hand is shown exactly as it was entered.
+func _participant_line(report: Dictionary) -> String:
+	var shown := PackedStringArray()
+	for id in report.get("participant_ids", []):
+		var text := str(id).strip_edges()
+		if text.is_empty():
+			continue
+		shown.append(ParticipantId.format_for_display(text)
+				if ParticipantId.looks_generated(text) else text)
+	if shown.is_empty():
+		return ""
+	return "Participant %s: %s" % ["ID" if shown.size() == 1 else "IDs", ", ".join(shown)]
 
 
 ## Sizes in whole units. A researcher checking that a session saved needs to see

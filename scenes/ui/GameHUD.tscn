@@ -50,6 +50,7 @@ theme_override_font_sizes/font_size = 14
 
 [node name="TimeLabel" type="RichTextLabel" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer/VBoxContainer"]
 bbcode_enabled = true
+autowrap_mode = 0
 fit_content = true
 unique_name_in_owner = true
 text = "Time: -- min"
@@ -57,6 +58,7 @@ theme_override_font_sizes/normal_font_size = 16
 
 [node name="SafetyLabel" type="RichTextLabel" parent="HUDRoot/LeftColumn/StatusCard/MarginContainer/VBoxContainer"]
 bbcode_enabled = true
+autowrap_mode = 0
 fit_content = true
 unique_name_in_owner = true
 text = "Safety: --"
@@ -78,7 +80,7 @@ theme_type_variation = &"PillButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(168, 0)
 size_flags_horizontal = 0
-text = "Road stress"
+text = "Cycling stress"
 theme_override_font_sizes/font_size = 13
 
 [node name="PlayerRoutesButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
@@ -97,6 +99,14 @@ size_flags_horizontal = 0
 text = "Legend"
 theme_override_font_sizes/font_size = 13
 
+[node name="InstructionsButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+theme_type_variation = &"PillButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+size_flags_horizontal = 0
+text = "Instructions"
+theme_override_font_sizes/font_size = 13
+
 [node name="CityPanel" type="PanelContainer" parent="HUDRoot"]
 unique_name_in_owner = true
 visible = false
@@ -108,7 +118,7 @@ offset_right = -20.0
 grow_horizontal = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="HUDRoot/CityPanel"]
-custom_minimum_size = Vector2(258, 0)
+custom_minimum_size = Vector2(300, 0)
 theme_override_constants/margin_left = 18
 theme_override_constants/margin_right = 18
 theme_override_constants/margin_top = 14
@@ -124,12 +134,14 @@ theme_override_font_sizes/font_size = 18
 
 [node name="CityTimeLabel" type="Label" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(264, 0)
 autowrap_mode = 2
 text = "City: -- min"
 theme_override_font_sizes/font_size = 16
 
 [node name="CitySafetyLabel" type="RichTextLabel" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
 bbcode_enabled = true
+autowrap_mode = 0
 fit_content = true
 unique_name_in_owner = true
 text = "City safety: --"
@@ -137,6 +149,7 @@ theme_override_font_sizes/normal_font_size = 16
 
 [node name="CoverageLabel" type="Label" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(264, 0)
 autowrap_mode = 2
 text = "Cover: 0%"
 theme_override_font_sizes/font_size = 16
@@ -144,6 +157,7 @@ theme_override_font_sizes/font_size = 16
 [node name="BenefitLabel" type="Label" parent="HUDRoot/CityPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 visible = false
+custom_minimum_size = Vector2(264, 0)
 autowrap_mode = 2
 text = ""
 theme_override_font_sizes/font_size = 14
@@ -196,6 +210,60 @@ custom_minimum_size = Vector2(168, 0)
 size_flags_horizontal = 0
 text = "Sound: On"
 theme_override_font_sizes/font_size = 13
+
+[node name="RoundBanner" type="PanelContainer" parent="HUDRoot"]
+unique_name_in_owner = true
+visible = false
+anchor_left = 0.5
+anchor_top = 0.25
+anchor_right = 0.5
+anchor_bottom = 0.25
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BannerMargin" type="MarginContainer" parent="HUDRoot/RoundBanner"]
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_bottom = 18
+mouse_filter = 2
+
+[node name="BannerLabel" type="Label" parent="HUDRoot/RoundBanner/BannerMargin"]
+theme_type_variation = &"Heading"
+unique_name_in_owner = true
+text = "Round 1 of 3"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 44
+mouse_filter = 2
+
+[node name="HintPanel" type="PanelContainer" parent="HUDRoot"]
+unique_name_in_owner = true
+visible = false
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_top = -104.0
+offset_bottom = -104.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="HintMargin" type="MarginContainer" parent="HUDRoot/HintPanel"]
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_bottom = 12
+mouse_filter = 2
+
+[node name="HintLabel" type="Label" parent="HUDRoot/HintPanel/HintMargin"]
+theme_type_variation = &"Heading"
+unique_name_in_owner = true
+text = "Click a road to begin upgrading"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+mouse_filter = 2
 
 [node name="EndRoundButton" type="Button" parent="HUDRoot"]
 theme_type_variation = &"PillButtonPrimary"

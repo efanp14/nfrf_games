@@ -1,15 +1,17 @@
 extends Node2D
 ## Scene coordinator — thin glue between CityGrid, GameHUD, UpgradePopup, and GameManager.
 
-@onready var city_grid: CityGrid = $CityGrid
-@onready var game_hud            = $GameHUD as GameHUD
-@onready var upgrade_popup       = $UpgradePopup as UpgradePopup
-@onready var round_summary       = $RoundSummary as RoundSummary
-@onready var end_screen          = $EndScreen as EndScreen
-@onready var post_survey         = $PostSurvey as PostSurvey
-@onready var pre_survey          = $PreSurvey as PreSurvey
-@onready var main_menu           = $MainMenu as MainMenu
-@onready var narrative_intro     = $NarrativeIntro as NarrativeIntro
+# `= $X as T` leaves the variable Variant; the annotation has to be on the
+# left to get a checked type. All nine were `as`-cast except city_grid.
+@onready var city_grid: CityGrid            = $CityGrid
+@onready var game_hud: GameHUD              = $GameHUD
+@onready var upgrade_popup: UpgradePopup    = $UpgradePopup
+@onready var round_summary: RoundSummary    = $RoundSummary
+@onready var end_screen: EndScreen          = $EndScreen
+@onready var post_survey: PostSurvey        = $PostSurvey
+@onready var pre_survey: PreSurvey          = $PreSurvey
+@onready var main_menu: MainMenu            = $MainMenu
+@onready var narrative_intro: NarrativeIntro = $NarrativeIntro
 
 var _pending_upgrades: Array = []
 var _logger: DataLogger = null
@@ -76,7 +78,7 @@ var _zoom_level: float = 1.0
 
 
 func _enter_tree() -> void:
-	RenderingServer.set_default_clear_color(Color(0.965, 0.945, 0.90))
+	RenderingServer.set_default_clear_color(Palette.MAP_BACKGROUND)
 	_logger = DataLogger.new()
 	# Parented to THIS scene, not to the GameManager autoload. One logger is one
 	# session, and a session is one scene: the logger is last used by
@@ -119,9 +121,11 @@ func _ready() -> void:
 	game_hud.resident_visuals_toggled.connect(city_grid.set_resident_visuals_hidden)
 	game_hud.player_routes_toggled.connect(city_grid.set_player_routes_hidden)
 	game_hud.display_toggled.connect(_logger.on_display_toggled)
+	game_hud.instructions_pressed.connect(
+			func(): narrative_intro.reopen(int(GameManager.treatment)))
 	upgrade_popup.upgrade_chosen.connect(_on_upgrade_chosen)
 	upgrade_popup.downgrade_requested.connect(_on_downgrade_requested)
-	upgrade_popup.cancelled.connect(upgrade_popup.hide)
+	upgrade_popup.cancelled.connect(_on_upgrade_cancelled)
 	round_summary.next_round_pressed.connect(_on_next_round)
 	GameManager.round_ended.connect(_on_round_ended)
 	GameManager.game_over.connect(_on_game_over)
@@ -217,7 +221,8 @@ func _advance_survey_queue() -> void:
 		var record: Dictionary = ParticipantStore.load_record(_participant_ids[idx])
 		if record.is_empty():
 			_current_survey_player = idx + 1
-			pre_survey.show_for_player(_current_survey_player, _num_players)
+			pre_survey.show_for_player(_current_survey_player, _num_players,
+					_participant_id_for(_current_survey_player))
 			return
 		# Known participant: reuse the value measured the first time. Asking
 		# again risks a different answer pushing them across a personality
@@ -281,40 +286,54 @@ func _on_view_mode_changed(mode: int) -> void:
 func _on_link_clicked(link_id: String) -> void:
 	if _round_summary_active:
 		return
-	upgrade_popup.show_for_link(link_id, _credits_remaining(), GameManager.human_player.alpha, _get_pending_level(link_id))
+	# Mark the road before the popup covers it. Hover cannot do this job: it is
+	# driven by mouse motion, so on the tablet there was no indication at all of
+	# which road the open panel belonged to.
+	game_hud.dismiss_hint()
+	city_grid.set_selected_link(link_id)
+	upgrade_popup.show_for_link(link_id, _budget_remaining(), GameManager.human_player.alpha, _get_pending_level(link_id))
 
 
 ## Every branch below reports the action to GameManager.record_interaction()
 ## before returning: the confirmed upgrade list only captures the end state, so
 ## this is what preserves the ORDER links were picked in and any choice that
 ## was changed or withdrawn before the round was confirmed.
+## Every route out of the popup clears the selection, so a road can never be
+## left marked with nothing open about it.
+func _on_upgrade_cancelled() -> void:
+	upgrade_popup.hide()
+	city_grid.set_selected_link("")
+
+
 func _on_upgrade_chosen(link_id: String, level: int) -> void:
+	city_grid.set_selected_link("")
 	for i: int in range(_pending_upgrades.size()):
 		if _pending_upgrades[i]["link_id"] == link_id:
 			GameManager.record_interaction(GameManager.ACTION_CHANGE_LEVEL, link_id, level)
 			_pending_upgrades[i]["level"] = level
 			city_grid.preview_link(link_id, level)
-			game_hud.update_budget(_credits_remaining())
+			game_hud.update_budget(_budget_remaining())
 			return
 	GameManager.record_interaction(GameManager.ACTION_SELECT, link_id, level)
 	_pending_upgrades.append({ "link_id": link_id, "level": level })
 	city_grid.preview_link(link_id, level)
-	game_hud.update_budget(_credits_remaining())
+	game_hud.update_budget(_budget_remaining())
 
 
 func _on_downgrade_requested(link_id: String) -> void:
+	city_grid.set_selected_link("")
 	for i: int in range(_pending_upgrades.size()):
 		if _pending_upgrades[i]["link_id"] == link_id:
 			GameManager.record_interaction(
 				GameManager.ACTION_UNSTAGE, link_id, _pending_upgrades[i]["level"])
 			_pending_upgrades.remove_at(i)
 			city_grid.preview_link(link_id, -1)
-			game_hud.update_budget(_credits_remaining())
+			game_hud.update_budget(_budget_remaining())
 			return
 	GameManager.record_interaction(GameManager.ACTION_STAGE_REMOVAL, link_id, 0)
 	_pending_upgrades.append({ "link_id": link_id, "level": 0 })
 	city_grid.preview_link(link_id, 0)
-	game_hud.update_budget(_credits_remaining())
+	game_hud.update_budget(_budget_remaining())
 
 
 func _on_round_ended(round_num: int, results: Dictionary) -> void:
@@ -335,7 +354,17 @@ func _on_game_over(final_results: Dictionary) -> void:
 
 
 func _on_end_screen_finished() -> void:
-	post_survey.show_survey(int(GameManager.treatment), 1, _num_players)
+	post_survey.show_survey(int(GameManager.treatment), 1, _num_players,
+			_participant_id_for(1))
+
+
+## The ID to SHOW on a survey, so a group sharing one screen can tell whose turn
+## it is. Empty for a session run without IDs, which the banner handles by naming
+## the seat alone. Deliberately separate from the ID passed to the logger: this
+## one is display, and it must never be the reason a row is attributed.
+func _participant_id_for(player_num: int) -> String:
+	var idx: int = player_num - 1
+	return _participant_ids[idx] if idx >= 0 and idx < _participant_ids.size() else ""
 
 
 ## In T3, each group member completes their own post-survey in turn (same
@@ -345,7 +374,8 @@ func _on_post_survey_completed(player_num: int, responses: Dictionary) -> void:
 	var pid: String = _participant_ids[player_num - 1] if player_num - 1 < _participant_ids.size() else ""
 	_logger.on_post_survey_completed(player_num, _num_players, pid, responses)
 	if player_num < _num_players:
-		post_survey.show_survey(int(GameManager.treatment), player_num + 1, _num_players)
+		post_survey.show_survey(int(GameManager.treatment), player_num + 1, _num_players,
+				_participant_id_for(player_num + 1))
 		return
 	# Everyone has answered, so the survey comes down here rather than inside
 	# PostSurvey itself: it is still needed right up to this point, once per
@@ -399,7 +429,7 @@ func _on_end_round() -> void:
 	city_grid.refresh_all()
 
 
-func _credits_remaining() -> int:
+func _budget_remaining() -> int:
 	var net_spent: int = 0
 	for req: Dictionary in _pending_upgrades:
 		var link: CityNetwork.Link = GameManager.network.links.get(req["link_id"])
@@ -411,8 +441,8 @@ func _credits_remaining() -> int:
 		elif req["level"] > link.upgrade_level:
 			net_spent += Player.cost_for_link(link, req["level"])
 	return mini(
-		GameManager.human_player.credits_per_round,
-		GameManager.human_player.credits_per_round - net_spent
+		GameManager.human_player.budget_per_round,
+		GameManager.human_player.budget_per_round - net_spent
 	)
 
 

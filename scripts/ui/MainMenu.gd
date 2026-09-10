@@ -1,11 +1,27 @@
 class_name MainMenu
 extends CanvasLayer
+## MainMenu.gd
+## The researcher's setup screen: treatment, session kind, participant IDs,
+## group ID, player count. Emits `game_starting` once and hides.
+##
+## This screen is operated by the researcher with a participant sitting there,
+## which drives most of its design. IDs are ISSUED rather than typed where
+## possible (ParticipantId, GroupId), the group ID is shown read-only because
+## the voice recorder has to be labelled with it before the session starts, and
+## _refresh_validity() separates problems that BLOCK a start from warnings that
+## do not -- only certain corruption is worth refusing a session over when
+## someone is waiting.
+##
+## The seat colours appear beside the ID fields because the game identifies a
+## group only as P1/P2/P3 in colour and never by ID; this is the one moment the
+## two are visibly connected, and it is deliberately here rather than in-game.
+##
+## The player-count row is shown only for T3. T1 and T2 are single-player.
 
 signal game_starting(treatment: int, num_players: int, participant_ids: Array, group_id: String, chain_to_t2: bool, session_kind: String)
 
 @onready var treatment_option: OptionButton = %TreatmentOption
 @onready var start_button: Button           = %StartButton
-@onready var intro_label: Label             = %IntroLabel
 @onready var data_folder_button: Button     = %DataFolderButton
 @onready var export_data_button: Button     = %ExportDataButton
 
@@ -20,24 +36,44 @@ var _kind_option: OptionButton
 var _kind_note: Label
 
 ## One text field per participant, rebuilt whenever the player count changes.
-## The researcher types the ID each person was assigned; it is what joins that
-## person's separate treatment sessions together afterwards, so it is entered
-## rather than generated. Free text, because the ID scheme is the research
-## team's to choose and may not be a plain number.
+## The ID is what joins that person's separate treatment sessions together
+## afterwards. It can be typed, since the research team may have a scheme of its
+## own and the older p001 IDs are still in the data, or issued by the Generate
+## button beside the field (see ParticipantId).
 var _participant_box: VBoxContainer
 var _participant_fields: Array[LineEdit] = []
 
-## The group these participants belong to, typed by the researcher exactly as
-## the participant IDs are. Asked for ONLY in the group treatment, where it ties
-## a discussion recorded on a separate device back to the rounds it covers; an
-## individual session has no group decision and no recording. Which group a solo
-## participant belonged to is recovered afterwards from the group session that
-## names them (tools/aggregate_logs.py).
+## Said under the fields after an ID is issued, so the researcher is told to
+## write it down at the one moment it matters. Held rather than written straight
+## to the status label because _refresh_validity() owns that label and would
+## overwrite it on the next keystroke.
+var _issued_note: String = ""
+
+## The letter this computer's issued IDs begin with. An install-level setting,
+## not a per-session one, which is why it lives at the bottom of the menu with
+## the data folder rather than in the session setup.
+var _machine_option: OptionButton
+var _machine_note: Label
+
+## The group these participants belong to. Shown ONLY in the group treatment,
+## where it ties a discussion recorded on a separate device back to the rounds
+## it covers; an individual session has no group decision and no recording.
+## Which group a solo participant belonged to is recovered afterwards from the
+## group session that names them (tools/aggregate_logs.py).
 ##
-## Nothing pre-fills it. An earlier version derived a guess from the participant
-## numbers, which only worked for bare integers and so never fired for the
-## prefixed IDs actually in use.
-var _group_field: LineEdit
+## Assigned by GroupId, not typed. Nothing anywhere parses the value, so there
+## was never a decision for the researcher to make here, only a field to get
+## wrong; and a wrong group is worse than a wrong participant, because the
+## aggregator propagates it into every member's individual rows.
+##
+## An even earlier version tried to derive it from the participant numbers,
+## which only worked for bare integers and so never fired for the prefixed IDs
+## actually in use.
+var _group_value: Label
+## Worked out when the group treatment is selected, not on every refresh, since
+## it reads the roster and every session's parameters.json. Held so that what
+## the researcher writes on the recorder is exactly what the session records.
+var _pending_group_id: String = ""
 ## Shown only in the group treatment; see _on_treatment_changed().
 var _group_row: HBoxContainer
 var _status_label: Label
@@ -48,12 +84,10 @@ func _ready() -> void:
 	# The scrim comes from Palette rather than from the scene, so every
 	# screen's backdrop is set in the one place colours are declared.
 	($Overlay as ColorRect).color = Palette.OVERLAY_FULL
-	# Quoted from the one place the budget is defined, so this line cannot go
-	# stale the next time the figure is re-derived.
-	intro_label.text = ("You are a citizen-planner with %s per round to upgrade roads with "
-			+ "painted bike lanes or protected cycle tracks — longer roads cost more. "
-			+ "Help shape a city that works for everyone.") % Player.format_dollars(
-					Player.DEFAULT_CREDITS_PER_ROUND)
+	# No subtitle, tagline or framing paragraph here any more. This screen is the
+	# researcher's setup, not the participant's opening: NarrativeIntro gives the
+	# player the framing once the session starts, and stating the budget twice is
+	# how the figure came to disagree with itself before.
 	treatment_option.add_item("T1 — Individual  (personal stats only)", 0)
 	treatment_option.add_item("T2 — Collective Info  (city averages shown)", 1)
 	treatment_option.add_item("T3 — Coordination  (city averages + group discussion)", 2)
@@ -96,15 +130,18 @@ func _ready() -> void:
 	var group_row := _group_row
 	group_row.add_theme_constant_override("separation", 10)
 	var group_lbl := Label.new()
-	group_lbl.text = "Group ID"
+	group_lbl.text = "Group"
 	group_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	group_lbl.add_theme_font_size_override("font_size", 12)
 	group_row.add_child(group_lbl)
-	_group_field = LineEdit.new()
-	_group_field.custom_minimum_size = Vector2(140, 0)
-	_group_field.placeholder_text = "e.g. g001"
-	_group_field.text_changed.connect(func(_t): _refresh_validity())
-	group_row.add_child(_group_field)
+	# Shown, not asked for. The value is opaque and nothing parses it, so there
+	# was nothing for the researcher to decide, only something to mistype at the
+	# one moment they have no attention to spare. It stays visible because the
+	# voice recorder has to be labelled with it before the session starts.
+	_group_value = Label.new()
+	_group_value.add_theme_font_size_override("font_size", 12)
+	_group_value.add_theme_color_override("font_color", Palette.BRAND_GOLD)
+	group_row.add_child(_group_value)
 	vbox.add_child(group_row)
 	vbox.move_child(group_row, _participant_box.get_index() + 1)
 	# Hidden until the group treatment is chosen; the menu opens on T1.
@@ -118,12 +155,79 @@ func _ready() -> void:
 
 	_rebuild_participant_rows()
 
+	_build_machine_row()
+
 	data_folder_button.pressed.connect(_on_data_folder_pressed)
 	export_data_button.pressed.connect(_on_export_data_pressed)
 	# A browser build has no folder to open: there, user:// is storage inside
 	# the browser rather than a path on disk.
 	data_folder_button.visible = not OS.has_feature("web")
 	_refresh_data_folder_button()
+
+
+## The letter every ID issued on this computer begins with.
+##
+## Sits at the bottom with the other machine-level controls rather than in the
+## session setup above, because it is set once per install and then never
+## touched. Putting it in the flow would mean the researcher's eye passing over
+## it before every session for a setting they change once.
+##
+## Worth setting deliberately on each computer that issues IDs. The derived
+## default is a hash of the device with nothing coordinating the two machines,
+## so they share a letter about one time in twenty-two, and a shared letter is
+## the only route by which two machines could ever issue the same ID. Different
+## letters rule it out by construction.
+func _build_machine_row() -> void:
+	var vbox := data_folder_button.get_parent()
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var lbl := Label.new()
+	lbl.text = "This machine"
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl.add_theme_font_size_override("font_size", 11)
+	row.add_child(lbl)
+
+	_machine_option = OptionButton.new()
+	_machine_option.tooltip_text = ("The letter participant IDs issued here begin with. Give "
+			+ "each computer that issues IDs a different letter. IDs already issued keep the "
+			+ "letter they were made with.")
+	var current := ParticipantId.machine_letter()
+	for i in range(ParticipantId.LETTERS.length()):
+		var letter := ParticipantId.LETTERS[i]
+		_machine_option.add_item(letter, i)
+		if letter == current:
+			_machine_option.selected = i
+	_machine_option.item_selected.connect(_on_machine_letter_selected)
+	row.add_child(_machine_option)
+
+	vbox.add_child(row)
+	vbox.move_child(row, data_folder_button.get_index())
+
+	_machine_note = Label.new()
+	_machine_note.add_theme_font_size_override("font_size", 11)
+	_machine_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_machine_note.add_theme_color_override("font_color", Palette.TEXT_MUTED)
+	vbox.add_child(_machine_note)
+	vbox.move_child(_machine_note, row.get_index() + 1)
+	_refresh_machine_note()
+
+
+func _on_machine_letter_selected(index: int) -> void:
+	if index < 0 or index >= ParticipantId.LETTERS.length():
+		return
+	ParticipantId.set_machine_letter(ParticipantId.LETTERS[index])
+	_refresh_machine_note()
+
+
+## Says what the letter does, and how many IDs are already spoken for, since
+## that is what decides whether changing it now matters.
+func _refresh_machine_note() -> void:
+	var issued := ParticipantId.roster_ids().size()
+	var text := "IDs issued here start with %s." % ParticipantId.machine_letter()
+	if issued > 0:
+		text += "  %d already issued, unaffected by a change." % issued
+	_machine_note.text = text
 
 
 ## Sits above the treatment selector, since it decides whether this session is
@@ -283,6 +387,14 @@ func _on_treatment_changed(index: int) -> void:
 	# it. Who belongs to which group is recovered from the group session itself
 	# at analysis time (see tools/aggregate_logs.py).
 	_group_row.visible = treatment_id == 2
+	# Worked out once here rather than on every keystroke: it reads the roster
+	# and every session's parameters.json. Read, not reserved, so switching back
+	# and forth on the menu cannot burn group numbers.
+	if treatment_id == 2:
+		_pending_group_id = GroupId.next()
+		_group_value.text = _pending_group_id
+	else:
+		_pending_group_id = ""
 	_rebuild_participant_rows()
 
 
@@ -313,22 +425,102 @@ func _rebuild_participant_rows() -> void:
 	for i in range(count):
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
+
+		# The seat colour this ID will be playing as, shown at the one moment the
+		# researcher is looking at the IDs and can say it out loud.
+		#
+		# In the group treatment three people share one screen and the game
+		# identifies them only as P1, P2 and P3 in their seat colours: the map
+		# markers, the route bands, the HUD rows and both summary screens all use
+		# colour and never the ID. Nothing anywhere connected the two, so
+		# afterwards nobody could say which participant the pink commute belonged
+		# to. Shown here rather than in-game deliberately, since a research
+		# identifier on screen for three hours is a participant's business, not
+		# something they should be reading.
+		row.add_child(_seat_swatch(i))
+
 		var lbl := Label.new()
 		lbl.text = "Participant ID" if count == 1 else "Participant ID  (Player %d)" % (i + 1)
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lbl.add_theme_font_size_override("font_size", 12)
+		if count > 1:
+			lbl.add_theme_color_override("font_color",
+					Palette.seat_color(i))
 		row.add_child(lbl)
 
 		var field := LineEdit.new()
 		field.custom_minimum_size = Vector2(140, 0)
-		field.placeholder_text = "e.g. %d" % (i + 1)
+		field.placeholder_text = "Generate, or type"
 		field.text = previous[i] if i < previous.size() else ""
-		field.text_changed.connect(func(_t): _refresh_validity())
+		# Typing by hand answers the "was this just issued" note, so it clears.
+		field.text_changed.connect(func(_t): _on_participant_field_edited())
 		row.add_child(field)
 		_participant_fields.append(field)
+
+		var generate := Button.new()
+		generate.text = "Generate"
+		generate.tooltip_text = ("Issue a new participant ID that has not been used on "
+				+ "this machine. Write it on the participant's card: they need it again "
+				+ "for the group session.")
+		generate.visible = _generation_offered()
+		# bind() rather than a lambda closing over i, which is the shape that has
+		# silently captured the wrong value elsewhere in this project.
+		generate.pressed.connect(_on_generate_pressed.bind(i))
+		row.add_child(generate)
+
 		_participant_box.add_child(row)
 
 	_refresh_validity()
+
+
+## A filled disc in one seat's colour, drawn rather than themed so it matches
+## Palette.PLAYER_COLORS exactly and cannot drift from the map.
+func _seat_swatch(player_index: int) -> Control:
+	var swatch := ColorRect.new()
+	swatch.color = Palette.seat_color(player_index)
+	swatch.custom_minimum_size = Vector2(16, 16)
+	swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	swatch.tooltip_text = "This participant plays as Player %d, in this colour." % (player_index + 1)
+	return swatch
+
+
+## Whether the Generate button is offered for the treatment now selected.
+##
+## Not in the group treatment. An ID is issued once, at the participant's first
+## session, and carried to the group machine on a card; a Generate button there
+## invites issuing a second one, which would leave that person's individual
+## sessions joined to nothing. Typing is unaffected, so a participant whose
+## first session really is a group one can still be given an ID by hand.
+func _generation_offered() -> bool:
+	return treatment_option.get_selected_id() != 2
+
+
+func _on_participant_field_edited() -> void:
+	_issued_note = ""
+	_refresh_validity()
+
+
+## Issues an ID into one field and records it as spent.
+##
+## Recorded at the moment it is issued rather than when the session starts,
+## because a card can be written out for someone who then never plays, and
+## handing the same ID to the next participant would merge two people.
+func _on_generate_pressed(index: int) -> void:
+	if index < 0 or index >= _participant_fields.size():
+		return
+	var issued := ParticipantId.generate()
+	if issued.is_empty():
+		_issued_note = ""
+		_refresh_validity()
+		_status_label.text = "Could not issue an ID. Enter one by hand and tell the study lead."
+		_status_label.add_theme_color_override("font_color", Palette.ERROR_TEXT)
+		return
+	ParticipantId.issue(issued)
+	var shown := ParticipantId.format_for_display(issued)
+	_participant_fields[index].text = shown
+	_issued_note = "Issued %s. Write it on the participant's card; they need it for T3." % shown
+	_refresh_validity()
+	_refresh_machine_note()
 
 
 ## Blocks Start on anything that would corrupt the record, and says why.
@@ -361,12 +553,12 @@ func _refresh_validity() -> void:
 			break
 		seen[key] = true
 
+	# The group is assigned rather than typed, so this can only fire if
+	# GroupId.next() somehow produced nothing. Kept as a backstop: a group
+	# session recorded without a group cannot be tied to its own audio.
 	var group := _entered_group_id()
-	if _group_required():
-		if group.is_empty():
-			problems.append("Enter a group ID")
-		elif not ResearchConfig.is_valid_id(group):
-			problems.append("Group ID may use letters, digits, hyphen and underscore only")
+	if _group_required() and not ResearchConfig.is_valid_id(group):
+		problems.append("No group could be assigned. Check the data folder is writable.")
 
 	start_button.disabled = not problems.is_empty()
 	if not problems.is_empty():
@@ -377,15 +569,50 @@ func _refresh_validity() -> void:
 	# Warnings do NOT block. A re-run after a false start is legitimate and
 	# happens, so this says what the machine already knows and leaves the
 	# decision where it belongs.
+	#
+	# The mistyped ID goes first of the two. A repeat is visible in the data and
+	# recoverable from the paper session log; an ID typed one character wrong is
+	# neither, since it records as a valid session belonging to a person who does
+	# not exist, and the individual sessions it should have joined stay orphaned.
+	var mistyped := _failing_check_character(ids)
+	if not mistyped.is_empty():
+		_status_label.text = "%s is not a valid issued ID. Check it against the participant's card." % ", ".join(mistyped)
+		_status_label.add_theme_color_override("font_color", Palette.BRAND_GOLD)
+		return
+
 	var repeats := _already_played(ids)
 	if not repeats.is_empty():
 		_status_label.text = "Already played this treatment here: %s. Starting again will produce a second session for them." % ", ".join(repeats)
 		_status_label.add_theme_color_override("font_color", Palette.BRAND_GOLD)
 		return
 
+	if not _issued_note.is_empty():
+		_status_label.text = _issued_note
+		_status_label.add_theme_color_override("font_color", Palette.BRAND_GOLD)
+		return
+
 	var who := "%d participant%s" % [ids.size(), "" if ids.size() == 1 else "s"]
 	_status_label.text = ("Group %s  ·  %s" % [group, who]) if _group_required() else who
 	_status_label.remove_theme_color_override("font_color")
+
+
+## Entered IDs that have the shape of an issued one but fail its check
+## character, which is what a single mistyped or transposed character looks
+## like.
+##
+## Deliberately a warning rather than a block, matching how this file treats
+## everything that is not certain corruption. An ID that is not from the
+## generator is not judged at all: the older p001 IDs are still in the data and
+## the research team may bring a scheme of its own.
+func _failing_check_character(ids: Array) -> PackedStringArray:
+	var suspect := PackedStringArray()
+	for id in ids:
+		var typed := str(id).strip_edges()
+		if typed.is_empty():
+			continue
+		if ParticipantId.has_scheme_shape(typed) and not ParticipantId.looks_generated(typed):
+			suspect.append(typed)
+	return suspect
 
 
 ## Which of the entered participants have already played the treatment about to
@@ -415,19 +642,27 @@ func _already_played(ids: Array) -> PackedStringArray:
 	return repeats
 
 
-## The typed group, or empty outside the group treatment. Read through this
-## rather than off the field directly, so a value left over from switching
-## treatment on the menu cannot be sent with a session that never asked for one.
+## The assigned group, or empty outside the group treatment. Read through this
+## rather than off the held value directly, so a group worked out and then left
+## behind by switching treatment cannot be sent with a session that has none.
 func _entered_group_id() -> String:
 	if not _group_required():
 		return ""
-	return _group_field.text.strip_edges()
+	return _pending_group_id
 
 
+## The entered IDs, with issued ones reduced to their canonical form.
+##
+## Canonicalising here rather than in the field means one spelling reaches the
+## participant store, the folder name and the log however the card was written:
+## a7k-2q9, A7K2Q9 and A7K-2Q9 are one participant, not three. Anything that
+## does not verify as an issued ID is passed through exactly as typed, since
+## uppercasing an existing p001 would orphan the sessions already recorded
+## under it.
 func _participant_ids() -> Array:
 	var out: Array = []
 	for field in _participant_fields:
-		out.append(field.text.strip_edges())
+		out.append(ParticipantId.canonical_or_verbatim(field.text))
 	return out
 
 
@@ -437,6 +672,11 @@ func _on_start_pressed() -> void:
 	# The chained entry starts T1; the follow-on treatment is queued only once
 	# T1's post-survey is in, so an abandoned T1 never leaves a T2 waiting.
 	var treatment := int(GameManager.Treatment.INDIVIDUAL) if chained else selected
+	var group := _entered_group_id()
+	# Committed here rather than when it was worked out, so that a group number
+	# is spent by a session actually starting and not by looking at the menu.
+	if not group.is_empty():
+		GroupId.issue(group)
 	game_starting.emit(treatment, _current_player_count(),
-			_participant_ids(), _entered_group_id(), chained, selected_session_kind())
+			_participant_ids(), group, chained, selected_session_kind())
 	hide()

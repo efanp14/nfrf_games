@@ -1,5 +1,20 @@
 class_name NodeMarker
 extends Node2D
+## NodeMarker.gd
+## One junction on the map, drawn as a cap with an optional icon on top.
+##
+## Five kinds (see MarkerType): the player's own HOME and WORK, a simulated
+## resident's NPC_HOME and NPC_WORK, and a plain NORMAL junction. In a group
+## session each seat's own two markers carry that seat's colour as a ring and a
+## numeral, which is the only thing on the map telling a player which pins are
+## theirs.
+##
+## The rule that keeps this looking right: an icon must not overhang its own
+## cap. ICON_PX is a diameter and RADII holds radii, so the comparison is
+## against 2 x the radius. Change one and check the other.
+##
+## Nodes carry no participant-facing name. The fictional-city rule means no
+## real-world label is ever shown, so the label is always blank in practice.
 
 enum MarkerType { NORMAL, HOME, WORK, NPC_HOME, NPC_WORK }
 
@@ -36,14 +51,12 @@ var icon_hidden: bool = false
 ## RADII[NORMAL] for every marker, so the only thing the other four entries
 ## affected was where the name label sat. They are honoured now.
 ##
-## The rule to keep: an icon should not overhang its own cap. ICON_PX is a
-## diameter, so compare it against 2 x the radius here. At 40px against 56px
-## there is room to spare, which is what makes the icon read as standing on
-## something rather than as floating over the junction.
+## Change a radius here and check it against ICON_PX below: an icon must not
+## overhang its own cap.
 const RADII := {
 	MarkerType.NORMAL:   28.0,
-	MarkerType.HOME:     28.0,
-	MarkerType.WORK:     28.0,
+	MarkerType.HOME:     34.0,
+	MarkerType.WORK:     34.0,
 	MarkerType.NPC_HOME: 28.0,
 	MarkerType.NPC_WORK: 28.0,
 }
@@ -80,9 +93,18 @@ const WORK_ICONS: Dictionary = {
 ## anchor circle. An icon scaled past its anchor reads as swallowing the
 ## intersection and the roads running through it, which is what "the icons are
 ## off" was the first time round, when icons reached 48px against a 36px circle.
-## RADII above grew in step, so 40px still sits inside the 48px NORMAL circle.
-## Change one of these two and the other has to move with it.
+## ICON_PX is a DIAMETER, so the comparison is against 2 x RADII: 40 inside the
+## 56px resident cap, 48 inside the 68px player cap. Change one and the other has
+## to move with it.
 const ICON_PX: float = 40.0
+
+## The player's own home and workplace, which are the two markers a participant
+## has to find on a map carrying 99 other people's. Bigger than the residents'
+## rather than the same size, together with the seat-coloured ring in _draw().
+const ICON_PX_PLAYER: float = 48.0
+
+## Thickness of the seat-coloured ring around the player's own two markers.
+const PLAYER_RING_W: float = 4.0
 
 ## Offset of the soft shadow shared by every node and building. The colour
 ## itself, like every other colour here, comes from Palette.
@@ -126,7 +148,7 @@ func _ready() -> void:
 func _get_color() -> Color:
 	if marker_type == MarkerType.NORMAL:
 		return Palette.ROAD_FILL
-	return Palette.PLAYER_COLORS[_player_index % Palette.PLAYER_COLORS.size()]
+	return Palette.seat_color(_player_index)
 
 
 func _apply_type() -> void:
@@ -135,11 +157,17 @@ func _apply_type() -> void:
 		label.text = ""
 		label.visible = false
 		return
+	# Font 9 up to 20. This numeral answers "which of these is mine" in the group
+	# treatment and it was the smallest text in the game, then scaled down again
+	# by the map fit. Dark ink on an outline in the seat colour, so it holds up
+	# over roads, buildings and route bands alike.
 	label.text = str(_player_index + 1)
 	label.visible = true
-	label.add_theme_color_override("font_color", _get_color())
-	label.add_theme_font_size_override("font_size", 9)
-	label.position = Vector2(RADII[marker_type] + 1.0, -6.0)
+	label.add_theme_color_override("font_color", Palette.SEAT_NUMBER_TEXT)
+	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_color_override("font_outline_color", _get_color())
+	label.add_theme_constant_override("outline_size", 10)
+	label.position = Vector2(RADII[marker_type] - 2.0, -14.0)
 
 
 func _apply_name() -> void:
@@ -175,15 +203,29 @@ func _draw() -> void:
 	if marker_type == MarkerType.HOME or marker_type == MarkerType.WORK \
 			or marker_type == MarkerType.NPC_HOME or marker_type == MarkerType.NPC_WORK:
 		_draw_shadow_blob(Vector2.ZERO, _icon_shadow_radius)
-	elif marker_type != MarkerType.NORMAL:
-		draw_circle(Vector2.ZERO, r, _get_color(), true, -1.0, true)
+
+	# The player's own two markers get a ring in their seat colour.
+	#
+	# This replaces a branch that could never run: it was written
+	# `elif marker_type != MarkerType.NORMAL`, under an `if` that had already
+	# caught all four non-NORMAL types, so every cap in the game drew as plain
+	# ROAD_FILL and the seat colour survived only in the icon tint and a font-9
+	# numeral. In the group treatment that numeral is the only thing answering
+	# whose home is whose, and it is scaled down again when the city is fitted
+	# to the window.
+	#
+	# A ring rather than a filled cap, because the icon is tinted the same seat
+	# colour and would vanish into it.
+	if marker_type == MarkerType.HOME or marker_type == MarkerType.WORK:
+		draw_arc(Vector2.ZERO, r + PLAYER_RING_W * 0.5, 0.0, TAU, 48,
+				_get_color(), PLAYER_RING_W, true)
 
 
 ## Shows or hides this marker's icon, leaving the road node itself drawn.
-func set_icon_hidden(hidden: bool) -> void:
-	if icon_hidden == hidden:
+func set_icon_hidden(is_hidden: bool) -> void:
+	if icon_hidden == is_hidden:
 		return
-	icon_hidden = hidden
+	icon_hidden = is_hidden
 	_update_icon()
 	queue_redraw()
 
@@ -209,9 +251,9 @@ func _update_icon() -> void:
 
 	match marker_type:
 		MarkerType.HOME:
-			_set_icon(ICON_HOME, ICON_PX, _get_color())
+			_set_icon(ICON_HOME, ICON_PX_PLAYER, _get_color())
 		MarkerType.WORK:
-			_set_icon(ICON_BRIEFCASE, ICON_PX, _get_color())
+			_set_icon(ICON_BRIEFCASE, ICON_PX_PLAYER, _get_color())
 		MarkerType.NPC_HOME:
 			_set_icon(ICON_NEIGHBOURHOOD, ICON_PX, Palette.NPC_HOME)
 		MarkerType.NPC_WORK:

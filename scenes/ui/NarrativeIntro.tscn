@@ -55,13 +55,31 @@ theme_override_font_sizes/font_size = 28
 
 [node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 
-[node name="BodyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="BodyScroll" type="ScrollContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(664, 340)
+horizontal_scroll_mode = 0
+
+[node name="BodyBox" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 18
+
+[node name="BodyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll/BodyBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(664, 0)
+custom_minimum_size = Vector2(650, 0)
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 19
 
+[node name="DiagramBox" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll/BodyBox"]
+unique_name_in_owner = true
+visible = false
+
 [node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+
+[node name="BackButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
+theme_type_variation = &"SecondaryButton"
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 0)
+text = "Back"
 
 [node name="Spacer" type="Control" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
 size_flags_horizontal = 3

@@ -1,5 +1,28 @@
 class_name LinkSegment
 extends Node2D
+## LinkSegment.gd
+## One road on the map: an undirected edge, drawn entirely in _draw().
+##
+## Owns three stress cues that answer two different questions, and keeping them
+## apart is the point (README, guardrail 7):
+##   WIDTH        base stress. Fixed at setup(), never moves at runtime -- a
+##                road does not narrow because someone painted a lane on it.
+##   CENTRE LINE  effective stress, i.e. after the rider's own beta relief.
+##   CARS         effective stress too, in count and speed. Decoration only;
+##                they must never touch routing (guardrail 8).
+##
+## Everything here READS model state and never becomes it. Effective stress
+## comes from CityNetwork.beta_for() and the rider's alpha; this file used to
+## carry its own beta table and got it wrong in opposite directions depending on
+## personality. See _effective_stress().
+##
+## One segment per undirected edge, keyed by CityNetwork's canonical link id.
+## Direction is not a property of the road, so the flow arrows are told which
+## way each rider crosses it (see set_on_route).
+##
+## CityGrid builds these; main.gd routes their `clicked` signal to the upgrade
+## popup. Hit testing is deliberately different for touch and mouse -- see
+## TAP_SLOP_PX and _handle_touch_press().
 
 signal clicked(link_id: String)
 
@@ -25,6 +48,14 @@ var _heatmap_intensity: float = -1.0
 ## moves. Width says what kind of road this is, this view says how it feels now.
 var _stress_view: bool = false
 var _is_hovered: bool = false
+## True while the upgrade popup is open for THIS road.
+##
+## Hover was the only "you touched this" cue and it is driven by mouse motion,
+## which a touchscreen never sends. So on the tablet a participant tapped a road,
+## a popup opened over the map, and nothing anywhere said which road it belonged
+## to. Set by CityGrid from main.gd when the popup opens, cleared when it closes
+## by any route.
+var _selected: bool = false
 ## Set from CityGrid when the player-routes toggle is off. The route itself is
 ## still recorded in _route_players, so turning it back on redraws what was
 ## already there rather than waiting for the next round to recompute it.
@@ -37,18 +68,20 @@ var _press_valid: bool = false
 var _path_points: PackedVector2Array = []
 var _draw_points: PackedVector2Array = []
 var _stress_score: float = 0.5
+## The alpha of the rider this map is being drawn for, so the stress colour, the
+## car count and the car speed describe the road as THIS player experiences it.
+##
+## It used to be absent, and _effective_stress() used a fixed
+## `[1.0, 0.65, 0.3]` table in its place -- a relief no rider ever actually gets.
+## See CityNetwork.beta_for() for how wrong that was and in which direction.
+## Defaults to the average personality so a segment drawn before a game exists
+## still has something sensible to show.
+var _rider_alpha: float = PersonalityConfig.ALPHA_AVERAGE
 ## Drawn width of this road, derived once from base stress in setup(). Never
 ## changes at runtime. See the ROAD_WIDTH comment.
 var _road_width: float = ROAD_WIDTH
 var _anim_t: float = 0.0
 var _total_length: float = 0.0
-
-# Legacy Line2D children are hidden — all rendering is via _draw().
-@onready var stress_outline: Line2D  = $StressOutline
-@onready var road: Line2D            = $Road
-@onready var bike_lane: Line2D       = $BikeLane
-@onready var route_highlight: Line2D = $RouteHighlight
-@onready var hover_highlight: Line2D = $HoverHighlight
 
 ## Colours all come from Palette. The route band is the player's own colour at
 ## a fixed transparency, derived rather than listed a second time, so a seat's
@@ -67,7 +100,7 @@ const ROAD_SHADOW_OFFSET := Vector2(2.5, 3.0)
 
 
 static func route_color(player_index: int) -> Color:
-	var base: Color = Palette.PLAYER_COLORS[player_index % Palette.PLAYER_COLORS.size()]
+	var base: Color = Palette.seat_color(player_index)
 	return Color(base, ROUTE_ALPHA)
 
 
@@ -75,7 +108,7 @@ static func route_color(player_index: int) -> Color:
 ## arrows stay legible against the band they sit on without introducing a sixth
 ## hue that would have to be kept distinct from everything else on the map.
 static func route_arrow_color(player_index: int) -> Color:
-	var base: Color = Palette.PLAYER_COLORS[player_index % Palette.PLAYER_COLORS.size()]
+	var base: Color = Palette.seat_color(player_index)
 	return base.lerp(Color.WHITE, 0.72)
 
 ## Road width encodes BASE stress: the wider the road, the more inherently
@@ -103,7 +136,13 @@ static func route_arrow_color(player_index: int) -> Color:
 ## protected road is already only 8px and cars need 6.5 of it. Anything under
 ## ~21px would push cars out onto the bike lane.
 const ROAD_WIDTH         := 24.0
-const STRESS_WIDTH_BONUS := 12.0
+## Raised from 12 on 30 Aug 2026. Playtesters could not separate a quiet street
+## from a busy one: the arterials the network is built around ran 34px against
+## the backstreets' 27, and seven pixels is not a category difference. At 18 the
+## gap is 39 against 28. ROAD_WIDTH is untouched, so the car-lane clearance
+## worked out below still holds -- that arithmetic is against the MINIMUM width,
+## and this only ever widens.
+const STRESS_WIDTH_BONUS := 18.0
 const EDGE_BORDER    := 1.5
 ## Margins ADDED to the road's own width, not absolute widths. These are drawn
 ## behind the road, so a fixed 32/36 would disappear underneath a wide arterial.
@@ -119,6 +158,9 @@ const EDGE_BORDER    := 1.5
 ## a way that a few pixels of colour does not, which is why they exist.
 const ROUTE_MARGIN   := 10.0
 const HOVER_MARGIN   := 12.0
+## Wider than the hover glow so the two read as different states rather than as
+## the same one at two strengths.
+const SELECT_MARGIN  := 20.0
 ## The route band gets a dark outline of its own. Without it the band relies on
 ## contrasting with whatever is behind the map, and the background art is not
 ## something this code controls.
@@ -139,6 +181,19 @@ const ARROW_SPEED    := 26.0   # pixels per second along the road
 ## up to this many; beyond it the stripes on the band carry the information and
 ## more lanes of arrows would not fit inside the road.
 const ARROW_MAX_LANES := 3
+## Base stress at or above which a road carries a painted centre line.
+##
+## Minor roads do not have one in reality, and the network is bimodal by
+## construction: 45 backstreets between 0.17 and 0.27, 24 arterials between 0.76
+## and 0.92 (CityNetwork.edges, restructured 10 Aug). So the line is a clean
+## categorical read of which skeleton a road belongs to, and it doubles the width
+## cue rather than repeating it -- an arterial is wide AND lined, a backstreet is
+## narrow and bare.
+##
+## Only the plain yellow line is gated. The stress view and the usage heatmap
+## return before this point and keep their line on every road, since a view whose
+## whole job is to colour every road cannot skip half of them.
+const CENTER_LINE_MIN_STRESS := 0.5
 const CENTER_LINE_W  := 1.8
 ## Width of the centre line when it is carrying the NPC heatmap colour.
 const CENTER_HEATMAP_W := 4.0
@@ -174,8 +229,6 @@ const HIT_RADIUS_MAX_SCALED := 3.0
 const TAP_SLOP_PX := 24.0
 const NODE_RADIUS    := 6.5   # roads extend to this depth inside the node circle (28.0 radius, NodeMarker.RADII.NORMAL) so ends are hidden
 
-const BARRIER_SPACE  := 10.0
-const BARRIER_MARK   := 3.0
 # Cars must stay within the plain road fill (the "black") on every upgrade
 # level. On painted/protected roads the outer BIKE_PAINT_W strip on each
 # side narrows that to ROAD_WIDTH/2 - BIKE_PAINT_W = 8.0, so
@@ -202,9 +255,11 @@ const CAR_SPEED_MIN          := 5.71
 const CAR_SPEED_STRESS_SCALE := 39.65
 
 
-func setup(id: String, points: PackedVector2Array, upgrade_level: int = 0, stress: float = 0.5) -> void:
+func setup(id: String, points: PackedVector2Array, upgrade_level: int = 0, stress: float = 0.5,
+		rider_alpha: float = PersonalityConfig.ALPHA_AVERAGE) -> void:
 	link_id = id
 	_stress_score = stress
+	_rider_alpha = rider_alpha
 	_road_width = ROAD_WIDTH + STRESS_WIDTH_BONUS * clampf(stress, 0.0, 1.0)
 	_upgrade_level = upgrade_level
 	set_points(points)
@@ -263,12 +318,6 @@ func set_on_route(on_route: bool, player_index: int = 0, forward: bool = true) -
 	queue_redraw()
 
 
-func clear_routes() -> void:
-	_route_players.clear()
-	_route_forward.clear()
-	queue_redraw()
-
-
 ## intensity: 0.0 (least-used street this round) to 1.0 (most-used) — CityGrid
 ## already normalizes by the busiest link before calling this.
 func set_heatmap(intensity: float) -> void:
@@ -295,7 +344,15 @@ func set_stress_view(on: bool) -> void:
 ## it now paints a thin centre line over dark asphalt rather than a wide wash
 ## behind the road, and at that size any transparency muddies the hue.
 func _heatmap_color(intensity: float) -> Color:
-	var hue: float = lerpf(0.33, 0.0, intensity)
+	return stress_ramp_color(intensity)
+
+
+## The same ramp, reachable without an instance, so MapLegend can draw a key for
+## it from the identical function rather than from a second copy of the numbers.
+## The legend had no entry for this ramp at all, which left the loudest colour on
+## the map unexplained in both the views that paint it.
+static func stress_ramp_color(intensity: float) -> Color:
+	var hue: float = lerpf(0.33, 0.0, clampf(intensity, 0.0, 1.0))
 	return Color.from_hsv(hue, 0.85, 1.0, 1.0)
 
 
@@ -314,12 +371,22 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
+## Marks this road as the one the upgrade popup is currently about, so a
+## participant can see which road they are deciding on while the popup covers
+## part of the map. Matters most on a touchscreen, where there is no hover.
+func set_selected(on: bool) -> void:
+	if _selected == on:
+		return
+	_selected = on
+	queue_redraw()
+
+
 ## Hides or shows this segment's route band and its flow arrows. Display only:
 ## nothing about the route, the model or the logs changes.
-func set_routes_hidden(hidden: bool) -> void:
-	if _routes_hidden == hidden:
+func set_routes_hidden(is_hidden: bool) -> void:
+	if _routes_hidden == is_hidden:
 		return
-	_routes_hidden = hidden
+	_routes_hidden = is_hidden
 	queue_redraw()
 
 
@@ -386,6 +453,11 @@ func _draw() -> void:
 
 	_draw_shadow()
 
+	# Selection sits under the hover glow and is drawn opaque and wider: hover is
+	# a passing "this one would answer", selection is "this one IS answering, and
+	# the panel in front of you is about it".
+	if _selected:
+		_draw_thick_line(Palette.SELECT_GLOW, _road_width + SELECT_MARGIN)
 	if _is_hovered:
 		_draw_thick_line(Palette.HOVER_GLOW, _road_width + HOVER_MARGIN)
 
@@ -395,7 +467,7 @@ func _draw() -> void:
 	# a wide band behind the road, so nothing is drawn out here and the player
 	# route highlight stays hidden, keeping the two views distinct.
 	var pulse: float = sin(_anim_t * 2.0) * 2.0
-	var show_route: bool = not _routes_hidden 			and _heatmap_intensity < 0.0 and not _route_players.is_empty()
+	var show_route: bool = not _routes_hidden and _heatmap_intensity < 0.0 and not _route_players.is_empty()
 	if show_route:
 		# Dark casing first, so the band separates from the background rather
 		# than relying on whatever art happens to be underneath it.
@@ -564,6 +636,9 @@ func _draw_dashed_center_line() -> void:
 		_draw_thick_line(_heatmap_color(_heatmap_intensity), CENTER_HEATMAP_W)
 		return
 
+	if _stress_score < CENTER_LINE_MIN_STRESS:
+		return
+
 	for i in range(_draw_points.size() - 1):
 		var a := _draw_points[i]
 		var b := _draw_points[i + 1]
@@ -584,36 +659,21 @@ func _draw_offset_line(offset_dist: float, color: Color, width: float) -> void:
 		draw_line(a + perp * offset_dist, b + perp * offset_dist, color, width, true)
 
 
-func _draw_barrier_marks(offset_dist: float, color: Color) -> void:
-	for i in range(_draw_points.size() - 1):
-		var a := _draw_points[i]
-		var b := _draw_points[i + 1]
-		var dir := (b - a).normalized()
-		var perp := dir.rotated(PI / 2.0)
-		var length := a.distance_to(b)
-		var pos := BARRIER_SPACE / 2.0
-		while pos < length - 2.0:
-			var center := a + dir * pos + perp * offset_dist
-			draw_line(
-				center - perp * BARRIER_MARK,
-				center + perp * (BARRIER_MARK * 0.5),
-				color, 1.5, true
-			)
-			pos += BARRIER_SPACE
-
-
 # --- Stress cars (count + speed both reflect effective road stress, both
 #     decrease when upgraded) ---
 
 ## Raw stress reduced by however much this road's current infrastructure
-## relieves it — a cheap per-level estimate (not the real personality-
-## dependent beta_protected from CityNetwork.gd, which needs a rider alpha
-## this purely-visual layer doesn't have and shouldn't need). Shared by both
-## car count and car speed so the two cues move together as a road is
-## upgraded, instead of drifting independently.
+## relieves it, for the rider actually playing. Shared by the car count and the
+## car speed so the two cues move together as a road is upgraded.
+##
+## This must come from CityNetwork.beta_for() and not from a table kept here.
+## It used to carry its own `beta_est = [1.0, 0.65, 0.3]`, a relief no rider
+## ever gets, and the error changed sign with personality: it understated what a
+## cautious rider had just bought and overstated what a confident one had. The
+## one cue answering "did that do anything" was wrong in both directions
+## (guardrail 8 — the visual layer reads model state, it does not invent it).
 func _effective_stress() -> float:
-	var beta_est: float = [1.0, 0.65, 0.3][clampi(_upgrade_level, 0, 2)]
-	return _stress_score * beta_est
+	return _stress_score * CityNetwork.beta_for(_upgrade_level, _stress_score, _rider_alpha)
 
 ## Cars per 100px of road, before the effective-stress multiplier. Car count
 ## used to be a flat function of stress alone (stress * beta * 6), so a

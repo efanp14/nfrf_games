@@ -28,7 +28,7 @@ theme_override_constants/margin_bottom = 28
 size_flags_horizontal = 3
 
 [node name="PanelContainer" type="PanelContainer" parent="ScrollContainer/OuterMargin/Centerer"]
-custom_minimum_size = Vector2(1020, 0)
+custom_minimum_size = Vector2(1120, 0)
 
 [node name="InnerMargin" type="MarginContainer" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer"]
 theme_override_constants/margin_left = 32
@@ -50,7 +50,7 @@ text = "Before you start, please answer a few questions about yourself and about
 Your responses are anonymous and contribute to the research."
 autowrap_mode = 3
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 15
 
 [node name="HSep1" type="HSeparator" parent="ScrollContainer/OuterMargin/Centerer/PanelContainer/InnerMargin/VBoxContainer"]
 

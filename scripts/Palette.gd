@@ -31,12 +31,19 @@ class_name Palette
 const BRAND_RED    := Color("#D6001C")
 const BRAND_GOLD   := Color("#FFCD00")
 
+## The rest of the identity, kept as the reference rather than because the game
+## draws with all of it. Nothing currently reads the secondary or neutral
+## entries: they are here so that a later screen reaches for an approved colour
+## instead of inventing one, and so the values do not have to be looked up
+## again. Do not go hunting for their call sites -- there are none by design.
+##
 ## Secondary.
 const BRAND_ORANGE_LIGHT := Color("#FFA300")
 const BRAND_ORANGE_DARK  := Color("#FF671F")
 const BRAND_BERRY        := Color("#9C0534")
 
-## Accent.
+## Accent. Both of these are in use: teal is the gain colour, pale yellow the
+## selected survey bubble's border.
 const BRAND_TEAL         := Color("#47A67C")
 const BRAND_YELLOW_LIGHT := Color("#FFE57B")
 
@@ -53,6 +60,11 @@ const BRAND_GREY_LIGHT := Color("#C7C8CA")
 ## res://resources/ui_theme.tres, which is registered project wide and which
 ## mirrors these values. A .tres cannot read a GDScript constant, so the two are
 ## kept in step by hand and a change starts here, where the reasoning lives.
+##
+## Which means BRAND_RED, BRAND_GOLD, PANEL_BG, PANEL_BORDER and TEXT_PRIMARY
+## look unread by a search of the GDScript and are not: the theme holds their
+## values as raw numbers, and this file is where those numbers are explained.
+## Change one here and change it in the .tres in the same pass.
 
 ## Warm near-black rather than the cool blue-grey this used to be, so the red and
 ## gold read as warm brand colours instead of as alerts on a blue field.
@@ -82,7 +94,7 @@ const TEXT_MUTED   := Color(1, 0.804, 0, 0.30)
 ## Both labels carry a triangle glyph too, so hue is never the only channel.
 const DELTA_GAIN := BRAND_TEAL
 const DELTA_LOSS := Color("#FF4D5E")
-const ERROR_TEXT := Color("#FF4D5E")
+const ERROR_TEXT := DELTA_LOSS
 
 ## Survey response bubbles. Drawn rather than left to the engine's checkbox
 ## icons; see SurveyScale for why the contrast here is deliberately high. A
@@ -94,10 +106,9 @@ const BUBBLE_BORDER          := Color("#8C8289")
 const BUBBLE_HOVER_FILL      := Color("#3A3438")
 const BUBBLE_HOVER_BORDER    := BRAND_GOLD
 const BUBBLE_SELECTED_FILL   := BRAND_GOLD
-const BUBBLE_SELECTED_BORDER := Color("#FFE57B")
+const BUBBLE_SELECTED_BORDER := BRAND_YELLOW_LIGHT
 const ROW_STRIPE             := Color(1.0, 1.0, 1.0, 0.035)
 const SURVEY_HEADER          := BRAND_GOLD
-const SURVEY_PLAYER_LABEL    := BRAND_GOLD
 const SURVEY_SECTION_TITLE   := BRAND_GOLD
 
 ## Safety is shown as a five-star rating. Earned stars take the brand gold; the
@@ -123,21 +134,50 @@ const STAR_EMPTY_COLOR := Color("#5A5257")
 ## be read wrong. Yellow is out for the same reason: it would collide with the
 ## gold centre line and the gold safety stars.
 ##
-## Seats 2 and 5, vermillion and orange, are the closest pair here. They only
+## Seats 4 and 5, vermillion and orange, are the closest pair here. They only
 ## ever appear together at five players, which is above the group sizes actually
-## run, and separating them further would have cost the other four their spacing.
+## run, and separating them further would have cost the other three their spacing.
+##
+## ORDER MATTERS AND IS NOT ALPHABETICAL OR ARBITRARY. Vermillion and reddish
+## purple were swapped on 30 Aug 2026 (owner) after playtesters read seat 2 as
+## clashing with the stress ramp. The ramp is
+## Color.from_hsv(lerp(0.33, 0, stress), 0.85, 1.0), which passes through
+## #FF8E26 at three quarters -- hue 0.08, against vermillion's 0.074. The two are
+## effectively the same hue, and both land on the same road. Reddish purple sits
+## far from every point on that ramp, so it takes seat 2, which is occupied in
+## every group session; vermillion moves to seat 3 and orange stays at 5, so the
+## ramp's near-match is only ever on screen at three or more players rather than
+## at two.
 const PLAYER_COLORS: Array = [
 	Color("#0072B2"),   # blue
-	Color("#D55E00"),   # vermillion
 	Color("#CC79A7"),   # reddish purple
+	Color("#D55E00"),   # vermillion
 	Color("#56B4E9"),   # sky blue
 	Color("#E69F00"),   # orange
 ]
 
 
+## The colour for a seat, given its 0-based index. Wraps, so a group larger than
+## the list still gets a colour rather than crashing.
+##
+## Written out as PLAYER_COLORS[i % PLAYER_COLORS.size()] in twelve places
+## before this existed, one of them with an off-by-one because it was handed a
+## 1-based seat number. Seat identity is the one thing the group treatment rests
+## on, so it gets one accessor.
+static func seat_color(seat_index: int) -> Color:
+	return PLAYER_COLORS[seat_index % PLAYER_COLORS.size()]
+
+
 # =======================================================================
 #  MAP
 # =======================================================================
+## The paper the city is drawn on, set as the viewport clear colour in main.gd.
+## It lives here because it is the surface every map colour is judged against,
+## and because anything drawn over the map has to be legible on it: the
+## round-one hint shipped invisible at 1.02:1 by inheriting the chrome text
+## colour, which is built for dark cards, onto this near-white ground.
+const MAP_BACKGROUND    := Color("#F6F1E6")
+
 ## Slightly warmer than a flat monochrome grey, so a road reads as asphalt
 ## rather than a wireframe line while staying inside the flat-vector style.
 const ROAD_FILL         := Color("#3E3D42")
@@ -153,7 +193,12 @@ const WHITE_MARKING     := Color(0.95, 0.95, 0.90)
 ## rather than reverting the colour.
 const BIKE_PAINT        := Color("#1B7A3C")
 const PROTECTED_ASPHALT := Color("#A79C87")
-const HOVER_GLOW        := Color(0.95, 0.75, 0.25, 0.45)
+## Raised from 0.45. At that alpha the glow was a faint tint six pixels either
+## side of the road and read as nothing much even on a desktop.
+const HOVER_GLOW        := Color(0.95, 0.75, 0.25, 0.62)
+## The road the upgrade popup is open for. Opaque and gold, matching the way an
+## active rail toggle is marked, because this is a state rather than a hint.
+const SELECT_GLOW       := Color(1.0, 0.804, 0.0, 1.0)
 
 ## Cars cycle through a small palette instead of all being identical, so the
 ## traffic-as-stress cue reads as an actual street rather than repeated clones.
@@ -180,6 +225,11 @@ const NPC_HOME := Color(0.58, 0.61, 0.54)
 const NPC_WORK := Color(0.46, 0.52, 0.58)
 
 const NODE_NAME_TEXT := Color(0.45, 0.42, 0.38)
+## The seat number on a player's home/work marker. Near-black INK, carried on
+## an outline in that seat's own colour, rather than the seat colour drawn
+## straight onto the map: the numeral sits over roads, buildings and route
+## bands, and no single hue reads against all three.
+const SEAT_NUMBER_TEXT := Color(0.09, 0.08, 0.10)
 
 ## The topology in play has no river, so this draws nothing today. Kept because
 ## CityNetwork still supports river_points.

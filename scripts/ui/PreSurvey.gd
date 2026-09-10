@@ -14,13 +14,12 @@ signal survey_completed(alpha: float, responses: Dictionary)
 ## first real option would stand as an unnoticed default answer.
 const SELECT_PROMPT: String = "Select…"
 
-## Keeps question text in a fixed column so the scale buttons line up with their
-## headers across every row.
-const QUESTION_COLUMN_WIDTH: float = 320.0
 
 var _responses: Dictionary = {}
 var _required_keys: Array[String] = []
-var _player_label: Label
+## Same banner the closing survey uses, so a seat is identified the same way at
+## both ends of a session.
+var _player_banner: SurveyIdentityBanner
 var _gender_free_text: LineEdit
 
 @onready var questions_box: VBoxContainer = %QuestionsBox
@@ -35,26 +34,21 @@ func _ready() -> void:
 	begin_button.disabled = true
 	begin_button.pressed.connect(_on_begin_pressed)
 
-	_player_label = Label.new()
-	_player_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_player_label.add_theme_font_size_override("font_size", 14)
-	_player_label.add_theme_color_override("font_color", Palette.SURVEY_PLAYER_LABEL)
-	_player_label.visible = false
+	_player_banner = SurveyIdentityBanner.new()
+	_player_banner.visible = false
 	var vbox := questions_box.get_parent()
-	vbox.add_child(_player_label)
-	vbox.move_child(_player_label, questions_box.get_index())
+	vbox.add_child(_player_banner)
+	vbox.move_child(_player_banner, questions_box.get_index())
 
 	_build_questions()
 
 
-func show_for_player(player_num: int, total: int) -> void:
+func show_for_player(player_num: int, total: int, participant_id: String = "") -> void:
 	_reset()
+	_player_banner.set_player(player_num, total, participant_id)
 	if total > 1:
-		_player_label.text = "Player %d of %d" % [player_num, total]
-		_player_label.visible = true
 		begin_button.text = "Next" if player_num < total else "Begin Game"
 	else:
-		_player_label.visible = false
 		begin_button.text = "Begin Game"
 	visible = true
 
@@ -91,7 +85,7 @@ func _build_questions() -> void:
 			# Wrapped the same way as the rows below it, so the headers sit
 			# squarely above their own column of bubbles.
 			questions_box.add_child(SurveyScale.banded_row(
-				SurveyScale.build_header_row(QUESTION_COLUMN_WIDTH), 0))
+				SurveyScale.build_header_row(SurveyScale.QUESTION_COLUMN_WIDTH), 0))
 			scale_header_shown = true
 			row_index = 0
 
@@ -116,7 +110,7 @@ func _add_section_header(title: String) -> void:
 func _add_choice_row(q: Dictionary, row_index: int) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	row.add_child(_question_label(q["text"]))
+	row.add_child(SurveyScale.question_label(q["text"]))
 
 	var picker := OptionButton.new()
 	picker.custom_minimum_size = Vector2(260, 0)
@@ -142,22 +136,12 @@ func _add_choice_row(q: Dictionary, row_index: int) -> void:
 func _add_scale_row(q: Dictionary, row_index: int) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
-	row.add_child(_question_label(q["text"]))
+	row.add_child(SurveyScale.question_label(q["text"]))
 
 	var key: String = q["key"]
 	row.add_child(SurveyScale.build_response_row(
 		func(value: Variant) -> void: _on_scale_pick(key, value)))
 	questions_box.add_child(SurveyScale.banded_row(row, row_index))
-
-
-func _question_label(text: String) -> Label:
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.custom_minimum_size = Vector2(QUESTION_COLUMN_WIDTH, 0)
-	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lbl.add_theme_font_size_override("font_size", 12)
-	return lbl
 
 
 func _on_choice(key: String, options: Array, idx: int) -> void:
@@ -202,6 +186,11 @@ func _refresh_begin_button() -> void:
 	begin_button.disabled = false
 
 
+## Emits and does NOT hide, the same rule PostSurvey documents at length.
+## Emission is synchronous, so the caller has already moved the session on by
+## the time this returns; main.gd owns closing this screen. Six other screens in
+## this project self-close with `emit(); hide()`, so the inconsistency is real
+## and deliberate -- do not tidy it away.
 func _on_begin_pressed() -> void:
 	var mean: float = SurveyQuestions.alpha_mean(_responses)
 	survey_completed.emit(PersonalityConfig.alpha_for_survey_mean(mean), _responses.duplicate())

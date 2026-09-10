@@ -1,5 +1,23 @@
 class_name CityGrid
 extends Node2D
+## CityGrid.gd
+## The map: background, roads and node markers, built from CityNetwork.
+##
+## _build() runs once when a round first starts and again after a scene reload,
+## and is written back-to-front in draw order. Segments are keyed by the
+## CANONICAL link id, which matters beyond tidiness: that id is what reaches
+## upgrades.csv and decisions.csv, and network_links.csv is canonical, so a
+## non-canonical id would silently fail to join at analysis time.
+##
+## This is one of the places the "UI reads nothing directly" guardrail is not
+## literally held (README, guardrail 2). It pulls GameManager.network,
+## .human_players and .ai_commuters at build time because it has to ask what to
+## draw. Those are reads, never writes, and every per-round update still arrives
+## by signal.
+##
+## The view toggles (resident visuals, player routes) are STATIC, so they
+## survive the scene reload between chained sessions; _build() re-applies them
+## at the end for that reason.
 
 signal link_clicked(link_id: String)
 
@@ -62,7 +80,16 @@ const ProceduralBackgroundScript := preload("res://scripts/ui/ProceduralBackgrou
 enum BackgroundMode { NONE, IMAGE, PROCEDURAL }
 const BACKGROUND_MODE := BackgroundMode.PROCEDURAL
 
+## Drawn width of the river, if a topology has one. This one does not.
+const RIVER_WIDTH := 32.0
+
 ## Aligns the decorative background image with our actual node/road layout.
+##
+## ⚠️ This describes BackgroundMode.IMAGE, which is NOT the selected mode: the
+## build ships PROCEDURAL, so nothing below runs as things stand. Kept because
+## the fit is expensive to recover and the mode is a one-line switch away, but
+## do not read it as documentation of what you see on screen.
+##
 ## A 2-point (home/work icon) fit left visible drift in the upper-right of
 ## the map — the image isn't a mathematically precise scaled copy of our
 ## grid, so anchoring only two far-apart points let error accumulate
@@ -106,11 +133,25 @@ func _on_game_ready(_round_num: int, _budget: int) -> void:
 		_on_route_updated(p.player_id, p.current_route)
 
 
+## Builds the whole map from the network: background, roads, node markers.
+## Called once when a round first starts, and again after a scene reload.
+##
+## Split into one function per layer, back to front, because that order is the
+## draw order and reading it is how you find out what sits on top of what.
 func _build() -> void:
-	var net    := GameManager.network
-	var num_players: int = GameManager.human_players.size()
+	var net := GameManager.network
+	_build_background(net)
+	_build_river(net)
+	_build_segments(net)
+	_build_markers(net)
+	# The toggles are static and survive a scene reload, so a map built after
+	# either was switched on must come up already hiding what it hides.
+	_apply_resident_visibility()
+	_apply_player_route_visibility()
 
-	# --- Background (furthest back, behind roads/nodes/everything) ---
+
+## Furthest back, behind roads, nodes and everything else.
+func _build_background(net: CityNetwork) -> void:
 	match BACKGROUND_MODE:
 		BackgroundMode.IMAGE:
 			if net.node_positions.has(Vector2i(1, 0)):
@@ -129,19 +170,27 @@ func _build() -> void:
 		BackgroundMode.NONE:
 			pass
 
-	# --- Draw the river behind everything (no-op: this topology has none) ---
-	if net.river_points.size() > 1:
-		var river := Line2D.new()
-		river.points        = net.river_points
-		river.default_color = Palette.RIVER
-		river.width         = 32.0
-		river.begin_cap_mode = Line2D.LINE_CAP_ROUND
-		river.end_cap_mode   = Line2D.LINE_CAP_ROUND
-		add_child(river)
-		move_child(river, 0)
+
+## A no-op on this topology, which has no river. Kept because the network
+## format still carries river_points and a future board may use them.
+func _build_river(net: CityNetwork) -> void:
+	if net.river_points.size() <= 1:
+		return
+	var river := Line2D.new()
+	river.points          = net.river_points
+	river.default_color   = Palette.RIVER
+	river.width           = RIVER_WIDTH
+	river.begin_cap_mode  = Line2D.LINE_CAP_ROUND
+	river.end_cap_mode    = Line2D.LINE_CAP_ROUND
+	add_child(river)
+	move_child(river, 0)
 
 
-	# --- Link segments (one per undirected edge) ---
+## One segment per undirected edge. net.links holds both directions, so the
+## second one met is skipped.
+func _build_segments(net: CityNetwork) -> void:
+	var rider_alpha: float = (GameManager.human_player.alpha
+			if GameManager.human_player != null else PersonalityConfig.ALPHA_AVERAGE)
 	var drawn: Dictionary = {}
 	for link_id: String in net.links:
 		var link: CityNetwork.Link = net.links[link_id]
@@ -156,7 +205,16 @@ func _build() -> void:
 		])
 		var seg: LinkSegment = LinkSegmentScene.instantiate()
 		links_container.add_child(seg)
-		seg.setup(link_id, pts, link.upgrade_level, link.stress_score)
+		# The CANONICAL id, not `link_id`. `net.links` holds both directions and
+		# this loop takes whichever it meets first, which for 16 of the 69 edges is
+		# the high-node-first one. That id is what clicked() emits and what ends up
+		# in upgrades.csv and decisions.csv, while network_links.csv and every
+		# route_links column are canonical -- so a join between them would silently
+		# drop those links. Both directions exist in net.links, so every lookup
+		# downstream of here still resolves.
+		# The rider's alpha goes in too: the stress colour, the cars and their speed
+		# all describe how the road feels, and how it feels depends on who is riding.
+		seg.setup(canonical, pts, link.upgrade_level, link.stress_score, rider_alpha)
 		seg.clicked.connect(_on_segment_clicked)
 		_segments[canonical] = seg
 		# Segments are stored under one canonical id for an undirected edge, so
@@ -164,56 +222,58 @@ func _build() -> void:
 		# need it to tell which way along the road a given rider is going.
 		_segment_from_node[canonical] = link.from_node
 
-	# --- Simulated-resident home/work nodes ---
-	# Purely a visual cue for where the city-wide averages come from; never
-	# read by routing or metric logic, and drawn beneath the player's own
-	# HOME/WORK markers wherever the two coincide. All markers render at the
-	# same fixed icon size (NodeMarker.ICON_PX) — no population-based scaling.
-	var npc_home_nodes: Dictionary = {}
-	var npc_work_nodes: Dictionary = {}
-	for commuter in GameManager.ai_commuters:
-		npc_home_nodes[commuter["start"]] = true
-		npc_work_nodes[commuter["goal"]] = true
 
-	# --- Node markers ---
+## Which nodes the simulated residents start and finish at. Purely a visual cue
+## for where the city-wide averages come from; never read by routing or metric
+## logic.
+func _resident_endpoints() -> Array[Dictionary]:
+	var homes: Dictionary = {}
+	var works: Dictionary = {}
+	for commuter: Dictionary in GameManager.ai_commuters:
+		homes[commuter["start"]] = true
+		works[commuter["goal"]] = true
+	return [homes, works]
+
+
+## Which kind of marker a node gets, and for which seat. The player's own
+## HOME/WORK wins over a resident endpoint wherever the two coincide.
+func _marker_kind_for(node_vec: Vector2i, net: CityNetwork,
+		npc_homes: Dictionary, npc_works: Dictionary) -> Dictionary:
+	for i in range(GameManager.human_players.size()):
+		var p: Player = GameManager.human_players[i]
+		if node_vec == p.home:
+			return {"type": NodeMarker.MarkerType.HOME, "seat": i, "icon": ""}
+		if node_vec == p.work:
+			return {"type": NodeMarker.MarkerType.WORK, "seat": i, "icon": ""}
+	if npc_homes.has(node_vec):
+		return {"type": NodeMarker.MarkerType.NPC_HOME, "seat": 0, "icon": ""}
+	if npc_works.has(node_vec):
+		return {"type": NodeMarker.MarkerType.NPC_WORK, "seat": 0,
+				"icon": net.WORK_NODE_ICONS.get(node_vec, "")}
+	return {"type": NodeMarker.MarkerType.NORMAL, "seat": 0, "icon": ""}
+
+
+## All markers render at the same fixed icon size (NodeMarker.ICON_PX) -- no
+## population-based scaling.
+func _build_markers(net: CityNetwork) -> void:
+	var num_players: int = GameManager.human_players.size()
+	var endpoints := _resident_endpoints()
+	var npc_homes: Dictionary = endpoints[0]
+	var npc_works: Dictionary = endpoints[1]
+
 	for node_vec: Vector2i in net.adjacency.keys():
 		var node_id := _vec_to_id(node_vec)
 		var marker: NodeMarker = NodeMarkerScene.instantiate()
 		nodes_container.add_child(marker)
 		marker.position = net.node_positions[node_vec]
 
-		var mtype := NodeMarker.MarkerType.NORMAL
-		var pidx := 0
-		var is_player_marker := false
-		for i in range(num_players):
-			var p: Player = GameManager.human_players[i]
-			if node_vec == p.home:
-				mtype = NodeMarker.MarkerType.HOME
-				pidx = i
-				is_player_marker = true
-				break
-			elif node_vec == p.work:
-				mtype = NodeMarker.MarkerType.WORK
-				pidx = i
-				is_player_marker = true
-				break
-
-		var work_icon_key := ""
-		if not is_player_marker:
-			if npc_home_nodes.has(node_vec):
-				mtype = NodeMarker.MarkerType.NPC_HOME
-			elif npc_work_nodes.has(node_vec):
-				mtype = NodeMarker.MarkerType.NPC_WORK
-				work_icon_key = net.WORK_NODE_ICONS.get(node_vec, "")
-
+		var kind := _marker_kind_for(node_vec, net, npc_homes, npc_works)
+		# Deliberately blank: the fictional-city rule means no node ever shows a
+		# participant-facing name, so nothing is passed for the label.
 		var display_label: String = ""
-		marker.setup(node_id, mtype, display_label, pidx, num_players, work_icon_key)
+		marker.setup(node_id, kind["type"], display_label, kind["seat"],
+				num_players, kind["icon"])
 		_markers[node_id] = marker
-
-	# The toggles are static and survive a scene reload, so a map built after
-	# either was switched on must come up already hiding what it hides.
-	_apply_resident_visibility()
-	_apply_player_route_visibility()
 
 
 func refresh_link(link_id: String) -> void:
@@ -242,19 +302,21 @@ func preview_link(link_id: String, level: int) -> void:
 		_segments[canonical].set_pending_level(level)
 
 
+## Marks one road as the one the upgrade popup is about, clearing any previous.
+## Pass "" to clear. Display only.
+func set_selected_link(link_id: String) -> void:
+	var canonical := ""
+	if not link_id.is_empty():
+		var parts := link_id.split("-")
+		if parts.size() == 2:
+			canonical = _canonical(_id_to_vec(parts[0]), _id_to_vec(parts[1]))
+	for key: String in _segments:
+		_segments[key].set_selected(key == canonical)
+
+
 func clear_all_previews() -> void:
 	for seg: LinkSegment in _segments.values():
 		seg.set_pending_level(-1)
-
-
-func set_link_points(link_id: String, points: PackedVector2Array) -> void:
-	var parts := link_id.split("-")
-	if parts.size() != 2:
-		return
-	var canonical := _canonical(_id_to_vec(parts[0]), _id_to_vec(parts[1]))
-	if _segments.has(canonical):
-		_segments[canonical].set_points(points)
-
 
 
 func _on_segment_clicked(link_id: String) -> void:
@@ -273,7 +335,7 @@ func play_round_end_animation() -> void:
 	for i in range(GameManager.human_players.size()):
 		var p: Player = GameManager.human_players[i]
 		var path: Array = p.current_route.get("path", [])
-		var col: Color = Palette.PLAYER_COLORS[i % Palette.PLAYER_COLORS.size()]
+		var col: Color = Palette.seat_color(i)
 		var t := _spawn_bike(path, col)
 		if t:
 			last_tween = t
@@ -355,8 +417,8 @@ static var hide_player_routes: bool = false
 
 ## Called by main.gd, wired to GameHUD's player-routes button. Applies to the
 ## segments already on the map, so it takes effect without rebuilding the grid.
-func set_player_routes_hidden(hidden: bool) -> void:
-	hide_player_routes = hidden
+func set_player_routes_hidden(is_hidden: bool) -> void:
+	hide_player_routes = is_hidden
 	_apply_player_route_visibility()
 
 
@@ -367,8 +429,8 @@ func _apply_player_route_visibility() -> void:
 
 ## Called by main.gd, wired to GameHUD's resident-visuals button. Applies to
 ## markers already on the map, so it takes effect without rebuilding the grid.
-func set_resident_visuals_hidden(hidden: bool) -> void:
-	hide_resident_visuals = hidden
+func set_resident_visuals_hidden(is_hidden: bool) -> void:
+	hide_resident_visuals = is_hidden
 	_apply_resident_visibility()
 
 

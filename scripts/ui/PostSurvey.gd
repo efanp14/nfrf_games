@@ -11,14 +11,16 @@ signal survey_completed(player_num: int, responses: Dictionary)
 ## only here, since they ask about something T1 and T2 participants never did.
 const GROUP_TREATMENT: int = 2
 
-const QUESTION_COLUMN_WIDTH: float = 320.0
 
 var _responses: Dictionary = {}
 var _required_keys: Array[String] = []
 var _treatment: int = 0
 var _player_num: int = 1
 var _total_players: int = 1
-var _player_label: Label
+## Says whose turn it is: seat colour, seat number and participant ID. In the
+## group treatment three people share one screen and answer in turn, and this is
+## what tells them which of them is up.
+var _player_banner: SurveyIdentityBanner
 
 @onready var questions_box: VBoxContainer = %QuestionsBox
 @onready var submit_button: Button        = %SubmitButton
@@ -32,17 +34,17 @@ func _ready() -> void:
 	submit_button.disabled = true
 	submit_button.pressed.connect(_on_submit)
 
-	_player_label = Label.new()
-	_player_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_player_label.add_theme_font_size_override("font_size", 14)
-	_player_label.add_theme_color_override("font_color", Palette.SURVEY_PLAYER_LABEL)
-	_player_label.visible = false
+	_player_banner = SurveyIdentityBanner.new()
+	_player_banner.visible = false
 	var vbox := questions_box.get_parent()
-	vbox.add_child(_player_label)
-	vbox.move_child(_player_label, questions_box.get_index())
+	vbox.add_child(_player_banner)
+	vbox.move_child(_player_banner, questions_box.get_index())
 
 
-func show_survey(treatment: int, player_num: int = 1, total_players: int = 1) -> void:
+## `participant_id` is shown, not stored: the caller still passes the ID
+## separately to the logger. It is here so a group can tell whose turn it is.
+func show_survey(treatment: int, player_num: int = 1, total_players: int = 1,
+		participant_id: String = "") -> void:
 	_treatment = treatment
 	_player_num = player_num
 	_total_players = total_players
@@ -53,12 +55,10 @@ func show_survey(treatment: int, player_num: int = 1, total_players: int = 1) ->
 	_build_questions()
 
 	submit_button.disabled = true
+	_player_banner.set_player(player_num, total_players, participant_id)
 	if total_players > 1:
-		_player_label.text = "Player %d of %d" % [player_num, total_players]
-		_player_label.visible = true
 		submit_button.text = "Next" if player_num < total_players else "Submit & Finish"
 	else:
-		_player_label.visible = false
 		submit_button.text = "Submit & Finish"
 	visible = true
 
@@ -68,7 +68,7 @@ func _build_questions() -> void:
 	# Wrapped the same way as the rows below it, so the headers sit squarely
 	# above their own column of bubbles.
 	questions_box.add_child(SurveyScale.banded_row(
-		SurveyScale.build_header_row(QUESTION_COLUMN_WIDTH), 0))
+		SurveyScale.build_header_row(SurveyScale.QUESTION_COLUMN_WIDTH), 0))
 
 	for q: Dictionary in SurveyQuestions.POST:
 		if q.get("group_only", false) and _treatment != GROUP_TREATMENT:
@@ -81,13 +81,7 @@ func _add_scale_row(q: Dictionary, row_index: int) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
 
-	var lbl := Label.new()
-	lbl.text = q["text"]
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.custom_minimum_size = Vector2(QUESTION_COLUMN_WIDTH, 0)
-	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lbl.add_theme_font_size_override("font_size", 12)
-	row.add_child(lbl)
+	row.add_child(SurveyScale.question_label(q["text"]))
 
 	var key: String = q["key"]
 	row.add_child(SurveyScale.build_response_row(

@@ -21,7 +21,8 @@ class_name CityFeedback
 static func lines(metrics: Dictionary) -> PackedStringArray:
 	return PackedStringArray([
 		"City average commute:   %.1f min" % metrics.get("avg_time", 0.0),
-		"City safety:   %s" % SafetyDisplay.format_bb(metrics.get("avg_safety", 0.0)),
+		"City safety:   %s" % SafetyDisplay.format_route_bb(
+			metrics.get("avg_safety", 0.0), PersonalityConfig.ALPHA_AVERAGE),
 		"Network upgraded:   %d%%" % int(round(metrics.get("coverage", 0.0))),
 	])
 
@@ -40,7 +41,8 @@ static func lines_with_change(metrics: Dictionary, baseline: Dictionary) -> Pack
 			metrics.get("avg_time", 0.0),
 			_change_suffix(before.get("avg_time", 0.0) - metrics.get("avg_time", 0.0), "min", 0.05)],
 		"City safety:   %s%s" % [
-			SafetyDisplay.format_bb(metrics.get("avg_safety", 0.0)),
+			SafetyDisplay.format_route_bb(
+					metrics.get("avg_safety", 0.0), PersonalityConfig.ALPHA_AVERAGE),
 			_change_suffix(metrics.get("avg_safety", 0.0) - before.get("avg_safety", 0.0), "pts", 0.05)],
 		# "pts", not "%", so a rise from 12% to 13% reads as "1.4 pts" rather
 		# than the ambiguous "1.4 % better" (relative change or percentage
@@ -78,6 +80,12 @@ static func benefit_lines(metrics: Dictionary) -> PackedStringArray:
 ## convention used throughout the log. Returns "" when the change is below
 ## `epsilon`, so an unchanged metric reads as a plain value rather than a
 ## distracting "+0.0".
+##
+## The triangle means BETTER or WORSE, never up or down. RoundSummary and
+## EndScreen were brought into line with this rather than the other way
+## round: these lines and the personal lines share one panel, and a glyph
+## that tracked each number's own direction made the two halves of that
+## panel contradict each other.
 static func _change_suffix(improvement: float, unit: String, epsilon: float) -> String:
 	if improvement > epsilon:
 		return "   (▲ %.1f %s better)" % [improvement, unit]

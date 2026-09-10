@@ -27,10 +27,41 @@ const NEUTRAL_SCORE: float = 3.0
 
 ## Width of one response column. The headers and the buttons beneath them both
 ## read this, so they stay aligned as a matrix.
-const COLUMN_WIDTH: float = 104.0
+const COLUMN_WIDTH: float = 112.0
 
 ## Diameter of one response bubble.
 const BUBBLE_SIZE: float = 26.0
+
+
+## Width of the question column: the wrapped item text on the left of each row.
+## Both surveys read this so their rows line up with each other and with the
+## header row above them.
+##
+## Widened along with the question font, so a 16pt item still runs to about the
+## number of lines it did at 12pt. The survey panels grew to match.
+const QUESTION_COLUMN_WIDTH: float = 380.0
+
+
+## The wrapped item text at the left of one scale row.
+##
+## Lived in both surveys as identical copies, down to the comment below, which
+## is the drift this class exists to prevent.
+##
+## 12 up to 16: the question text and the scale headers were the smallest text
+## in the participant-facing game, below even the map legend, which was raised
+## off 11 on 24 Aug 2026 for the same reason. Playtesters reported both surveys
+## as uncomfortable to read.
+const QUESTION_FONT_SIZE: int = 16
+
+
+static func question_label(text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.custom_minimum_size = Vector2(QUESTION_COLUMN_WIDTH, 0)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl.add_theme_font_size_override("font_size", QUESTION_FONT_SIZE)
+	return lbl
 
 ## The bubbles are drawn here rather than left to the engine's default checkbox
 ## icons, which sit at very low contrast against the dark survey panel and make
@@ -83,7 +114,10 @@ static func build_header_row(question_column_width: float) -> HBoxContainer:
 		lbl.text = opt["label"]
 		lbl.custom_minimum_size = Vector2(COLUMN_WIDTH, 0)
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.add_theme_font_size_override("font_size", 11)
+		# Raised with the question text beside it. 14 rather than 16: the widest
+		# header line is "Not applicable", which at 15 would overrun COLUMN_WIDTH
+		# and break the alignment between a header and the bubbles under it.
+		lbl.add_theme_font_size_override("font_size", 14)
 		lbl.add_theme_color_override("font_color", Palette.SURVEY_HEADER)
 		row.add_child(lbl)
 	return row
