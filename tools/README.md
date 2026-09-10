@@ -27,6 +27,148 @@ only when two sessions land in the same minute under the same name.
 A session is **one treatment**, so a participant playing T1 then T2 produces two
 folders, not one.
 
+Beside the session folders, and not one of them, sits `participant_ids.txt`. It
+is described below.
+
+## Participant IDs
+
+`participant_id` is the only thing joining a person's sessions together, and
+those sessions are on two machines: T1 and T2 on the individual machine, T3 on
+the group one, days apart. The ID therefore has to travel between them, which in
+practice means on a card.
+
+The menu's **Generate** button issues one:
+
+```
+PCY-XA6
+```
+
+Six characters, stored without the hyphen as `PCYXA6`. Reading left to right:
+the machine that issued it, four random characters, and a check character.
+
+- **The alphabet is Crockford Base32**, the digits and letters minus I, L, O and
+  U. A card read as `AIK` and one read as `A1K` reach the same participant,
+  because I and L fold to 1 and O folds to 0 on entry. Case and hyphens are
+  ignored, so `pcy-xa6`, `PCYXA6` and `PCY-XA6` are one person.
+- **The check character catches typing errors**, which is the failure that
+  matters: an ID mistyped at the group machine used to record a perfectly valid
+  session belonging to nobody, leaving that person's individual sessions joined
+  to nothing. Measured against the built implementation, it rejects **all**
+  372,000 single-character substitutions and **all** 19,407 adjacent
+  transpositions tested. The menu warns as soon as a bad ID is typed. It does
+  not block, since the research team may bring a scheme of its own.
+- **There is no timestamp in the ID.** It would double the length, and because
+  the ID is a filename and a join key, two strings differing only by a timestamp
+  would be two different people in every table. The time an ID was issued is in
+  the roster instead.
+- **The first character is the machine**, so an ID says where it was issued and
+  two machines cannot issue the same one. It is derived from the device and
+  cached in `machine_letter.txt`, so it survives reinstalling the game. Writing
+  a single letter into that file forces it.
+
+`participant_ids.txt` is the roster of everything this machine has issued, in
+order, two lines each:
+
+```
+PCY-XA6
+2026-08-27T19:02:11Z
+
+PK4-M29
+2026-08-27T19:41:03Z
+```
+
+It is written when the ID is issued, not when the session starts, so a card
+written out for someone who never played is still recorded and never reused. It
+is the way back to an ID whose card was lost. It travels inside the zip that
+**Export All Sessions** produces.
+
+Older IDs such as `p001` and `t01` are still valid and pass through exactly as
+typed. Only IDs that verify as issued are normalised, so nothing already in the
+data is rewritten.
+
+`tools/probe_participant_id.tscn` re-runs the checks above:
+
+```
+godot --headless --path . res://tools/probe_participant_id.tscn
+```
+
+## Group IDs
+
+The group treatment records a **group ID** as well: `PG01`, `PG02`, and so on,
+the machine letter followed by the count on that machine. It is **assigned, not
+typed** — the menu shows the group the session will be recorded under and there
+is no field to edit.
+
+Nothing anywhere parses the value. It does three jobs, and all three only need
+it to be distinct:
+
+- it is the `decision_maker_id` on group decision rows, since in that treatment
+  the group decides rather than a person;
+- `derive_groups` in `aggregate_logs.py` uses it to fill each member's
+  individual sessions in, marking those rows `group_id_derived`;
+- it goes into `audio_manifest.json`, which is what ties a discussion recorded
+  on a separate device back to the rounds it covers. **Write it on the recorder
+  before the session starts** — that is why the menu shows it at all.
+
+Sequential rather than random, deliberately unlike a participant ID. A
+participant ID crosses machines on a card and gets typed back in, so it is drawn
+at random and carries a check character. A group ID never leaves the machine and
+is never typed back; it has to be said aloud and written on a recorder, and
+`PG03` is better at that than a random string.
+
+The number is taken from the highest already used, read from `group_ids.txt` and
+from the `group_id` in every session's `parameters.json`. The second source is
+what matters: a group that actually played keeps its number even if the roster
+is lost. A group ID that was shown but never played is only in the roster, so
+deleting that line frees it again — which is why the roster says not to edit it.
+
+Group IDs typed by hand under the older scheme (`g001`) are left alone and are
+not part of the sequence.
+
+`tools/probe_safety_stars.tscn` checks that what a participant sees agrees with
+what the model computes. The star rating actually moves when a rider invests (an
+untouched commute reads empty, a fully protected one reads full, the rating never
+goes backwards, the single-link preview keeps its own separate scale, and the debug
+readout still reports the raw logged score); and the map's effective stress -- the
+stress-view colour, the car count, the car speed -- equals the model's for the rider
+actually playing, across every link, level and personality:
+
+```
+godot --headless --path . res://tools/probe_safety_stars.tscn
+```
+
+`tools/probe_hud.tscn` checks the parts of the HUD that only exist while a round
+is running: the round banner, the first-round hint, the selected-road highlight,
+and whether anything drawn over the map can actually be read. That last one is a
+measured WCAG contrast ratio, not an opinion -- the hint once shipped cream on
+beige at 1.02:1, which is invisible:
+
+```
+godot --headless --path . res://tools/probe_hud.tscn
+```
+
+`tools/probe_survey_identity.tscn` checks that a survey names whose turn it is --
+seat colour, seat number and participant ID -- so that in a group session the
+right person answers. It also guards the rule that PostSurvey must not hide
+itself when it emits:
+
+```
+godot --headless --path . res://tools/probe_survey_identity.tscn
+```
+
+`tools/probe_round_summary.tscn` checks that the round-summary and end-of-game
+panels fit on screen and that the buttons which advance the session are reachable.
+It measures on the frame a panel is shown rather than after layout settles,
+because a group session was once stuck at round 2 with its Next Round button
+pushed off the bottom of the screen:
+
+```
+godot --headless --path . res://tools/probe_round_summary.tscn
+```
+
+`tools/probe_group_id.tscn` checks the counting, the menu row, and the
+lost-roster case.
+
 ## What one session folder holds
 
 | File | What it is |
@@ -131,6 +273,24 @@ It flags five things that are easy to miss and expensive to discover later:
   cannot be made for that person.
 
 ## Four things to know before analysing
+
+**`safety` in the tables is the raw 0-100 score, not the stars on screen.** As of
+30 Aug 2026 the five-star rating a participant sees measures progress toward what
+is reachable on their own route -- `(safety - 50) / (ceiling - 50)`, where the
+ceiling is `100 - beta_protected * 50`, so 95 for a cautious rider, 90 average, 70
+confident. The number in every CSV, and the number behind the researcher's debug
+toggle, is the unchanged raw score. Do not try to recover the stars from a column;
+if you need them, apply that formula with the row's own `alpha`.
+
+**Per-seat final figures live in `summary.json` under `players_final`.** The flat
+`final_travel_time_min`, `final_safety`, `baseline_travel_time_min` and
+`total_travel_time_saved_min` fields beside it describe **seat 1 only**, which in a
+group session is one of three people. `players_final` carries all of them, in seat
+order. Sessions recorded before 30 Aug 2026 have neither the array nor the other
+seats' finals anywhere except their last round row in `rounds.csv`, which has always
+been correct.
+
+
 
 **`group_id` is blank on individual sessions, and filled in here.** The group is
 only asked for in the group treatment, where it ties a separately recorded

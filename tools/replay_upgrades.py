@@ -60,7 +60,7 @@ DEFAULT_EPSILON_STRESS = 0.001
 
 # The safety score normalises a route's stress against that same route fully
 # unimproved, so an untouched route always reads 50 whatever its length
-# (Player.SAFETY_TARGET_DEFICIT, and CLAUDE.md 3.6 for why a flat scale cannot
+# (Player.SAFETY_TARGET_DEFICIT, and design doc 3.6 for why a flat scale cannot
 # work). Not in parameters.json, and structural rather than tunable.
 SAFETY_TARGET_DEFICIT = 50.0
 
@@ -122,7 +122,7 @@ def canonical(a: str, b: str) -> str:
 
 
 class Model:
-    """The routing model of CLAUDE.md 3.1, rebuilt from files alone.
+    """The routing model of design doc 3.1, rebuilt from files alone.
 
         effective_time  = base_time x time_factor[level]
         impedance       = effective_time x (1 + alpha x beta x base_stress)
@@ -465,7 +465,7 @@ def replay(session: Session, rep: "Report") -> list[dict]:
         residents, riders = solve(model, state, roster, seats)
         if baseline_residents is None:
             # The static Prospect Theory reference: the untouched Round-1
-            # network, captured once and never rolled forward (CLAUDE.md 3.7).
+            # network, captured once and never rolled forward (design doc 3.7).
             baseline_residents = residents
         verify(session, round_num, "before", residents, riders, seats, roster,
                city_metrics(model, state, residents, riders), rep)

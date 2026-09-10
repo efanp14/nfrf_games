@@ -8,14 +8,36 @@
 /android/
 /ios/
 
-# Ignore local build exports so you don't accidentally commit a 100MB .exe or .apk
+# Local build exports. Keep every spelling here: the folder that actually gets
+# used is /Builds/, which slipped past a rule that only said /build/ and left
+# two 99MB .exe files one `git add -A` away from the repo. GitHub refuses a
+# file over 100MB, so that push fails halfway rather than cleanly.
 /build/
+/Build/
+/builds/
+/Builds/
 /bin/
+*.exe
+*.apk
+*.aab
+*.pck
 
 # Temporary files created by some OS or editors
 .tmp/
 *.tmp
 
-# Claude Code local files — not part of the project
+# Local assistant/editor notes and settings — not part of the project
 CLAUDE.md
 .claude/
+
+# The export preset is machine-specific (it holds local SDK and keystore paths),
+# so it stays on the machine that made it rather than syncing half-valid paths.
+export_presets.cfg
+
+# Sample-log generation tooling stays local: it writes into user://, and its
+# output is development data rather than anything the project ships.
+tools/generate_sample_logs.gd
+
+# Python bytecode from running the analysis tools locally
+__pycache__/
+*.pyc

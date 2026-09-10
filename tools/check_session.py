@@ -24,7 +24,7 @@ import os
 import sys
 from pathlib import Path
 
-# Deltas are signed positive = improvement throughout (CLAUDE.md 3.7). Time,
+# Deltas are signed positive = improvement throughout (design doc 3.7). Time,
 # stress and impedance read baseline - now; safety reads now - baseline.
 LOWER_IS_BETTER = ["travel_time_min", "stress", "impedance", "city_avg_travel_time_min"]
 HIGHER_IS_BETTER = ["safety", "city_avg_safety"]
@@ -170,7 +170,7 @@ def check_rounds(folder: Path, params: dict, rep: Report) -> None:
 
 def _check_delta(row: dict, metric: str, where: str, invert: bool, rep: Report) -> None:
     """A delta must be the Round-1 baseline compared with now, not the previous
-    round (CLAUDE.md 3.7). Measuring it the other way is invisible in round 1,
+    round (design doc 3.7). Measuring it the other way is invisible in round 1,
     where the two agree, and wrong everywhere after."""
     now = number(row, metric)
     baseline = number(row, metric + "_baseline")
