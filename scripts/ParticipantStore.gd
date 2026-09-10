@@ -40,12 +40,6 @@ static func _path_for(participant_id: String) -> String:
 	return STORE_DIR + participant_id + ".json"
 
 
-## True when this participant has already completed the opening survey on this
-## machine, so it should not be asked again.
-static func has_record(participant_id: String) -> bool:
-	return FileAccess.file_exists(_path_for(participant_id))
-
-
 ## The stored record, or an empty dictionary if there is none. An unreadable or
 ## malformed file is treated as absent rather than as an error: the cost of
 ## re-asking the survey is small, while refusing to start a session because a
