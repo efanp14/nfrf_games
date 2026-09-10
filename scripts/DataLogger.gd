@@ -4,7 +4,9 @@ extends Node
 ## Records every player decision and round outcome to a structured log.
 ## Outputs JSON that maps directly to the data columns the research team needs.
 ##
-## Attach this as a child of GameManager and connect the signals.
+## Created by scenes/main.gd with DataLogger.new(), one per session scene. Not a
+## child of GameManager: an autoloaded logger survived the scene reload between
+## chained sessions and wrote the second session into the first one's file.
 
 ## Root of the research output, holding one subfolder per session. Declared
 ## here, where the files are written, and read from outside by the main menu's

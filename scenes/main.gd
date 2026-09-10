@@ -1,5 +1,8 @@
 extends Node2D
-## Scene coordinator — thin glue between CityGrid, GameHUD, UpgradePopup, and GameManager.
+## Scene coordinator: runs a session on main.tscn. The menu and survey flow,
+## chaining T1 into T2, staging upgrades before they are bought, and the map
+## camera (zoom, pan, pinch) all live here, alongside the wiring between
+## CityGrid, GameHUD, UpgradePopup and GameManager.
 
 # `= $X as T` leaves the variable Variant; the annotation has to be on the
 # left to get a checked type. All nine were `as`-cast except city_grid.

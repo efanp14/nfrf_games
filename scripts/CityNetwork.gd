@@ -4,7 +4,7 @@ class_name CityNetwork
 ## network (24 nodes / 38 undirected links —
 ## github.com/bstabler/TransportationNetworks), plus an owner-designed
 ## 20-node "West Extension" (nodes 27-42 + 44-47, 4 Aug 2026 — see the
-## comment block above the `nodes` array in _build_network), plus 2 midpoint
+## comment block above the NODES constant), plus 2 midpoint
 ## nodes (48, 49) splitting the two longest original links so each half is
 ## independently affordable (see that comment too). Total: 46 nodes / 69
 ## undirected links. Node positions for the original 24 match the
@@ -12,7 +12,7 @@ class_name CityNetwork
 ## than the dataset's raw lat/long, which clusters several nodes together at
 ## any sane canvas scale.
 ## Each link's base_time is derived from the actual on-screen pixel distance
-## between its two nodes (see _build_network) rather than the dataset's own
+## between its two nodes (see the comment above EDGES) rather than the dataset's own
 ## free-flow time — the dataset's times were measured against the real
 ## geographic layout, which has no relation to this diagram-based layout, so
 ## using them here let some short-looking roads cost more/take longer than

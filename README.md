@@ -25,6 +25,7 @@ completeness and determinism matter more than polish.
 4. `scripts/GameManager.gd`, `_recalculate_and_end_round()` — the round loop.
 5. `scripts/DataLogger.gd`, `on_round_ended()` — what one logged round contains.
 6. `tools/README.md` — the log formats and the analysis pipeline.
+7. `SCRIPTS.md`: one line per script, and which file to open for a given change.
 
 ---
 

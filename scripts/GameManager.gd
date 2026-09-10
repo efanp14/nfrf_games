@@ -1,8 +1,11 @@
 extends Node
 ## GameManager.gd
 ## The authoritative game state machine.
-## Owns: round progression, treatment conditions, AI bots, and data logging.
-## UI nodes should connect to signals here rather than reading state directly.
+## Owns: round progression, treatment conditions and the simulated residents.
+## Logging is not here: DataLogger is created per scene by scenes/main.gd and
+## listens to the signals below.
+## UI should take updates from these signals. README.md says where it still
+## reads state directly.
 
 # --- Signals (UI listens to these) ---
 signal round_started(round_num: int, budget: int)
