@@ -24,6 +24,7 @@ signal game_starting(treatment: int, num_players: int, participant_ids: Array, g
 @onready var start_button: Button           = %StartButton
 @onready var data_folder_button: Button     = %DataFolderButton
 @onready var export_data_button: Button     = %ExportDataButton
+@onready var quit_button: Button            = %QuitButton
 
 var _player_count_row: HBoxContainer
 var _player_count_spin: SpinBox
@@ -163,6 +164,11 @@ func _ready() -> void:
 	# the browser rather than a path on disk.
 	data_folder_button.visible = not OS.has_feature("web")
 	_refresh_data_folder_button()
+
+	quit_button.pressed.connect(_on_quit_pressed)
+	# A browser tab cannot be closed by the page it shows, and iOS does not let
+	# an app quit itself, so on both the button would do nothing and read as broken.
+	quit_button.visible = not (OS.has_feature("web") or OS.has_feature("ios"))
 
 
 ## The letter every ID issued on this computer begins with.
@@ -331,6 +337,34 @@ func _on_export_data_pressed() -> void:
 	dialog.dialog_text = "
 ".join(lines)
 	dialog.popup_centered()
+
+
+## Asks before quitting, then quits the way closing the window does.
+##
+## The confirmation is there for the tablet: this button sits directly under
+## Export in a column of small buttons, and a tap that lands one row low would
+## otherwise close the app with a participant sitting there.
+##
+## The close request is propagated before quitting rather than calling quit()
+## alone, because a bare quit() skips NOTIFICATION_WM_CLOSE_REQUEST and that
+## notification is what DataLogger flushes on. Nothing is normally unwritten at
+## the menu, but this keeps a single way out of the app, so anything that ever
+## saves on close gets its chance from here too.
+func _on_quit_pressed() -> void:
+	var dialog := ConfirmationDialog.new()
+	add_child(dialog)
+	dialog.exclusive = true
+	dialog.title = "Quit CycleCity"
+	dialog.dialog_text = "Close the game?"
+	dialog.ok_button_text = "Quit"
+	dialog.confirmed.connect(_quit)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered()
+
+
+func _quit() -> void:
+	get_tree().root.propagate_notification(NOTIFICATION_WM_CLOSE_REQUEST)
+	get_tree().quit()
 
 
 ## Opens the folder every session is written into.
