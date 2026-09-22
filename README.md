@@ -37,7 +37,7 @@ GameManager           autoload singleton. Round flow, treatment, signals.
 ├── Player            one rider: budget, alpha, route cache, per-round log (plain class)
 └── (per scene)
     DataLogger        Node, created by scenes/main.gd, writes the session folder
-    UI scenes         connect to GameManager's signals
+	UI scenes         connect to GameManager's signals
 ```
 
 `scenes/main.tscn` is the main scene and `scenes/main.gd` coordinates everything: it owns the
@@ -67,8 +67,8 @@ signal city_metrics_updated(metrics: Dictionary)   # T2/T3 only
 ```gdscript
 # alphas: one per seat. T1 and T2 pass a single-element array; T3 passes one per participant.
 GameManager.start_game(
-    [PersonalityConfig.ALPHA_AVERAGE],
-    GameManager.Treatment.COLLECTIVE_INFO,
+	[PersonalityConfig.ALPHA_AVERAGE],
+	GameManager.Treatment.COLLECTIVE_INFO,
 )
 ```
 

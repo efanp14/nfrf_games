@@ -1,70 +1,82 @@
 [gd_scene format=3 uid="uid://d2endscr00000"]
 
-[ext_resource type="Script" path="res://scripts/ui/EndScreen.gd" id="1_ends0"]
+[ext_resource type="Script" uid="uid://dspy28nlabmkk" path="res://scripts/ui/EndScreen.gd" id="1_ends0"]
 
-[node name="EndScreen" type="CanvasLayer"]
+[node name="EndScreen" type="CanvasLayer" unique_id=1582003347]
 layer = 3
 script = ExtResource("1_ends0")
 
-[node name="Overlay" type="ColorRect" parent="."]
+[node name="Overlay" type="ColorRect" parent="." unique_id=955521445]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.043, 0.039, 0.047, 0.8)
-mouse_filter = 0
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1051714248]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+[node name="PopupPanel" type="PanelContainer" parent="CenterContainer" unique_id=950145362]
+layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel" unique_id=1936331660]
 custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
 theme_override_constants/margin_left = 24
-theme_override_constants/margin_right = 24
 theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 20
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer" unique_id=1753810759]
+layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=85958653]
+layout_mode = 2
 theme_type_variation = &"Heading"
+theme_override_font_sizes/font_size = 22
 text = "Game Complete!"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 22
 
-[node name="SubtitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=626875733]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
 text = "CycleCity: The Commuter's Dilemma"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 12
 
-[node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=238125180]
+layout_mode = 2
 
-[node name="FinalTimeLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="FinalTimeLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=1982547930]
 unique_name_in_owner = true
+layout_mode = 2
 text = "Final commute:   — min"
 
-[node name="SavedLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="SavedLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=1006486252]
 unique_name_in_owner = true
-text = ""
 custom_minimum_size = Vector2(372, 0)
+layout_mode = 2
 autowrap_mode = 3
 
-[node name="SafetyLabel" type="RichTextLabel" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="SafetyLabel" type="RichTextLabel" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=1757385373]
+unique_name_in_owner = true
+layout_mode = 2
 bbcode_enabled = true
-autowrap_mode = 0
-fit_content = true
-unique_name_in_owner = true
 text = "Final safety score:   —"
+fit_content = true
+autowrap_mode = 0
 
-[node name="CoverageLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="CoverageLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=760910951]
 unique_name_in_owner = true
+layout_mode = 2
 text = "Network coverage:   —%"
 
-[node name="HSep2" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="HSep2" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=1667534962]
+layout_mode = 2
 
-[node name="FinishButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="FinishButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=880892338]
 unique_name_in_owner = true
+layout_mode = 2
 text = "Finish & Submit Results"

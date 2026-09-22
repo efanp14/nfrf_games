@@ -65,7 +65,7 @@ static var hide_resident_visuals: bool = false
 
 const LinkSegmentScene := preload("res://scenes/components/LinkSegment.tscn")
 const NodeMarkerScene  := preload("res://scenes/components/NodeMarker.tscn")
-const BackgroundTexture := preload("res://assets/images/background new.png")
+const BackgroundTexture := preload("res://assets/images/city_background_v6.png")
 const ProceduralBackgroundScript := preload("res://scripts/ui/ProceduralBackground.gd")
 
 ## Two interchangeable backgrounds:
@@ -78,7 +78,7 @@ const ProceduralBackgroundScript := preload("res://scripts/ui/ProceduralBackgrou
 ##    roads, but plainer/less detailed.
 ## Switch by changing BACKGROUND_MODE; nothing else needs to change.
 enum BackgroundMode { NONE, IMAGE, PROCEDURAL }
-const BACKGROUND_MODE := BackgroundMode.PROCEDURAL
+const BACKGROUND_MODE := BackgroundMode.IMAGE
 
 ## Drawn width of the river, if a topology has one. This one does not.
 const RIVER_WIDTH := 32.0
@@ -107,15 +107,15 @@ const RIVER_WIDTH := 32.0
 ## Recompute this transform (see git history for the fitting script) if the
 ## background image or node layout changes.
 const BG_TRANSFORM := Transform2D(
-	Vector2(0.559452, -0.006345),
-	Vector2(-0.001913, 0.550042),
-	Vector2(141.406, 104.130)
+	Vector2(1.12845, -0.00054),
+	Vector2(-0.00380, 1.09825),
+	Vector2(-402.31, 143.19)
 )
 
 ## Manual fine-tune on top of the fitted transform above, in case it still
 ## needs a small nudge. Positive X = image moves right, negative Y = image
 ## moves up.
-const BG_MANUAL_OFFSET := Vector2.ZERO
+const BG_MANUAL_OFFSET := Vector2(15,25)
 
 ## Round-end "moving bikes" animation — one bike per human player, traced
 ## along their newly-recalculated route. Cosmetic only.

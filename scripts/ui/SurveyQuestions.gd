@@ -47,11 +47,11 @@ const PRE: Array = [
 	{"key": "q3", "kind": Kind.CHOICE, "section": SECTION_DEMOGRAPHICS,
 	 "text": "What is your primary employment status?",
 	 "options": ["Employed full-time", "Employed part-time", "Self-employed",
-				 "Student", "Retired", "Unemployed", "Other"]},
+				 "Student", "Retired", "Homemaker", "Unemployed", "Other"]},
 
 	{"key": "q4", "kind": Kind.CHOICE, "section": SECTION_DEMOGRAPHICS,
 	 "text": "Which statement best describes your current work or school arrangement?",
-	 "options": ["Completely remote", "Hybrid", "Completely in-person"]},
+	 "options": ["Completely remote", "Hybrid", "Completely in-person", "Not currently working or attending school"]},
 
 	{"key": "q5", "kind": Kind.CHOICE, "section": SECTION_DEMOGRAPHICS,
 	 "text": "Do you have a valid driver's license?",

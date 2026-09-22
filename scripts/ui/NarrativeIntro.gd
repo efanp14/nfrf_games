@@ -1,6 +1,6 @@
 class_name NarrativeIntro
 extends CanvasLayer
-## NarrativeIntro.gd
+## NarrativeIntro.gd change ttr
 ## Shown once per session, after the pre-survey(s) and before Round 1, and
 ## reopenable from the rail at any point during play. Same content for every
 ## player in a group (T3 shares one screen already).
@@ -42,17 +42,17 @@ const TITLES: Dictionary = {
 	Page.TREATMENT: "Before you begin",
 }
 
-const BODY_WHAT := "CycleCity is a city that has grown faster than its bike network.
+const BODY_WHAT := "CycleCity is a growing city with different kinds of streets.
 
-Some streets are calm and pleasant to ride. Others are busy and stressful, with nothing between a rider and the traffic.
+Some streets are quiet and comfortable to cycle on. Others are busy and more stressful.
 
-Every street on the map is a real route somebody uses to get to work."
+The map shows the city's road network and the streets people use to travel around the city."
 
-const BODY_ROLE := "You are a resident taking part in the city's planning process.
+const BODY_ROLE := "The map shows your home, workplace, and the route you currently use between them. Your route is shown in your colour.
 
-You have a home and a workplace of your own, marked on the map, and you ride between them. Your route is drawn in your own colour, with arrows showing the direction you travel.
+You are a resident of CycleCity who has been invited by the city to help improve the cycling network.
 
-The city has given you a budget to spend on bike lanes."
+You have been given a budget that you can use to improve cycling infrastructure across the city."
 
 ## Money, budget refill, what a click does, and the two things playtesters got
 ## wrong by not being told: that any road is available, and that this is about
@@ -63,7 +63,7 @@ You have $1,300,000 each round, and there are three rounds. Anything you do not 
 
 You can upgrade any road in the city. You are not limited to the roads on your own route.
 
-Everything measured here is about cycling: how long your ride takes, and how calm or stressful it feels. The cars on the map show how busy a street is. Nothing you build changes anything for them.
+Everything measured here is about cycling: how long your ride takes, and how calm or stressful it feels. The cars on the map show how busy a street is. 
 
 A few streets already have bike lanes at the start. Those were built before you arrived."
 

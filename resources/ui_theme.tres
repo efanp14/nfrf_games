@@ -1,54 +1,10 @@
-[gd_resource type="Theme" load_steps=20 format=3]
+[gd_resource type="Theme" format=3 uid="uid://bgrgnil8mng1i"]
 
-[sub_resource type="StyleBoxFlat" id="btn_normal"]
-bg_color = Color(0.839, 0, 0.109, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.639, 0, 0.086, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[sub_resource type="StyleBoxFlat" id="btn_disabled"]
 content_margin_left = 14.0
 content_margin_top = 7.0
 content_margin_right = 14.0
 content_margin_bottom = 7.0
-
-[sub_resource type="StyleBoxFlat" id="btn_hover"]
-bg_color = Color(0.91, 0.078, 0.184, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.804, 0, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-content_margin_left = 13.0
-content_margin_top = 6.0
-content_margin_right = 13.0
-content_margin_bottom = 6.0
-
-[sub_resource type="StyleBoxFlat" id="btn_pressed"]
-bg_color = Color(0.639, 0, 0.086, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.804, 0, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-content_margin_left = 13.0
-content_margin_top = 6.0
-content_margin_right = 13.0
-content_margin_bottom = 6.0
-
-[sub_resource type="StyleBoxFlat" id="btn_disabled"]
 bg_color = Color(0.165, 0.153, 0.169, 1)
 border_width_left = 1
 border_width_top = 1
@@ -59,10 +15,6 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
-content_margin_left = 14.0
-content_margin_top = 7.0
-content_margin_right = 14.0
-content_margin_bottom = 7.0
 
 [sub_resource type="StyleBoxFlat" id="btn_focus"]
 draw_center = false
@@ -71,6 +23,89 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(1, 0.804, 0, 0.75)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="btn_hover"]
+content_margin_left = 13.0
+content_margin_top = 6.0
+content_margin_right = 13.0
+content_margin_bottom = 6.0
+bg_color = Color(0.91, 0.078, 0.184, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.804, 0, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="btn_normal"]
+content_margin_left = 14.0
+content_margin_top = 7.0
+content_margin_right = 14.0
+content_margin_bottom = 7.0
+bg_color = Color(0.839, 0, 0.109, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.639, 0, 0.086, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="btn_pressed"]
+content_margin_left = 13.0
+content_margin_top = 6.0
+content_margin_right = 13.0
+content_margin_bottom = 6.0
+bg_color = Color(0.639, 0, 0.086, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.804, 0, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxLine" id="sep_line"]
+color = Color(1, 0.804, 0, 0.3)
+
+[sub_resource type="StyleBoxFlat" id="edit_focus"]
+content_margin_left = 8.0
+content_margin_top = 5.0
+content_margin_right = 8.0
+content_margin_bottom = 5.0
+bg_color = Color(0.071, 0.063, 0.075, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.804, 0, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="edit_normal"]
+content_margin_left = 8.0
+content_margin_top = 5.0
+content_margin_right = 8.0
+content_margin_bottom = 5.0
+bg_color = Color(0.071, 0.063, 0.075, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.227, 0.204, 0.22, 1)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
@@ -88,44 +123,11 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[sub_resource type="StyleBoxFlat" id="panel_summary"]
-bg_color = Color(0.11, 0.102, 0.114, 1)
-border_width_left = 2
-border_color = Color(1, 0.804, 0, 0.55)
-
-[sub_resource type="StyleBoxFlat" id="btn_secondary"]
-bg_color = Color(0.137, 0.125, 0.145, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.227, 0.204, 0.22, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-content_margin_left = 14.0
-content_margin_top = 7.0
-content_margin_right = 14.0
-content_margin_bottom = 7.0
-
-[sub_resource type="StyleBoxFlat" id="btn_secondary_hover"]
-bg_color = Color(0.196, 0.18, 0.204, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 0.804, 0, 0.7)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-content_margin_left = 14.0
-content_margin_top = 7.0
-content_margin_right = 14.0
-content_margin_bottom = 7.0
-
 [sub_resource type="StyleBoxFlat" id="pill_normal"]
+content_margin_left = 18.0
+content_margin_top = 8.0
+content_margin_right = 18.0
+content_margin_bottom = 8.0
 bg_color = Color(0.137, 0.125, 0.145, 0.94)
 border_width_left = 1
 border_width_top = 1
@@ -136,12 +138,12 @@ corner_radius_top_left = 18
 corner_radius_top_right = 18
 corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
-content_margin_left = 18.0
-content_margin_top = 8.0
-content_margin_right = 18.0
-content_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxFlat" id="pill_hover"]
+content_margin_left = 17.0
+content_margin_top = 7.0
+content_margin_right = 17.0
+content_margin_bottom = 7.0
 bg_color = Color(0.196, 0.18, 0.204, 0.97)
 border_width_left = 2
 border_width_top = 2
@@ -152,12 +154,12 @@ corner_radius_top_left = 18
 corner_radius_top_right = 18
 corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="pill_active"]
 content_margin_left = 17.0
 content_margin_top = 7.0
 content_margin_right = 17.0
 content_margin_bottom = 7.0
-
-[sub_resource type="StyleBoxFlat" id="pill_active"]
 bg_color = Color(0.239, 0.196, 0.055, 0.97)
 border_width_left = 2
 border_width_top = 2
@@ -168,44 +170,12 @@ corner_radius_top_left = 18
 corner_radius_top_right = 18
 corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
-content_margin_left = 17.0
-content_margin_top = 7.0
-content_margin_right = 17.0
-content_margin_bottom = 7.0
 
-[sub_resource type="StyleBoxFlat" id="pill_primary"]
-bg_color = Color(0.839, 0, 0.109, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.639, 0, 0.086, 1)
-corner_radius_top_left = 26
-corner_radius_top_right = 26
-corner_radius_bottom_right = 26
-corner_radius_bottom_left = 26
+[sub_resource type="StyleBoxFlat" id="pill_disabled"]
 content_margin_left = 30.0
 content_margin_top = 13.0
 content_margin_right = 30.0
 content_margin_bottom = 13.0
-
-[sub_resource type="StyleBoxFlat" id="pill_primary_hover"]
-bg_color = Color(0.91, 0.078, 0.184, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.804, 0, 1)
-corner_radius_top_left = 26
-corner_radius_top_right = 26
-corner_radius_bottom_right = 26
-corner_radius_bottom_left = 26
-content_margin_left = 29.0
-content_margin_top = 12.0
-content_margin_right = 29.0
-content_margin_bottom = 12.0
-
-[sub_resource type="StyleBoxFlat" id="pill_disabled"]
 bg_color = Color(0.165, 0.153, 0.169, 0.9)
 border_width_left = 1
 border_width_top = 1
@@ -216,13 +186,64 @@ corner_radius_top_left = 26
 corner_radius_top_right = 26
 corner_radius_bottom_right = 26
 corner_radius_bottom_left = 26
+
+[sub_resource type="StyleBoxFlat" id="pill_primary_hover"]
+content_margin_left = 29.0
+content_margin_top = 12.0
+content_margin_right = 29.0
+content_margin_bottom = 12.0
+bg_color = Color(0.91, 0.078, 0.184, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.804, 0, 1)
+corner_radius_top_left = 26
+corner_radius_top_right = 26
+corner_radius_bottom_right = 26
+corner_radius_bottom_left = 26
+
+[sub_resource type="StyleBoxFlat" id="pill_primary"]
 content_margin_left = 30.0
 content_margin_top = 13.0
 content_margin_right = 30.0
 content_margin_bottom = 13.0
+bg_color = Color(0.839, 0, 0.109, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.639, 0, 0.086, 1)
+corner_radius_top_left = 26
+corner_radius_top_right = 26
+corner_radius_bottom_right = 26
+corner_radius_bottom_left = 26
 
-[sub_resource type="StyleBoxFlat" id="edit_normal"]
-bg_color = Color(0.071, 0.063, 0.075, 1)
+[sub_resource type="StyleBoxFlat" id="scroll_bg"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="btn_secondary_hover"]
+content_margin_left = 14.0
+content_margin_top = 7.0
+content_margin_right = 14.0
+content_margin_bottom = 7.0
+bg_color = Color(0.196, 0.18, 0.204, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.804, 0, 0.7)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="btn_secondary"]
+content_margin_left = 14.0
+content_margin_top = 7.0
+content_margin_right = 14.0
+content_margin_bottom = 7.0
+bg_color = Color(0.137, 0.125, 0.145, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
@@ -232,105 +253,83 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
-content_margin_left = 8.0
-content_margin_top = 5.0
-content_margin_right = 8.0
-content_margin_bottom = 5.0
 
-[sub_resource type="StyleBoxFlat" id="edit_focus"]
-bg_color = Color(0.071, 0.063, 0.075, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 0.804, 0, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-content_margin_left = 8.0
-content_margin_top = 5.0
-content_margin_right = 8.0
-content_margin_bottom = 5.0
-
-[sub_resource type="StyleBoxLine" id="sep_line"]
-color = Color(1, 0.804, 0, 0.3)
-thickness = 1
-
-[sub_resource type="StyleBoxFlat" id="scroll_bg"]
-bg_color = Color(0, 0, 0, 0)
+[sub_resource type="StyleBoxFlat" id="panel_summary"]
+bg_color = Color(0.11, 0.102, 0.114, 1)
+border_width_left = 2
+border_color = Color(1, 0.804, 0, 0.55)
 
 [resource]
 Button/colors/font_color = Color(1, 1, 1, 1)
+Button/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
+Button/colors/font_focus_color = Color(1, 1, 1, 1)
 Button/colors/font_hover_color = Color(1, 1, 1, 1)
 Button/colors/font_pressed_color = Color(1, 0.804, 0, 1)
-Button/colors/font_focus_color = Color(1, 1, 1, 1)
-Button/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
-Button/styles/normal = SubResource("btn_normal")
-Button/styles/hover = SubResource("btn_hover")
-Button/styles/pressed = SubResource("btn_pressed")
 Button/styles/disabled = SubResource("btn_disabled")
 Button/styles/focus = SubResource("btn_focus")
-Label/colors/font_color = Color(0.949, 0.937, 0.918, 1)
-RichTextLabel/colors/default_color = Color(0.949, 0.937, 0.918, 1)
+Button/styles/hover = SubResource("btn_hover")
+Button/styles/normal = SubResource("btn_normal")
+Button/styles/pressed = SubResource("btn_pressed")
+HSeparator/styles/separator = SubResource("sep_line")
 Heading/base_type = &"Label"
 Heading/colors/font_color = Color(1, 0.804, 0, 1)
+Label/colors/font_color = Color(0.949, 0.937, 0.918, 1)
+LineEdit/colors/caret_color = Color(1, 0.804, 0, 1)
+LineEdit/colors/font_color = Color(0.949, 0.937, 0.918, 1)
+LineEdit/colors/font_placeholder_color = Color(0.949, 0.937, 0.918, 0.42)
+LineEdit/colors/selection_color = Color(0.839, 0, 0.109, 0.55)
+LineEdit/styles/focus = SubResource("edit_focus")
+LineEdit/styles/normal = SubResource("edit_normal")
+OptionButton/colors/font_color = Color(0.949, 0.937, 0.918, 1)
+OptionButton/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
+OptionButton/colors/font_focus_color = Color(0.949, 0.937, 0.918, 1)
+OptionButton/colors/font_hover_color = Color(1, 1, 1, 1)
+OptionButton/colors/font_pressed_color = Color(1, 0.804, 0, 1)
+OptionButton/styles/disabled = SubResource("edit_normal")
+OptionButton/styles/focus = SubResource("btn_focus")
+OptionButton/styles/hover = SubResource("edit_focus")
+OptionButton/styles/normal = SubResource("edit_normal")
+OptionButton/styles/pressed = SubResource("edit_focus")
 Panel/styles/panel = SubResource("panel_card")
 PanelContainer/styles/panel = SubResource("panel_card")
-SummaryPanel/base_type = &"PanelContainer"
-SummaryPanel/styles/panel = SubResource("panel_summary")
 PillButton/base_type = &"Button"
 PillButton/colors/font_color = Color(0.949, 0.937, 0.918, 1)
+PillButton/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
 PillButton/colors/font_hover_color = Color(1, 0.804, 0, 1)
 PillButton/colors/font_pressed_color = Color(1, 0.804, 0, 1)
-PillButton/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
-PillButton/styles/normal = SubResource("pill_normal")
-PillButton/styles/hover = SubResource("pill_hover")
-PillButton/styles/pressed = SubResource("pill_active")
 PillButton/styles/disabled = SubResource("pill_normal")
+PillButton/styles/hover = SubResource("pill_hover")
+PillButton/styles/normal = SubResource("pill_normal")
+PillButton/styles/pressed = SubResource("pill_active")
 PillButtonActive/base_type = &"Button"
 PillButtonActive/colors/font_color = Color(1, 0.804, 0, 1)
 PillButtonActive/colors/font_hover_color = Color(1, 0.804, 0, 1)
 PillButtonActive/colors/font_pressed_color = Color(1, 0.804, 0, 1)
-PillButtonActive/styles/normal = SubResource("pill_active")
 PillButtonActive/styles/hover = SubResource("pill_hover")
+PillButtonActive/styles/normal = SubResource("pill_active")
 PillButtonActive/styles/pressed = SubResource("pill_active")
 PillButtonPrimary/base_type = &"Button"
 PillButtonPrimary/colors/font_color = Color(1, 1, 1, 1)
+PillButtonPrimary/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
 PillButtonPrimary/colors/font_hover_color = Color(1, 1, 1, 1)
 PillButtonPrimary/colors/font_pressed_color = Color(1, 0.804, 0, 1)
-PillButtonPrimary/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
-PillButtonPrimary/styles/normal = SubResource("pill_primary")
-PillButtonPrimary/styles/hover = SubResource("pill_primary_hover")
-PillButtonPrimary/styles/pressed = SubResource("pill_primary_hover")
 PillButtonPrimary/styles/disabled = SubResource("pill_disabled")
-SecondaryButton/base_type = &"Button"
-SecondaryButton/colors/font_color = Color(1, 0.804, 0, 1)
-SecondaryButton/colors/font_hover_color = Color(1, 0.804, 0, 1)
-SecondaryButton/colors/font_pressed_color = Color(1, 0.804, 0, 1)
-SecondaryButton/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
-SecondaryButton/styles/normal = SubResource("btn_secondary")
-SecondaryButton/styles/hover = SubResource("btn_secondary_hover")
-SecondaryButton/styles/pressed = SubResource("btn_secondary_hover")
-SecondaryButton/styles/disabled = SubResource("btn_disabled")
-OptionButton/colors/font_color = Color(0.949, 0.937, 0.918, 1)
-OptionButton/colors/font_hover_color = Color(1, 1, 1, 1)
-OptionButton/colors/font_pressed_color = Color(1, 0.804, 0, 1)
-OptionButton/colors/font_focus_color = Color(0.949, 0.937, 0.918, 1)
-OptionButton/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
-OptionButton/styles/normal = SubResource("edit_normal")
-OptionButton/styles/hover = SubResource("edit_focus")
-OptionButton/styles/pressed = SubResource("edit_focus")
-OptionButton/styles/focus = SubResource("btn_focus")
-OptionButton/styles/disabled = SubResource("edit_normal")
-PopupMenu/styles/panel = SubResource("panel_card")
+PillButtonPrimary/styles/hover = SubResource("pill_primary_hover")
+PillButtonPrimary/styles/normal = SubResource("pill_primary")
+PillButtonPrimary/styles/pressed = SubResource("pill_primary_hover")
 PopupMenu/colors/font_color = Color(0.949, 0.937, 0.918, 1)
 PopupMenu/colors/font_hover_color = Color(1, 0.804, 0, 1)
-LineEdit/colors/font_color = Color(0.949, 0.937, 0.918, 1)
-LineEdit/colors/font_placeholder_color = Color(0.949, 0.937, 0.918, 0.42)
-LineEdit/colors/caret_color = Color(1, 0.804, 0, 1)
-LineEdit/colors/selection_color = Color(0.839, 0, 0.109, 0.55)
-LineEdit/styles/normal = SubResource("edit_normal")
-LineEdit/styles/focus = SubResource("edit_focus")
-HSeparator/styles/separator = SubResource("sep_line")
+PopupMenu/styles/panel = SubResource("panel_card")
+RichTextLabel/colors/default_color = Color(0.949, 0.937, 0.918, 1)
 ScrollContainer/styles/panel = SubResource("scroll_bg")
+SecondaryButton/base_type = &"Button"
+SecondaryButton/colors/font_color = Color(1, 0.804, 0, 1)
+SecondaryButton/colors/font_disabled_color = Color(0.541, 0.51, 0.529, 1)
+SecondaryButton/colors/font_hover_color = Color(1, 0.804, 0, 1)
+SecondaryButton/colors/font_pressed_color = Color(1, 0.804, 0, 1)
+SecondaryButton/styles/disabled = SubResource("btn_disabled")
+SecondaryButton/styles/hover = SubResource("btn_secondary_hover")
+SecondaryButton/styles/normal = SubResource("btn_secondary")
+SecondaryButton/styles/pressed = SubResource("btn_secondary_hover")
+SummaryPanel/base_type = &"PanelContainer"
+SummaryPanel/styles/panel = SubResource("panel_summary")

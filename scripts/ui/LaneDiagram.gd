@@ -41,7 +41,7 @@ const ROWS: Array = [
 	{
 		"level": 2,
 		"title": "Protected Lane",
-		"body": "A raised kerb separates bikes from the traffic.\nCosts more. The calmest of the three to ride.",
+		"body": "A raised cerb separates bikes from the traffic.\nCosts more. The calmest of the three to ride.",
 	},
 ]
 

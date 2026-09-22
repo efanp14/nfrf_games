@@ -814,5 +814,3 @@ func _compute_city_metrics(residents: Array) -> Dictionary:
 		"avg_stress": total_stress / count,
 		"coverage":   network.coverage_percent(),
 	}
-
-
