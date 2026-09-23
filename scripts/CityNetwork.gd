@@ -73,7 +73,7 @@ class Link:
 	## longer, calmer route over a shorter, stressful one wherever that choice
 	## exists. Raising these much above ~0.90 would start letting raw speed
 	## outrank safety in route choice, which is not the intent.
-	const TIME_FACTOR: Array = [1.0, 0.96, 0.92]
+	const TIME_FACTOR: Array = [1.0, 1.0, 1.0]
 
 	## Travel time actually experienced on this link, i.e. base_time with the
 	## infrastructure speed bonus applied.
@@ -115,11 +115,12 @@ class Link:
 ##
 ## Guardrail 8: visual stress cues must READ model state, never invent it. One
 ## definition, here, for both the router and the map.
+@warning_ignore("unused_parameter")
 static func beta_for(upgrade_level: int, stress: float, alpha: float) -> float:
 	match upgrade_level:
 		0: return 1.0
 		1: return 0.8 - 0.3 * stress
-		2: return PersonalityConfig.beta_protected_for_alpha(alpha)
+		2: return clampf(0.6 - 0.5 * stress, 0.1, 0.6)
 		_: return 1.0
 
 

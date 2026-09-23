@@ -66,8 +66,8 @@ func show_for_link(link_id: String, budget_remaining: int, alpha: float, pending
 	# per-link (scales with the road's length via base_time), not flat.
 	var painted_cost: int   = Player.cost_for_link(link, 1)
 	var protected_cost: int = Player.cost_for_link(link, 2)
-	painted_button.text   = "Painted Lane  —  %s   (stress ↓  time ↓)" % Player.format_dollars(painted_cost)
-	protected_button.text = "Protected Track  —  %s   (stress ↓↓  time ↓)" % Player.format_dollars(protected_cost)
+	painted_button.text   = "Painted Lane  —  %s   (stress ↓ )" % Player.format_dollars(painted_cost)
+	protected_button.text = "Protected Track  —  %s   (stress ↓↓ )" % Player.format_dollars(protected_cost)
 
 	var level_names := ["No Bike Lane", "Painted Lane", "Protected Track"]
 	var effective_level := pending_level if pending_level >= 0 else link.upgrade_level
