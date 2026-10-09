@@ -1,18 +1,19 @@
 [gd_scene format=3 uid="uid://dnarrintro001"]
 
-[ext_resource type="Script" path="res://scripts/ui/NarrativeIntro.gd" id="1_narr00"]
+[ext_resource type="Script" uid="uid://bmup0m3sn4a5t" path="res://scripts/ui/NarrativeIntro.gd" id="1_narr00"]
 
-[node name="NarrativeIntro" type="CanvasLayer"]
+[node name="NarrativeIntro" type="CanvasLayer" unique_id=2121264547]
 layer = 4
 script = ExtResource("1_narr00")
 
-[node name="Overlay" type="ColorRect" parent="."]
+[node name="Overlay" type="ColorRect" parent="." unique_id=1212021980]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.043, 0.039, 0.047, 0.97)
-mouse_filter = 0
 
-[node name="SpeakerLayer" type="Control" parent="."]
+[node name="SpeakerLayer" type="Control" parent="." unique_id=1736176763]
+layout_mode = 3
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 1.0
@@ -22,69 +23,84 @@ offset_right = -20.0
 offset_bottom = -20.0
 mouse_filter = 2
 
-[node name="SpeakerIcon" type="TextureRect" parent="SpeakerLayer"]
+[node name="SpeakerIcon" type="TextureRect" parent="SpeakerLayer" unique_id=1039002091]
 unique_name_in_owner = true
+layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
+mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
-mouse_filter = 2
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=204024749]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+[node name="PopupPanel" type="PanelContainer" parent="CenterContainer" unique_id=1865254126]
+layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel" unique_id=232338148]
 custom_minimum_size = Vector2(720, 0)
+layout_mode = 2
 theme_override_constants/margin_left = 28
-theme_override_constants/margin_right = 28
 theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
 theme_override_constants/margin_bottom = 24
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer" unique_id=780114073]
+layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
-theme_type_variation = &"Heading"
+[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=1189345164]
 unique_name_in_owner = true
-text = "Welcome to CycleCity"
+layout_mode = 2
+theme_type_variation = &"Heading"
 theme_override_font_sizes/font_size = 28
+text = "Welcome to CycleCity"
 
-[node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="HSep1" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=1504522980]
+layout_mode = 2
 
-[node name="BodyScroll" type="ScrollContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="BodyScroll" type="ScrollContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=1036901793]
 custom_minimum_size = Vector2(664, 340)
+layout_mode = 2
 horizontal_scroll_mode = 0
 
-[node name="BodyBox" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll"]
+[node name="BodyBox" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll" unique_id=407802972]
+layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 18
 
-[node name="BodyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll/BodyBox"]
+[node name="BodyLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll/BodyBox" unique_id=1598828636]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(650, 0)
-autowrap_mode = 3
+layout_mode = 2
 theme_override_font_sizes/font_size = 19
+autowrap_mode = 3
 
-[node name="DiagramBox" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll/BodyBox"]
+[node name="DiagramBox" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/BodyScroll/BodyBox" unique_id=1291490192]
 unique_name_in_owner = true
 visible = false
+layout_mode = 2
 
-[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer" unique_id=1684256353]
+layout_mode = 2
 
-[node name="BackButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
-theme_type_variation = &"SecondaryButton"
+[node name="BackButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow" unique_id=1003288581]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+theme_type_variation = &"SecondaryButton"
 text = "Back"
 
-[node name="Spacer" type="Control" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
+[node name="Spacer" type="Control" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow" unique_id=1358149202]
+layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ContinueButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow"]
+[node name="ContinueButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer/ButtonRow" unique_id=1717620327]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
 text = "Continue"

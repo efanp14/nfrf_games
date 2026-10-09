@@ -55,8 +55,8 @@ var icon_hidden: bool = false
 ## overhang its own cap.
 const RADII := {
 	MarkerType.NORMAL:   28.0,
-	MarkerType.HOME:     34.0,
-	MarkerType.WORK:     34.0,
+	MarkerType.HOME:     46.0,
+	MarkerType.WORK:     46.0,
 	MarkerType.NPC_HOME: 28.0,
 	MarkerType.NPC_WORK: 28.0,
 }
@@ -101,7 +101,7 @@ const ICON_PX: float = 40.0
 ## The player's own home and workplace, which are the two markers a participant
 ## has to find on a map carrying 99 other people's. Bigger than the residents'
 ## rather than the same size, together with the seat-coloured ring in _draw().
-const ICON_PX_PLAYER: float = 48.0
+const ICON_PX_PLAYER: float = 66.0
 
 ## Thickness of the seat-coloured ring around the player's own two markers.
 const PLAYER_RING_W: float = 4.0

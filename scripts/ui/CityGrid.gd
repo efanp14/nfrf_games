@@ -61,7 +61,7 @@ var _view_mode: int = ViewMode.PLAYER_ROUTES
 ##
 ## Static so it survives the scene reload between a chained T1 and T2, which
 ## would otherwise reset it mid-sitting.
-static var hide_resident_visuals: bool = false
+static var hide_resident_visuals: bool = true
 
 const LinkSegmentScene := preload("res://scenes/components/LinkSegment.tscn")
 const NodeMarkerScene  := preload("res://scenes/components/NodeMarker.tscn")
