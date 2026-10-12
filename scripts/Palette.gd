@@ -116,6 +116,12 @@ const SURVEY_SECTION_TITLE   := BRAND_GOLD
 ## rather than as more rating.
 const STAR_EMPTY_COLOR := Color("#5A5257")
 
+## The person icons for "residents with safer travel" (ResidentIcons). Filled in
+## the gain teal, as a share of residents better off; empty matches an empty
+## star, so both pictures read the same way on one panel.
+const RESIDENT_ICON_FILLED := DELTA_GAIN
+const RESIDENT_ICON_EMPTY  := STAR_EMPTY_COLOR
+
 
 # =======================================================================
 #  PLAYER IDENTITY

@@ -150,7 +150,23 @@ func _show_city(results: Dictionary) -> void:
 	# The collective-impact sentences. `results` already carries the residents_*
 	# fields verbatim, so this hands CityFeedback the same values the log
 	# records rather than a re-derived copy.
-	var benefit := CityFeedback.benefit_lines(results)
+	# Travel time as text, safety as person icons beneath it.
+	var benefit := CityFeedback.time_benefit_lines(results)
 	benefit_label.visible = not benefit.is_empty()
 	benefit_label.text    = "
 ".join(benefit)
+	_resident_icons().show_metrics(results)
+
+
+var _icons: ResidentIcons
+
+## Built on first use and placed directly under the benefit text, so the scene
+## file needs no change and the two always sit together.
+func _resident_icons() -> ResidentIcons:
+	if _icons == null:
+		_icons = ResidentIcons.new()
+		_icons.visible = false
+		var box := benefit_label.get_parent()
+		box.add_child(_icons)
+		box.move_child(_icons, benefit_label.get_index() + 1)
+	return _icons

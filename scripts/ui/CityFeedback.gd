@@ -63,7 +63,20 @@ static func lines_with_change(metrics: Dictionary, baseline: Dictionary) -> Pack
 ## saving was 0.0 min" under a 0% headline is noise. Returns an empty array
 ## when the figures are absent (T1, or before the first round has been
 ## confirmed), so callers can append it unconditionally.
+##
+## Everything shown, in screen order: the travel-time sentences, then the
+## caption under the person icons. The log records this whole list, so it stays
+## the one record of what was read.
 static func benefit_lines(metrics: Dictionary) -> PackedStringArray:
+	var out := time_benefit_lines(metrics)
+	if not out.is_empty():
+		out.append(safety_caption(metrics))
+	return out
+
+
+## The travel-time half, shown as plain text (owner, Oct 2026: "keep the travel
+## time as it is").
+static func time_benefit_lines(metrics: Dictionary) -> PackedStringArray:
 	if not metrics.has("residents_total"):
 		return PackedStringArray()
 
@@ -72,8 +85,35 @@ static func benefit_lines(metrics: Dictionary) -> PackedStringArray:
 	out.append("%d%% of residents saw a faster commute" % int(round(time_pct)))
 	if metrics.get("residents_time_improved", 0) > 0:
 		out.append("Their average saving was %.1f min" % metrics.get("residents_time_improvement_mean", 0.0))
-	out.append("%d%% of residents saw safer travel" % int(round(metrics.get("residents_safety_improved_pct", 0.0))))
 	return out
+
+
+## How many residents travel more safely than on the original network, as five
+## person icons that may be half filled (ResidentIcons): tenths of the city,
+## counted in half figures, 0 to 10.
+##
+## Rounded to the nearest tenth with two exceptions, both so the picture never
+## overstates or erases a result: any improvement at all fills at least half a
+## figure (4% does not read as nobody), and anything short of everyone stops at
+## nine halves (97% does not read as the whole city).
+static func safety_icon_halves(metrics: Dictionary) -> int:
+	var pct: float = metrics.get("residents_safety_improved_pct", 0.0)
+	if pct <= 0.0:
+		return 0
+	if pct >= 100.0:
+		return 10
+	return clampi(int(round(pct / 10.0)), 1, 9)
+
+
+## The sentence under the icons, in the same tenths the icons show, so the
+## picture and the words can never disagree.
+static func safety_caption(metrics: Dictionary) -> String:
+	var halves := safety_icon_halves(metrics)
+	if halves == 0:
+		return "No residents had safer travel"
+	if halves == 10:
+		return "All residents had safer travel"
+	return "About %d in 10 residents had safer travel" % halves
 
 
 ## `improvement` is already signed so positive = better, matching the delta

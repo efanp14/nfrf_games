@@ -357,9 +357,25 @@ func _render_city(metrics: Dictionary) -> void:
 	# How many residents are better off than on the original network. Absent
 	# until the first round is confirmed, so the label hides rather than
 	# showing a placeholder "0%" that would read as a real result.
-	var benefit := CityFeedback.benefit_lines(metrics)
+	# Travel time as text, safety as person icons beneath it.
+	var benefit := CityFeedback.time_benefit_lines(metrics)
 	benefit_label.visible = not benefit.is_empty()
 	benefit_label.text    = "\n".join(benefit)
+	_resident_icons().show_metrics(metrics)
+
+
+var _icons: ResidentIcons
+
+## Built on first use and placed directly under the benefit text, so the scene
+## file needs no change and the two always sit together.
+func _resident_icons() -> ResidentIcons:
+	if _icons == null:
+		_icons = ResidentIcons.new()
+		_icons.visible = false
+		var box := benefit_label.get_parent()
+		box.add_child(_icons)
+		box.move_child(_icons, benefit_label.get_index() + 1)
+	return _icons
 
 
 func _on_game_over(_final: Dictionary) -> void:

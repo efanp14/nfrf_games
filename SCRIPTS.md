@@ -23,6 +23,7 @@ and run the probes afterwards (commands under **Probes** in `README.md`).
 | Survey answer scale and scoring | `scripts/ui/SurveyScale.gd` |
 | Intro and instructions text | `scripts/ui/NarrativeIntro.gd` |
 | City-wide messages (T2, T3) | `scripts/ui/CityFeedback.gd` |
+| Person icons for residents with safer travel | `scripts/ui/ResidentIcons.gd` (rounding and caption in `CityFeedback`) |
 | Better and worse arrows | `scripts/ui/Valence.gd` |
 | Any colour | `scripts/Palette.gd` (button and panel styles also in `resources/ui_theme.tres`) |
 | Road drawing: width, lanes, cars, route arrows | `scripts/ui/LinkSegment.gd` |
@@ -106,6 +107,7 @@ and run the probes afterwards (commands under **Probes** in `README.md`).
 | `SafetyDisplay.gd` | Turns a safety score into stars (route scale and single-road scale) and the debug number. |
 | `CityFeedback.gd` | The city-wide lines shown in T2 and T3, worded the same as the log records them. |
 | `Valence.gd` | Better or worse, and how that is shown: ▲ better, ▼ worse, teal or red. |
+| `ResidentIcons.gd` | Five person figures, half fills allowed, showing the share of residents with safer travel. T2 and T3. |
 | `PlayerRow.gd` | The one-line-per-seat rows on the round summary and the end screen. |
 | `SurveyQuestions.gd` | Survey wording, verbatim from the owner's question file. Do not paraphrase. |
 | `SurveyScale.gd` | The six-point answer scale, its scoring, and the question and answer rows. |
@@ -121,6 +123,7 @@ and run the probes afterwards (commands under **Probes** in `README.md`).
 | `probe_round_summary.tscn` | Checks the round and end panels fit on screen on the frame they appear. |
 | `probe_survey_identity.tscn` | Checks each seat gets its own colour and ID, and that surveys do not hide themselves. |
 | `probe_hud.tscn` | Checks the round banner, the first-round hint, the selected-road highlight and overlay text contrast. |
+| `probe_resident_icons.tscn` | Checks the person icons' rounding, that they match their caption and the log, and that they fit at every size. |
 | `probe_interface_scale.tscn` | Checks every screen's button stays reachable at every interface size, on laptop and tablet shapes. |
 | `check_session.py` | Checks one session folder straight after it is recorded. |
 | `aggregate_logs.py` | Combines every session into analysis datasets. |

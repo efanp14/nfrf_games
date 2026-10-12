@@ -146,7 +146,7 @@ There are no unit tests. There are **probes**: headless scenes that drive the re
 assert properties that were once broken. Each prints `FAILURES: n` and exits non-zero.
 
 ```bash
-for p in participant_id group_id safety_stars round_summary survey_identity hud interface_scale; do
+for p in participant_id group_id safety_stars round_summary survey_identity hud interface_scale resident_icons; do
   godot --headless --path . "res://tools/probe_$p.tscn"
 done
 ```
@@ -160,6 +160,7 @@ done
 | `probe_survey_identity` | each seat gets its own colour and ID, and a survey does not hide itself |
 | `probe_hud` | banner and hint behaviour, and that overlay text is legible on what is behind it |
 | `probe_interface_scale` | every screen's way forward stays on screen at every interface size, laptop and tablet |
+| `probe_resident_icons` | the safer-travel person icons round correctly, match their caption and the log, and fit at every size |
 
 When you change something a probe covers, **check the probe fails if you revert your fix**. A
 probe that cannot fail is worse than no probe.
