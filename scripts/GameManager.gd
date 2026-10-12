@@ -332,6 +332,10 @@ func session_parameters() -> Dictionary:
 		"group_treatment_uses_default_alpha": ResearchConfig.GROUP_TREATMENT_USES_DEFAULT_ALPHA,
 		"network_signature": (network.signature() as Variant) if network != null else null,
 		"prospect_theory_reference": "static_round1",
+		# How large the interface was drawn (DisplaySettings). Display only, but
+		# text size is part of what the participant saw, and tablets and laptops
+		# can differ.
+		"interface_scale": DisplaySettings.current_scale(),
 	}
 
 

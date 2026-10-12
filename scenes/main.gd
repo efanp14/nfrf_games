@@ -110,9 +110,22 @@ func _enter_tree() -> void:
 ##
 ## Both are no-ops on desktop, so this runs unconditionally rather than behind a
 ## platform check that would go stale.
+##
+## The interface size is applied here too, before any screen is shown, so the
+## menu already opens at the size this device was set to (DisplaySettings).
 func _configure_for_device() -> void:
 	DisplayServer.screen_set_keep_on(true)
 	get_tree().set_quit_on_go_back(false)
+	DisplaySettings.apply(get_tree().root)
+	main_menu.interface_scale_changed.connect(_on_interface_scale_changed)
+
+
+## Changing the content scale shrinks or grows the visible area without the
+## window itself resizing, so the map is refitted here rather than waiting for
+## a size_changed that does not come.
+func _on_interface_scale_changed(chosen: float) -> void:
+	DisplaySettings.apply(get_tree().root, chosen)
+	_on_viewport_resized()
 
 
 func _ready() -> void:

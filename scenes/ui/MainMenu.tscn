@@ -12,60 +12,65 @@ anchor_bottom = 1.0
 color = Color(0.043, 0.039, 0.047, 0.97)
 mouse_filter = 0
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
+horizontal_scroll_mode = 0
+
+[node name="CenterContainer" type="CenterContainer" parent="ScrollContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+[node name="PopupPanel" type="PanelContainer" parent="ScrollContainer/CenterContainer"]
 
-[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
+[node name="MarginContainer" type="MarginContainer" parent="ScrollContainer/CenterContainer/PopupPanel"]
 custom_minimum_size = Vector2(520, 0)
 theme_override_constants/margin_left = 36
 theme_override_constants/margin_right = 36
 theme_override_constants/margin_top = 32
 theme_override_constants/margin_bottom = 32
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer"]
 theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 theme_type_variation = &"Heading"
 text = "CycleCity"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 32
 
-[node name="HSep2" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="HSep2" type="HSeparator" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 
-[node name="ConditionLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="ConditionLabel" type="Label" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 text = "Study Condition  (researcher)"
 theme_override_font_sizes/font_size = 11
 
-[node name="TreatmentOption" type="OptionButton" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="TreatmentOption" type="OptionButton" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 
-[node name="HSep3" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="HSep3" type="HSeparator" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 
-[node name="StartButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="StartButton" type="Button" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 text = "Start Game"
 theme_override_font_sizes/font_size = 16
 
-[node name="HSep4" type="HSeparator" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="HSep4" type="HSeparator" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 
-[node name="DataFolderButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="DataFolderButton" type="Button" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 theme_type_variation = &"SecondaryButton"
 text = "Open Data Folder"
 theme_override_font_sizes/font_size = 11
 
-[node name="ExportDataButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="ExportDataButton" type="Button" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 theme_type_variation = &"SecondaryButton"
 text = "Export All Sessions (zip)"
 theme_override_font_sizes/font_size = 11
 
-[node name="QuitButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
+[node name="QuitButton" type="Button" parent="ScrollContainer/CenterContainer/PopupPanel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 theme_type_variation = &"SecondaryButton"
 text = "Quit"

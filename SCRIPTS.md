@@ -35,6 +35,7 @@ and run the probes afterwards (commands under **Probes** in `README.md`).
 | A logged value | Written in `DataLogger.gd`, CSV column declared in `LogSchema.gd`. Add columns, never rename them |
 | Study, pilot and test session kinds | `scripts/ResearchConfig.gd` |
 | Participant or group ID format | `scripts/ParticipantId.gd`, `scripts/GroupId.gd` |
+| Text and interface size, tablet default | `scripts/DisplaySettings.gd` (chosen on the main menu) |
 | Where data is saved, the export zip | `DataLogger.SESSIONS_ROOT`, `scripts/SessionExporter.gd` |
 
 ## Every script
@@ -61,6 +62,7 @@ and run the probes afterwards (commands under **Probes** in `README.md`).
 | `ParticipantId.gd` | Issues and checks participant IDs like `PCY-XA6`. The last character catches typos. |
 | `GroupId.gd` | Assigns group IDs (`PG01`, `PG02`) for the group treatment. |
 | `ResearchConfig.gd` | Study settings that are not game mechanics: session kinds and ID rules. |
+| `DisplaySettings.gd` | How large the interface is drawn on this device. Saved per device, larger by default on tablets. |
 
 ### Scene coordinator (`scenes/`)
 
@@ -119,6 +121,7 @@ and run the probes afterwards (commands under **Probes** in `README.md`).
 | `probe_round_summary.tscn` | Checks the round and end panels fit on screen on the frame they appear. |
 | `probe_survey_identity.tscn` | Checks each seat gets its own colour and ID, and that surveys do not hide themselves. |
 | `probe_hud.tscn` | Checks the round banner, the first-round hint, the selected-road highlight and overlay text contrast. |
+| `probe_interface_scale.tscn` | Checks every screen's button stays reachable at every interface size, on laptop and tablet shapes. |
 | `check_session.py` | Checks one session folder straight after it is recorded. |
 | `aggregate_logs.py` | Combines every session into analysis datasets. |
 | `replay_upgrades.py` | Works out what each single upgrade did, from a finished session. |

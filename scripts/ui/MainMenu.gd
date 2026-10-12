@@ -19,6 +19,9 @@ extends CanvasLayer
 ## The player-count row is shown only for T3. T1 and T2 are single-player.
 
 signal game_starting(treatment: int, num_players: int, participant_ids: Array, group_id: String, chain_to_t2: bool, session_kind: String)
+## The interface size picked on this menu. Saved here; applied by main.gd,
+## which owns the window and has to refit the map.
+signal interface_scale_changed(scale: float)
 
 @onready var treatment_option: OptionButton = %TreatmentOption
 @onready var start_button: Button           = %StartButton
@@ -157,6 +160,7 @@ func _ready() -> void:
 	_rebuild_participant_rows()
 
 	_build_machine_row()
+	_build_interface_size_row()
 
 	data_folder_button.pressed.connect(_on_data_folder_pressed)
 	export_data_button.pressed.connect(_on_export_data_pressed)
@@ -217,6 +221,48 @@ func _build_machine_row() -> void:
 	vbox.add_child(_machine_note)
 	vbox.move_child(_machine_note, row.get_index() + 1)
 	_refresh_machine_note()
+
+
+## How large everything is drawn on this device (DisplaySettings).
+##
+## With the machine-level controls for the same reason as the machine letter:
+## it is a property of the screen, set once per device. It applies the moment it
+## is picked, so the researcher sees the menu itself change size and can judge
+## it before a participant sits down. Surveys and instructions are the screens
+## it was asked for, but it scales every screen, map included.
+func _build_interface_size_row() -> void:
+	var vbox := data_folder_button.get_parent()
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var lbl := Label.new()
+	lbl.text = "Text and interface size"
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl.add_theme_font_size_override("font_size", 11)
+	row.add_child(lbl)
+
+	var option := OptionButton.new()
+	option.tooltip_text = ("How large text, buttons and the map are drawn on this device. "
+			+ "Remembered on this device only.")
+	var current := DisplaySettings.current_scale()
+	for i in range(DisplaySettings.SCALES.size()):
+		var s: float = DisplaySettings.SCALES[i]
+		option.add_item("%s  (%d%%)" % [DisplaySettings.SCALE_LABELS[i], int(round(s * 100.0))], i)
+		if is_equal_approx(s, current):
+			option.selected = i
+	option.item_selected.connect(_on_interface_size_selected)
+	row.add_child(option)
+
+	vbox.add_child(row)
+	vbox.move_child(row, data_folder_button.get_index())
+
+
+func _on_interface_size_selected(index: int) -> void:
+	if index < 0 or index >= DisplaySettings.SCALES.size():
+		return
+	var chosen: float = DisplaySettings.SCALES[index]
+	DisplaySettings.set_scale(chosen)
+	interface_scale_changed.emit(chosen)
 
 
 func _on_machine_letter_selected(index: int) -> void:
