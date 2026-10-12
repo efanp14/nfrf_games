@@ -334,8 +334,9 @@ func session_parameters() -> Dictionary:
 		"prospect_theory_reference": "static_round1",
 		# How large the interface was drawn (DisplaySettings). Display only, but
 		# text size is part of what the participant saw, and tablets and laptops
-		# can differ.
-		"interface_scale": DisplaySettings.current_scale(),
+		# can differ. Read off the window rather than the saved setting, so the
+		# log records what was applied even if saving the setting failed.
+		"interface_scale": get_tree().root.content_scale_factor,
 	}
 
 

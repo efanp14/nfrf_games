@@ -64,10 +64,14 @@ unique_name_in_owner = true
 text = "Safety: --"
 theme_override_font_sizes/normal_font_size = 16
 
-[node name="ControlRail" type="VBoxContainer" parent="HUDRoot/LeftColumn"]
+[node name="RailRow" type="HBoxContainer" parent="HUDRoot/LeftColumn"]
+theme_override_constants/separation = 12
+
+[node name="ControlRail" type="VBoxContainer" parent="HUDRoot/LeftColumn/RailRow"]
+size_flags_vertical = 0
 theme_override_constants/separation = 8
 
-[node name="CityViewButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+[node name="CityViewButton" type="Button" parent="HUDRoot/LeftColumn/RailRow/ControlRail"]
 theme_type_variation = &"PillButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(168, 0)
@@ -75,7 +79,7 @@ size_flags_horizontal = 0
 text = "City routes"
 theme_override_font_sizes/font_size = 13
 
-[node name="StressViewButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+[node name="StressViewButton" type="Button" parent="HUDRoot/LeftColumn/RailRow/ControlRail"]
 theme_type_variation = &"PillButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(168, 0)
@@ -83,7 +87,7 @@ size_flags_horizontal = 0
 text = "Cycling stress"
 theme_override_font_sizes/font_size = 13
 
-[node name="PlayerRoutesButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+[node name="PlayerRoutesButton" type="Button" parent="HUDRoot/LeftColumn/RailRow/ControlRail"]
 theme_type_variation = &"PillButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(168, 0)
@@ -91,7 +95,7 @@ size_flags_horizontal = 0
 text = "Routes: Shown"
 theme_override_font_sizes/font_size = 13
 
-[node name="LegendButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+[node name="LegendButton" type="Button" parent="HUDRoot/LeftColumn/RailRow/ControlRail"]
 theme_type_variation = &"PillButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(168, 0)
@@ -99,7 +103,7 @@ size_flags_horizontal = 0
 text = "Legend"
 theme_override_font_sizes/font_size = 13
 
-[node name="InstructionsButton" type="Button" parent="HUDRoot/LeftColumn/ControlRail"]
+[node name="InstructionsButton" type="Button" parent="HUDRoot/LeftColumn/RailRow/ControlRail"]
 theme_type_variation = &"PillButton"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(168, 0)
@@ -162,19 +166,20 @@ autowrap_mode = 2
 text = ""
 theme_override_font_sizes/font_size = 14
 
-[node name="LegendPopover" type="PanelContainer" parent="HUDRoot/LeftColumn"]
+[node name="LegendPopover" type="PanelContainer" parent="HUDRoot/LeftColumn/RailRow"]
 unique_name_in_owner = true
 visible = false
 size_flags_horizontal = 0
+size_flags_vertical = 0
 
-[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/LeftColumn/LegendPopover"]
+[node name="MarginContainer" type="MarginContainer" parent="HUDRoot/LeftColumn/RailRow/LegendPopover"]
 custom_minimum_size = Vector2(230, 0)
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_top = 14
 theme_override_constants/margin_bottom = 14
 
-[node name="MapLegend" type="Control" parent="HUDRoot/LeftColumn/LegendPopover/MarginContainer"]
+[node name="MapLegend" type="Control" parent="HUDRoot/LeftColumn/RailRow/LegendPopover/MarginContainer"]
 unique_name_in_owner = true
 script = ExtResource("2_legend")
 
