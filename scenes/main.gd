@@ -137,6 +137,9 @@ func _ready() -> void:
 	game_hud.resident_visuals_toggled.connect(city_grid.set_resident_visuals_hidden)
 	game_hud.player_routes_toggled.connect(city_grid.set_player_routes_hidden)
 	game_hud.display_toggled.connect(_logger.on_display_toggled)
+	# Applied first, so the logger reads the new size off the window.
+	game_hud.interface_scale_changed.connect(_on_interface_scale_changed)
+	game_hud.interface_scale_changed.connect(_logger.on_interface_scale_changed)
 	game_hud.instructions_pressed.connect(
 			func(): narrative_intro.reopen(int(GameManager.treatment)))
 	upgrade_popup.upgrade_chosen.connect(_on_upgrade_chosen)

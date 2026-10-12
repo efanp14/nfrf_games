@@ -115,6 +115,30 @@ func _check_hud() -> bool:
 			_inside("HUD city card", city)
 	if _hud.legend_popover.visible:
 		_hud._on_legend_pressed()
+
+	# The in-game size card: on screen, clear of the bottom-left rail, the one
+	# size in use marked, and never open at the same time as the legend.
+	_inside("HUD settings gear", _hud.settings_button)
+	_hud._on_legend_pressed()
+	_hud._on_settings_pressed()
+	await _settle()
+	if _hud.legend_popover.visible:
+		_fail("legend still open after opening the size card")
+	var card := Rect2(_hud.settings_popover.global_position, _hud.settings_popover.size)
+	_inside("HUD size card", _hud.settings_popover)
+	if card.intersects(Rect2(bottom_rail.global_position, bottom_rail.size)):
+		_fail("HUD size card overlaps the bottom-left rail")
+	var marked := 0
+	for b in _hud._size_buttons:
+		if b.theme_type_variation == &"PillButtonActive":
+			marked += 1
+	if marked != 1:
+		_fail("size card marks %d sizes as in use, expected 1" % marked)
+	_hud._on_legend_pressed()
+	await _settle()
+	if _hud.settings_popover.visible:
+		_fail("size card still open after opening the legend")
+	_hud._on_legend_pressed()
 	return true
 
 

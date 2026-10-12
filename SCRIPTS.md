@@ -36,7 +36,7 @@ and run the probes afterwards (commands under **Probes** in `README.md`).
 | A logged value | Written in `DataLogger.gd`, CSV column declared in `LogSchema.gd`. Add columns, never rename them |
 | Study, pilot and test session kinds | `scripts/ResearchConfig.gd` |
 | Participant or group ID format | `scripts/ParticipantId.gd`, `scripts/GroupId.gd` |
-| Text and interface size, tablet default | `scripts/DisplaySettings.gd` (chosen on the main menu) |
+| Text and interface size, tablet default | `scripts/DisplaySettings.gd` (chosen on the main menu, or the gear in-game: `GameHUD._build_settings()`) |
 | Where data is saved, the export zip | `DataLogger.SESSIONS_ROOT`, `scripts/SessionExporter.gd` |
 
 ## Every script

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">
+  <!-- Settings gear. White so a Button's icon colour can tint it; the map icons
+       beside it are black because they are recoloured by a shader instead. -->
+  <circle cx="12" cy="12" r="9" fill="none" stroke="#FFFFFF" stroke-width="5"
+          stroke-dasharray="3.53 3.54"/>
+  <circle cx="12" cy="12" r="7" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+</svg>

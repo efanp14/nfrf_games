@@ -160,6 +160,8 @@ static func rounds_columns() -> Array:
 		["residents_toggle_count", "How many times the resident display was switched during this round."],
 		["sound_muted", "1 if the interface sounds were muted this round. Muting is used in the group treatment so game audio does not bleed into the separately recorded discussion."],
 		["sound_toggle_count", "How many times the sound was switched during this round."],
+		["interface_scale", "How large the interface was drawn as this round ended: 1.0, 1.15, 1.3 or 1.45, from the setup menu or the in-game gear. Display only. parameters.json carries the size the session started at."],
+		["interface_scale_change_count", "How many times the size was changed from the in-game gear during this round."],
 		["city_metrics_shown", "1 if the city columns below were ON SCREEN this round, otherwise 0. They are COMPUTED in every treatment, including T1 where they are hidden, so a city value with this set to 0 is a genuine measurement the participant could not see, not missing data. That is what makes T1 city figures usable as the counterfactual for 'would this player have helped the city had they known'."],
 	]))
 

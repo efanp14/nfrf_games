@@ -511,8 +511,12 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 		"residents_toggle_count": int(_display_changes.get(DISPLAY_RESIDENTS_HIDDEN, 0)),
 		"sound_muted":            bool(_display_state[DISPLAY_SOUND_MUTED]),
 		"sound_toggle_count":     int(_display_changes.get(DISPLAY_SOUND_MUTED, 0)),
+		# Read off the window, so it is what was drawn, not what was saved.
+		"interface_scale":        get_tree().root.content_scale_factor,
+		"interface_scale_change_count": _interface_scale_changes,
 	}
 	log_entries.append(entry)
+	_interface_scale_changes = 0
 	# Counts are per round, so they start again once this one is recorded. The
 	# STATE deliberately does not reset: it carries into the next round, which is
 	# what actually happened on screen.
@@ -533,6 +537,15 @@ func on_round_ended(round_num: int, results: Dictionary) -> void:
 func on_display_toggled(kind: String, value: bool) -> void:
 	_display_state[kind] = value
 	_display_changes[kind] = int(_display_changes.get(kind, 0)) + 1
+
+
+## Connect this to GameHUD.interface_scale_changed, via main.gd. Only the count
+## is kept here: the size itself is read off the window when the round is
+## recorded. Per round, like the display toggles.
+var _interface_scale_changes: int = 0
+
+func on_interface_scale_changed(_scale: float) -> void:
+	_interface_scale_changes += 1
 
 
 ## Connect this to GameManager.game_over
@@ -1056,6 +1069,8 @@ func _rounds_rows(parts: Dictionary) -> Array:
 				"residents_toggle_count": entry.get("residents_toggle_count"),
 				"sound_muted":            entry.get("sound_muted"),
 				"sound_toggle_count":     entry.get("sound_toggle_count"),
+				"interface_scale":        entry.get("interface_scale"),
+				"interface_scale_change_count": entry.get("interface_scale_change_count"),
 			}
 			# Per-player metric quads. The player rows name these without the
 			# "personal_" prefix the top-level fields carry. Read through

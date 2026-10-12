@@ -24,6 +24,10 @@ signal display_toggled(kind: String, value: bool)
 ## Round 1, and there was no way back to them: a participant who forgot what a
 ## protected lane was, or whether the budget carried over, had nowhere to look.
 signal instructions_pressed
+## A size picked from the gear button during play (DisplaySettings). Already
+## saved for this device when emitted; main.gd applies it, since it owns the
+## window and has to refit the map, and the logger records it.
+signal interface_scale_changed(scale: float)
 
 @onready var round_label: Label         = %RoundLabel
 @onready var budget_label: Label        = %BudgetLabel
@@ -94,7 +98,113 @@ func _ready() -> void:
 	GameManager.round_ended.connect(_on_round_ended)
 	GameManager.city_metrics_updated.connect(_on_city_metrics_updated)
 	GameManager.game_over.connect(_on_game_over)
+	_build_settings()
 	_sync_initial_state()
+
+
+const GEAR_TEXTURE := preload("res://assets/images/gear.svg")
+const GEAR_BUTTON_SIZE := Vector2(44, 44)
+
+var settings_button: Button
+var settings_popover: PanelContainer
+var _gear_image: TextureRect
+var _size_buttons: Array[Button] = []
+
+
+## The gear in the bottom-left corner, and the small card it opens with the
+## same four sizes as the setup menu.
+##
+## Here as well as on the menu because the menu is the researcher's screen and
+## is gone once play starts, while whether the text is readable is something
+## only the person at the screen can judge, and only once they are reading it.
+## An icon rather than a labelled pill, so it costs the map almost nothing.
+func _build_settings() -> void:
+	var rail: Control = %MuteButton.get_parent()
+
+	settings_button = Button.new()
+	settings_button.custom_minimum_size = GEAR_BUTTON_SIZE
+	settings_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	settings_button.theme_type_variation = &"PillButton"
+	settings_button.tooltip_text = "Text and interface size"
+	settings_button.pressed.connect(_on_settings_pressed)
+	rail.add_child(settings_button)
+	# A child image rather than the button's own icon: the pill style's side
+	# padding is sized for text and squeezes an icon to a few pixels.
+	_gear_image = TextureRect.new()
+	_gear_image.texture = GEAR_TEXTURE
+	_gear_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_gear_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_gear_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gear_image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 9)
+	_gear_image.self_modulate = Palette.TEXT_PRIMARY
+	settings_button.add_child(_gear_image)
+
+	# Opens beside the bottom-left rail, growing upwards, so it covers neither
+	# the rail nor the status card above it.
+	settings_popover = PanelContainer.new()
+	settings_popover.visible = false
+	settings_popover.anchor_top = 1.0
+	settings_popover.anchor_bottom = 1.0
+	settings_popover.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	settings_popover.offset_left = 20.0 + 168.0 + 12.0
+	settings_popover.offset_top = -20.0
+	settings_popover.offset_bottom = -20.0
+	rail.get_parent().add_child(settings_popover)
+
+	var margin := MarginContainer.new()
+	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+		margin.add_theme_constant_override(side, 14)
+	settings_popover.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	margin.add_child(box)
+
+	var title := Label.new()
+	title.text = "Text and interface size"
+	title.add_theme_font_size_override("font_size", 14)
+	box.add_child(title)
+
+	for i in range(DisplaySettings.SCALES.size()):
+		var b := Button.new()
+		b.text = "%s  (%d%%)" % [DisplaySettings.SCALE_LABELS[i],
+				int(round(DisplaySettings.SCALES[i] * 100.0))]
+		b.custom_minimum_size = Vector2(168, 0)
+		b.add_theme_font_size_override("font_size", 13)
+		b.pressed.connect(_on_size_chosen.bind(i))
+		box.add_child(b)
+		_size_buttons.append(b)
+	_refresh_size_buttons()
+
+
+func _on_settings_pressed() -> void:
+	settings_popover.visible = not settings_popover.visible
+	# The legend reaches down to where this card opens at the larger sizes, so
+	# only one of the two is open at a time.
+	if settings_popover.visible and legend_popover.visible:
+		_on_legend_pressed()
+	_style_toggle(settings_button, settings_popover.visible)
+	# Gold while open, matching the text of an active pill.
+	_gear_image.self_modulate = Palette.BRAND_GOLD if settings_popover.visible else Palette.TEXT_PRIMARY
+	if settings_popover.visible:
+		_refresh_size_buttons()
+
+
+## Stays open after a pick, so the player can see the new size and try another
+## without reopening it.
+func _on_size_chosen(index: int) -> void:
+	var chosen: float = DisplaySettings.SCALES[index]
+	if is_equal_approx(chosen, get_tree().root.content_scale_factor):
+		return
+	DisplaySettings.set_scale(chosen)
+	interface_scale_changed.emit(chosen)
+	_refresh_size_buttons()
+
+
+## The size in use reads gold, like an active rail toggle.
+func _refresh_size_buttons() -> void:
+	var current: float = get_tree().root.content_scale_factor
+	for i in range(_size_buttons.size()):
+		_style_toggle(_size_buttons[i], is_equal_approx(DisplaySettings.SCALES[i], current))
 
 
 func _on_city_view_pressed() -> void:
@@ -141,6 +251,8 @@ func _on_legend_pressed() -> void:
 	legend_popover.visible = not legend_popover.visible
 	legend_button.text = "Hide legend" if legend_popover.visible else "Legend"
 	_style_toggle(legend_button, legend_popover.visible)
+	if legend_popover.visible and settings_popover != null and settings_popover.visible:
+		_on_settings_pressed()
 	if legend_popover.visible:
 		# Rebuilt on open rather than kept live: it is hidden most of the time,
 		# and the player count and the resident toggle can both have moved since
