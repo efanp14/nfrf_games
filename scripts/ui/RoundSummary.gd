@@ -66,7 +66,7 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 	PlayerRow.clear(_players_box)
 	var solo := players_data.size() <= 1
 	time_label.visible   = solo
-	delta_label.visible  = solo
+	delta_label.visible  = false
 	safety_label.visible = solo
 	_players_box.visible = not solo
 	if solo:
@@ -87,21 +87,21 @@ func show_results(results: Dictionary, treatment: int, is_last_round: bool) -> v
 ## previous round (design doc 3.7).
 func _show_solo(results: Dictionary) -> void:
 	var time: float   = results.get("personal_time", 0.0)
-	var delta: float  = results.get("time_delta", 0.0)
+#	var delta: float  = results.get("time_delta", 0.0)
 	var safety: float = results.get("personal_safety", 0.0)
 
 	time_label.text = "Commute time:   %.1f min" % time
 
 	# `time_delta` is already signed so positive means faster, so it is an
 	# improvement figure and goes to Valence as-is.
-	delta_label.text = Valence.phrase(delta,
-			"%.1f min faster than your original commute" % delta,
-			"%.1f min slower than your original commute" % absf(delta),
-			"Same as your original commute")
-	Valence.paint(delta_label, delta)
-	if results.get("route_changed", false):
-		delta_label.text += "
-" + ROUTE_CHANGED_LINE
+#	delta_label.text = Valence.phrase(delta,
+#			"%.1f min faster than your original commute" % delta,
+#			"%.1f min slower than your original commute" % absf(delta),
+#			"Same as your original commute")
+#	Valence.paint(delta_label, delta)
+#	if results.get("route_changed", false):
+#		delta_label.text += "
+#" + ROUTE_CHANGED_LINE
 
 	safety_label.text = "Safety: " + SafetyDisplay.format_route_bb(
 			safety, results.get("alpha", PersonalityConfig.ALPHA_AVERAGE))
@@ -111,19 +111,16 @@ func _show_solo(results: Dictionary) -> void:
 func _show_player_rows(players_data: Array) -> void:
 	for i in range(players_data.size()):
 		var pd: Dictionary = players_data[i]
-		var delta: float = pd.get("time_delta", 0.0)
-		var delta_str := ""
-		var g := Valence.glyph(delta)
-		if not g.is_empty():
-			delta_str = " (%s%.1f)" % [g, absf(delta)]
-		var text := "P%d:  %.1f min  Safety: %s%s" % [
-				i + 1, pd.get("time", 0.0),
-				SafetyDisplay.format_route_bb(pd.get("safety", 0.0),
-						pd.get("alpha", PersonalityConfig.ALPHA_AVERAGE)),
-				delta_str]
-		if pd.get("route_changed", false):
-			text += "
-    " + ROUTE_CHANGED_LINE
+
+		var text := "P%d:  %.1f min  Safety: %s" % [
+			i + 1,
+			pd.get("time", 0.0),
+			SafetyDisplay.format_route_bb(
+				pd.get("safety", 0.0),
+				pd.get("alpha", PersonalityConfig.ALPHA_AVERAGE)
+			)
+		]
+
 		_players_box.add_child(PlayerRow.make(i, text))
 
 
@@ -132,20 +129,18 @@ func _show_player_rows(players_data: Array) -> void:
 ## belongs. Same CityFeedback source as the HUD and the research log, so all
 ## three always agree.
 func _show_city(results: Dictionary) -> void:
-	var text := CityFeedback.lines_with_change(
-		{
-			"avg_time":   results.get("city_avg_time", 0.0),
-			"avg_safety": results.get("city_avg_safety", 0.0),
-			"coverage":   results.get("city_coverage", 0.0),
-		},
-		{
-			"avg_time":   results.get("city_avg_time_baseline", 0.0),
-			"avg_safety": results.get("city_avg_safety_baseline", 0.0),
-			"coverage":   results.get("city_coverage_baseline", 0.0),
-		})
-	city_time_label.text   = text[0]
+	var text := CityFeedback.lines({
+		"avg_time": results.get("city_avg_time", 0.0),
+		"avg_safety": results.get("city_avg_safety", 0.0),
+	})
+
+	city_time_label.text = text[0]
 	city_safety_label.text = text[1]
-	coverage_label.text    = text[2]
+
+	coverage_label.visible = false
+	benefit_label.visible = false
+
+	_resident_icons().show_metrics(results)
 
 	# The collective-impact sentences. `results` already carries the residents_*
 	# fields verbatim, so this hands CityFeedback the same values the log

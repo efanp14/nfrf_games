@@ -41,13 +41,17 @@ const SAFETY_TARGET_DEFICIT: float = 50.0
 ## player-rounds on exactly three stars, so a participant who improved their
 ## commute saw no change at all. Anything reading these must go through here
 ## rather than restating 50, or the display and the model drift apart.
+#static func safety_floor() -> float:
+#	return 100.0 - SAFETY_TARGET_DEFICIT
+
+
+#	return 100.0 - PersonalityConfig.beta_protected_for_alpha(rider_alpha) * SAFETY_TARGET_DEFICIT
 static func safety_floor() -> float:
-	return 100.0 - SAFETY_TARGET_DEFICIT
+	return 0.0
 
 
-static func safety_ceiling(rider_alpha: float) -> float:
-	return 100.0 - PersonalityConfig.beta_protected_for_alpha(rider_alpha) * SAFETY_TARGET_DEFICIT
-
+static func safety_ceiling(_rider_alpha: float) -> float:
+	return 100.0
 # --- Upgrade Cost ---
 ## Defined here (not in the network) because cost is a game/economy rule,
 ## even though it reads the link's base_time. base_time isn't a real-world
@@ -322,11 +326,38 @@ func _compute_safety(route: Dictionary, network: CityNetwork) -> float:
 ## fully unimproved (see SAFETY_TARGET_DEFICIT comment for why it's
 ## normalized this way rather than a flat scale on the raw sum).
 static func route_safety(route: Dictionary, network: CityNetwork, rider_alpha: float) -> float:
-	var baseline_sum: float = route_stress_unimproved(route, network)
-	if baseline_sum <= 0.0:
+	if route.is_empty() or network == null:
 		return 100.0
-	var ratio: float = route_stress(route, network, rider_alpha) / baseline_sum
-	return maxf(0.0, 100.0 - ratio * SAFETY_TARGET_DEFICIT)
+
+	var weighted_stress: float = 0.0
+	var total_time: float = 0.0
+	var path: Array = route.get("path", [])
+
+	for i in range(path.size() - 1):
+		var link_id: String = "%d,%d-%d,%d" % [
+			path[i].x,
+			path[i].y,
+			path[i + 1].x,
+			path[i + 1].y
+		]
+
+		if network.links.has(link_id):
+			var link: CityNetwork.Link = network.links[link_id]
+			var beta: float = link.effective_beta(rider_alpha)
+
+			weighted_stress += beta * link.stress_score * link.base_time
+			total_time += link.base_time
+
+	if total_time <= 0.0:
+		return 100.0
+
+	var average_effective_stress: float = weighted_stress / total_time
+
+	return clampf(
+		100.0 * (1.0 - average_effective_stress),
+		0.0,
+		100.0
+	)
 
 
 ## Raw, unnormalized stress exposure along a route: Σ(β × base_stress ×

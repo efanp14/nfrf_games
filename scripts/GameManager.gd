@@ -623,6 +623,7 @@ func advance_round() -> void:
 
 func _end_game() -> void:
 	game_running = false
+
 	var players_data: Array = []
 	for p in human_players:
 		var ft: float = p.current_route.get("total_time", 0.0)
@@ -636,19 +637,51 @@ func _end_game() -> void:
 			"cumulative_own_route_upgrade_share": p.cumulative_own_route_share(),
 			"log": p.export_log(),
 		})
+
 	var final_time: float = human_player.current_route.get("total_time", 0.0)
+
+	# Final citywide state. These use the same 99 simulated residents and the
+	# same benefit definition used after every round. Human players are NOT
+	# included in the citywide averages.
+	var final_residents: Array = _resident_snapshot()
+	var final_city_metrics: Dictionary = _compute_city_metrics(final_residents)
+	var final_benefit: Dictionary = _compute_benefit_metrics(
+		final_residents,
+		_initial_residents
+	)
+
 	var final_results: Dictionary = {
-		"total_rounds":     total_rounds,
-		"final_time":       final_time,
-		"baseline_time":    human_player.initial_baseline_time,
+		"treatment": treatment,
+		"city_metrics_shown": treatment != Treatment.INDIVIDUAL,
+		"total_rounds": total_rounds,
+
+		# Personal final outcome.
+		"final_time": final_time,
+		"baseline_time": human_player.initial_baseline_time,
 		"total_time_saved": human_player.initial_baseline_time - final_time,
-		"final_safety":     human_player.safety_score,
-		"city_coverage":    network.coverage_percent(),
-		"alpha":            human_player.alpha,
+		"final_safety": human_player.safety_score,
+		"alpha": human_player.alpha,
+
+		# Final citywide outcome.
+		"city_avg_time": final_city_metrics.get("avg_time", 0.0),
+		"city_avg_safety": final_city_metrics.get("avg_safety", 0.0),
+		"city_avg_stress": final_city_metrics.get("avg_stress", 0.0),
+		"city_coverage": final_city_metrics.get("coverage", 0.0),
+
+		# Keep the resident snapshot in the final payload as well.
+		"residents_after": final_residents,
+
 		"cumulative_own_route_upgrade_share": human_player.cumulative_own_route_share(),
-		"log":              human_player.export_log(),
-		"players":          players_data,
+		"log": human_player.export_log(),
+		"players": players_data,
 	}
+
+	# Preserve every benefit metric in the final payload for analysis, even
+	# though the end screen only needs residents_total and
+	# residents_safety_improved_pct for the person icons.
+	for key in final_benefit:
+		final_results[key] = final_benefit[key]
+
 	emit_signal("game_over", final_results)
 
 
@@ -793,29 +826,37 @@ func _compute_benefit_metrics(now: Array, baseline: Array) -> Dictionary:
 	}
 
 
-## City-wide averages across the simulated residents plus the human player(s).
+## City-wide averages across the fixed simulated-resident population only.
+## Human player(s) are deliberately excluded so "Citywide" has the same
+## meaning in T1, T2 and T3. This keeps the denominator fixed across
+## treatments and separates personal outcomes from public outcomes.
+##
 ## Takes an already-computed resident snapshot so residents' routes are solved
-## once per round-boundary instead of once per metric.
+## once per round boundary instead of once per metric.
 func _compute_city_metrics(residents: Array) -> Dictionary:
 	var total_time: float = 0.0
 	var total_safety: float = 0.0
 	var total_stress: float = 0.0
+
 	for r: Dictionary in residents:
 		total_time += r["time"]
 		total_safety += r["safety"]
 		total_stress += r["stress"]
 
-	for p: Player in human_players:
-		total_time += p.current_route.get("total_time", 0.0)
-		total_safety += p.safety_score
-		total_stress += Player.route_stress(p.current_route, network, p.alpha)
+	var count: float = float(residents.size())
+	if count <= 0.0:
+		return {
+			"avg_time": 0.0,
+			"avg_safety": 0.0,
+			"avg_stress": 0.0,
+			"coverage": network.coverage_percent(),
+		}
 
-	var count: float = float(residents.size() + human_players.size())
 	return {
-		"avg_time":   total_time / count,
+		"avg_time": total_time / count,
 		"avg_safety": total_safety / count,
 		# Raw average stress exposure, alongside the normalized 0-100 safety
-		# index — the research log records both.
+		# index. Both remain available in the research log.
 		"avg_stress": total_stress / count,
-		"coverage":   network.coverage_percent(),
+		"coverage": network.coverage_percent(),
 	}

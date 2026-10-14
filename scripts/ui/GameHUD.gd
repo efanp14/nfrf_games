@@ -464,15 +464,15 @@ func _render_city(metrics: Dictionary) -> void:
 	var text := CityFeedback.lines(metrics)
 	city_time_label.text   = text[0]
 	city_safety_label.text = text[1]
-	coverage_label.text    = text[2]
+	coverage_label.visible = false
 
 	# How many residents are better off than on the original network. Absent
 	# until the first round is confirmed, so the label hides rather than
 	# showing a placeholder "0%" that would read as a real result.
 	# Travel time as text, safety as person icons beneath it.
 	var benefit := CityFeedback.time_benefit_lines(metrics)
-	benefit_label.visible = not benefit.is_empty()
-	benefit_label.text    = "\n".join(benefit)
+	benefit_label.visible = false
+#	benefit_label.text    = "\n".join(benefit)
 	_resident_icons().show_metrics(metrics)
 
 
