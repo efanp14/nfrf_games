@@ -68,24 +68,24 @@ const BRAND_GREY_LIGHT := Color("#C7C8CA")
 
 ## Warm near-black rather than the cool blue-grey this used to be, so the red and
 ## gold read as warm brand colours instead of as alerts on a blue field.
-const PANEL_BG     := Color("#1C1A1D")
-const PANEL_BORDER := Color("#3A3438")
+const PANEL_BG     := Color("#151E2D")
+const PANEL_BORDER := Color("#2B3A4E")
 
 ## Three depths of scrim, by how much of the map the screen behind it should keep.
 ## Full takeovers hide it; the upgrade popup deliberately does not, since the
 ## player is deciding about the road underneath.
-const OVERLAY_FULL  := Color(0.043, 0.039, 0.047, 0.97)
-const OVERLAY_HEAVY := Color(0.043, 0.039, 0.047, 0.80)
-const OVERLAY_LIGHT := Color(0.043, 0.039, 0.047, 0.55)
+const OVERLAY_FULL  := Color(0.043, 0.071, 0.125, 0.97)
+const OVERLAY_HEAVY := Color(0.043, 0.071, 0.125, 0.80)
+const OVERLAY_LIGHT := Color(0.043, 0.071, 0.125, 0.55)
 
 ## Warm off-white, because every surface these sit on is dark. The legend's text
 ## was once near-black, which is a light-background colour, and against the HUD
 ## sidebar it came out barely legible.
-const TEXT_PRIMARY := Color("#F2EFEA")
+const TEXT_PRIMARY := Color("#F2F4F7")
 ## Headings take the gold, which is the cheapest way to put the identity on every
 ## screen without colouring anything that carries a quantity.
 const TEXT_HEADING := BRAND_GOLD
-const TEXT_MUTED   := Color(1, 0.804, 0, 0.30)
+const TEXT_MUTED   := Color("#AAB4C3")
 
 ## Gain and loss on round summaries and the end screen. Gain is the brand's teal
 ## accent rather than a plain green: teal separates from red far better under
@@ -101,9 +101,9 @@ const ERROR_TEXT := DELTA_LOSS
 ## chosen answer fills gold, which is the strongest signal available on this
 ## background and matters most in the group treatment, where three people read
 ## one screen from different distances.
-const BUBBLE_FILL            := Color("#232025")
-const BUBBLE_BORDER          := Color("#8C8289")
-const BUBBLE_HOVER_FILL      := Color("#3A3438")
+const BUBBLE_FILL            := Color("#182235")
+const BUBBLE_BORDER          := Color("#526074")
+const BUBBLE_HOVER_FILL      := Color("#223149")
 const BUBBLE_HOVER_BORDER    := BRAND_GOLD
 const BUBBLE_SELECTED_FILL   := BRAND_GOLD
 const BUBBLE_SELECTED_BORDER := BRAND_YELLOW_LIGHT
@@ -114,7 +114,7 @@ const SURVEY_SECTION_TITLE   := BRAND_GOLD
 ## Safety is shown as a five-star rating. Earned stars take the brand gold; the
 ## rest sit at roughly the surface's own brightness so they read as empty slots
 ## rather than as more rating.
-const STAR_EMPTY_COLOR := Color("#5A5257")
+const STAR_EMPTY_COLOR := Color("#526074")
 
 ## The person icons for "residents with safer travel" (ResidentIcons). Filled in
 ## the gain teal, as a share of residents better off; empty matches an empty
@@ -158,7 +158,7 @@ const PLAYER_COLORS: Array = [
 	Color("#0072B2"),   # blue
 	Color("#CC79A7"),   # reddish purple
 	Color("#D55E00"),   # vermillion
-	Color("#56B4E9"),   # sky blue
+	Color("#6F42C1"),   # dark purple
 	Color("#E69F00"),   # orange
 ]
 

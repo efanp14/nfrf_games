@@ -41,7 +41,7 @@ const ALPHABET: String = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
 ## The machine letter is drawn from the letters only, so the leading character
 ## says at a glance that this is a generated ID rather than a hand-typed one.
-const LETTERS: String = "ABCDEFGHJKMNPQRSTVWXYZ"
+const LETTERS: String = "12345678"
 
 const RANDOM_LEN: int = 4
 ## Machine letter, the random body, and the check character.
