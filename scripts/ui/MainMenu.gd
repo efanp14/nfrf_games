@@ -31,6 +31,8 @@ signal interface_scale_changed(scale: float)
 
 var _player_count_row: HBoxContainer
 var _player_count_spin: SpinBox
+var _solo_role_row: HBoxContainer
+var _solo_role_option: OptionButton
 
 ## What this session counts as: study data, a pilot, or a development test.
 ## First control on the menu, above the treatment, because it decides whether
@@ -129,6 +131,34 @@ func _ready() -> void:
 	_participant_box.add_theme_constant_override("separation", 6)
 	vbox.add_child(_participant_box)
 	vbox.move_child(_participant_box, _player_count_row.get_index() + 1)
+	_solo_role_row = HBoxContainer.new()
+	_solo_role_row.add_theme_constant_override("separation", 10)
+
+	var role_label := Label.new()
+	role_label.text = "Player / route"
+	role_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	role_label.add_theme_font_size_override("font_size", 12)
+	_solo_role_row.add_child(role_label)
+
+	_solo_role_option = OptionButton.new()
+	_solo_role_option.custom_minimum_size = Vector2(260, 0)
+
+	_solo_role_option.add_item("Player 1 — Blue", 0)
+	_solo_role_option.add_item("Player 2 — Pink", 1)
+	_solo_role_option.add_item("Player 3 — Orange", 2)
+	_solo_role_option.add_item("Player 4 — Purple", 3)
+
+	_solo_role_option.selected = 0
+	_solo_role_option.item_selected.connect(
+	func(_index): _rebuild_participant_rows()
+)
+	_solo_role_row.add_child(_solo_role_option)
+
+	vbox.add_child(_solo_role_row)
+	vbox.move_child(
+		_solo_role_row,
+		_participant_box.get_index() + 1
+	)
 
 	_group_row = HBoxContainer.new()
 	var group_row := _group_row
@@ -517,7 +547,11 @@ func _rebuild_participant_rows() -> void:
 		# to. Shown here rather than in-game deliberately, since a research
 		# identifier on screen for three hours is a participant's business, not
 		# something they should be reading.
-		row.add_child(_seat_swatch(i))
+		var role_index: int = i
+		if count == 1 and _solo_role_option != null:
+			role_index = _solo_role_option.get_selected_id()
+
+		row.add_child(_seat_swatch(role_index))
 
 		var lbl := Label.new()
 		lbl.text = "Participant ID" if count == 1 else "Participant ID  (Player %d)" % (i + 1)
@@ -753,6 +787,10 @@ func _on_start_pressed() -> void:
 	# T1's post-survey is in, so an abandoned T1 never leaves a T2 waiting.
 	var treatment := int(GameManager.Treatment.INDIVIDUAL) if chained else selected
 	var group := _entered_group_id()
+		# For T1/T2, remember which fixed player/OD role was selected.
+	if selected != int(GameManager.Treatment.GROUP_DISCUSSION) and _solo_role_option != null:
+		GameManager.home_work_pair = _solo_role_option.get_selected_id()
+		
 	# Committed here rather than when it was worked out, so that a group number
 	# is spent by a session actually starting and not by looking at the menu.
 	if not group.is_empty():

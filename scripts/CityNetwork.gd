@@ -168,8 +168,8 @@ var river_points: PackedVector2Array  # cosmetic curve drawn by CityGrid
 ## commutes, and it still starts in the original grid and crosses into the West
 ## Extension rather than sitting inside it (37.3 min, was 41.9).
 const HOME_WORK_PAIRS: Array = [
-	[Vector2i(23, 0), Vector2i(7, 0)],
-	[Vector2i(13, 0), Vector2i(46, 0)],  # was work=2; now West Extension hub node 46
+	[Vector2i(42, 0), Vector2i(6, 0)],   # Player 1: H42 -> W6
+		[Vector2i(31, 0), Vector2i(16, 0)],  # Player 2: H31 -> W16
 	[Vector2i(19, 0), Vector2i(41, 0)],  # was home=7 (clashed with pair 0's work); was work=12
 	[Vector2i(18, 0), Vector2i(1, 0)],
 	[Vector2i(24, 0), Vector2i(45, 0)],  # was work=6; now West Extension node 45
@@ -588,12 +588,12 @@ const NODES: Array = [
 # the centre-line stress view from effective stress (post-beta). A change
 # here is visible on the map, by design.
 const EDGES: Array = [
-	[Vector2i(1, 0),  Vector2i(2, 0),  15.0, 0.24],
-	[Vector2i(1, 0),  Vector2i(3, 0),  3.4, 0.76],
-	[Vector2i(2, 0),  Vector2i(6, 0),  3.4, 0.19],
-	[Vector2i(3, 0),  Vector2i(4, 0),  4.6, 0.79],
-	[Vector2i(3, 0),  Vector2i(12, 0), 5.8, 0.25],
-	[Vector2i(4, 0),  Vector2i(5, 0),  5.1, 0.24],
+	[Vector2i(1, 0),  Vector2i(2, 0),  15.0, 0.80],
+	[Vector2i(1, 0),  Vector2i(3, 0),  3.4, 0.90],
+	[Vector2i(2, 0),  Vector2i(6, 0),  3.4, 0.80],
+	[Vector2i(3, 0),  Vector2i(4, 0),  4.6, 0.20],
+	[Vector2i(3, 0),  Vector2i(12, 0), 5.8, 0.20],
+	[Vector2i(4, 0),  Vector2i(5, 0),  5.1, 0.20],
 	[Vector2i(4, 0),  Vector2i(11, 0), 5.8, 0.27],
 	[Vector2i(5, 0),  Vector2i(6, 0),  5.4, 0.17],
 	[Vector2i(5, 0),  Vector2i(9, 0),  2.8, 0.21],
@@ -605,8 +605,8 @@ const EDGES: Array = [
 	[Vector2i(9, 0),  Vector2i(10, 0), 3.0, 0.84],
 	[Vector2i(10, 0), Vector2i(11, 0), 5.1, 0.83],
 	[Vector2i(10, 0), Vector2i(15, 0), 6.5, 0.79],
-	[Vector2i(10, 0), Vector2i(16, 0), 5.4, 0.23],
-	[Vector2i(10, 0), Vector2i(17, 0), 6.1, 0.26],
+	[Vector2i(10, 0), Vector2i(16, 0), 5.4, 0.80],
+	[Vector2i(10, 0), Vector2i(17, 0), 6.1, 0.20],
 	[Vector2i(11, 0), Vector2i(12, 0), 4.6, 0.76],
 	[Vector2i(11, 0), Vector2i(14, 0), 6.5, 0.86],
 	[Vector2i(12, 0), Vector2i(48, 0), 7.0, 0.24],   # split of former 12-13
@@ -616,7 +616,7 @@ const EDGES: Array = [
 	[Vector2i(14, 0), Vector2i(23, 0), 3.0, 0.20],
 	[Vector2i(15, 0), Vector2i(19, 0), 5.4, 0.17],
 	[Vector2i(15, 0), Vector2i(22, 0), 3.0, 0.77],
-	[Vector2i(16, 0), Vector2i(17, 0), 3.0, 0.26],
+	[Vector2i(16, 0), Vector2i(17, 0), 3.0, 0.20],
 	[Vector2i(16, 0), Vector2i(18, 0), 5.6, 0.23],
 	[Vector2i(17, 0), Vector2i(19, 0), 3.5, 0.26],
 	[Vector2i(18, 0), Vector2i(49, 0), 7.5, 0.25],   # split of former 18-20
@@ -634,9 +634,9 @@ const EDGES: Array = [
 	[Vector2i(23, 0), Vector2i(27, 0), 2.6, 0.84],
 	[Vector2i(27, 0), Vector2i(28, 0), 4.5, 0.77],
 	[Vector2i(2, 0),  Vector2i(29, 0), 3.3, 0.79],
-	[Vector2i(12, 0), Vector2i(30, 0), 6.9, 0.79],
-	[Vector2i(1, 0),  Vector2i(30, 0), 5.0, 0.77],
-	[Vector2i(33, 0), Vector2i(30, 0), 5.5, 0.79],
+	[Vector2i(12, 0), Vector2i(30, 0), 6.9, 0.20],
+	[Vector2i(1, 0),  Vector2i(30, 0), 5.0, 0.80],
+	[Vector2i(33, 0), Vector2i(30, 0), 5.5, 0.80],
 	[Vector2i(30, 0), Vector2i(31, 0), 3.9, 0.17],
 	[Vector2i(31, 0), Vector2i(32, 0), 5.5, 0.19],
 	[Vector2i(32, 0), Vector2i(33, 0), 3.9, 0.24],
@@ -695,8 +695,8 @@ func _apply_initial_infrastructure() -> void:
 	# blank network — same role as the previous network's seeded lanes.
 	_set_initial_upgrade(Vector2i(21, 0), Vector2i(22, 0), 1)   # painted
 	_set_initial_upgrade(Vector2i(35, 0), Vector2i(36, 0), 1)   # painted
-	_set_initial_upgrade(Vector2i(1, 0),  Vector2i(2, 0),  2)   # protected
-	_set_initial_upgrade(Vector2i(42, 0), Vector2i(33, 0), 2)   # protected
+	#_set_initial_upgrade(Vector2i(1, 0),  Vector2i(2, 0),  2)   # protected
+	#_set_initial_upgrade(Vector2i(42, 0), Vector2i(33, 0), 2)   # protected
 	_set_initial_upgrade(Vector2i(11, 0), Vector2i(10, 0), 1)   # painted
 	_set_initial_upgrade(Vector2i(5, 0),  Vector2i(9, 0),  2)   # protected
 	_set_initial_upgrade(Vector2i(18, 0), Vector2i(49, 0), 2)   # protected — top half of the old 18-20 (49 = its midpoint split node)

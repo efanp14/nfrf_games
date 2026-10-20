@@ -99,6 +99,7 @@ func _ready() -> void:
 
 func start_game(alphas: Array, chosen_treatment: Treatment) -> void:
 	treatment = chosen_treatment
+	print("SELECTED ROLE PAIR = ", home_work_pair, " | treatment = ", chosen_treatment)
 	network = null
 	human_players.clear()
 	human_player = null
@@ -116,7 +117,13 @@ func start_game(alphas: Array, chosen_treatment: Treatment) -> void:
 	if not clashes.is_empty():
 		push_error("HOME_WORK_PAIRS: node(s) %s shared between players" % str(clashes))
 	for i in range(alphas.size()):
-		var pair_idx: int = i % CityNetwork.HOME_WORK_PAIRS.size()
+		var pair_idx: int
+
+		if chosen_treatment == Treatment.GROUP_DISCUSSION:
+			pair_idx = i % CityNetwork.HOME_WORK_PAIRS.size()
+		else:
+			pair_idx = home_work_pair
+
 		var pair: Array = CityNetwork.HOME_WORK_PAIRS[pair_idx]
 		var home: Vector2i = pair[0]
 		var work: Vector2i = pair[1]
@@ -131,6 +138,12 @@ func start_game(alphas: Array, chosen_treatment: Treatment) -> void:
 	# round's gain/loss is measured against. Captured once, never updated.
 	for p in human_players:
 		var baseline_route = network.find_route(p.home, p.work, p.alpha)
+		print(
+	"PLAYER ROUTE | home=", p.home,
+	" work=", p.work,
+	" path=", baseline_route.get("path", []),
+	" time=", baseline_route.get("total_time", 0.0)
+)
 		p.baseline_time         = baseline_route.get("total_time", 30.0)
 		p.initial_baseline_time = p.baseline_time
 		p.current_route         = baseline_route

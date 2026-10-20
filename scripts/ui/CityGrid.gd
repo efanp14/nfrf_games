@@ -237,14 +237,19 @@ func _resident_endpoints() -> Array[Dictionary]:
 
 ## Which kind of marker a node gets, and for which seat. The player's own
 ## HOME/WORK wins over a resident endpoint wherever the two coincide.
-func _marker_kind_for(node_vec: Vector2i, net: CityNetwork,
-		npc_homes: Dictionary, npc_works: Dictionary) -> Dictionary:
+func _marker_kind_for(node_vec: Vector2i, net: CityNetwork, npc_homes: Dictionary, npc_works: Dictionary) -> Dictionary:
 	for i in range(GameManager.human_players.size()):
 		var p: Player = GameManager.human_players[i]
+
+		var seat_index: int = i
+		if GameManager.human_players.size() == 1:
+			seat_index = GameManager.home_work_pair
+
 		if node_vec == p.home:
-			return {"type": NodeMarker.MarkerType.HOME, "seat": i, "icon": ""}
+			return {"type": NodeMarker.MarkerType.HOME, "seat": seat_index, "icon": ""}
 		if node_vec == p.work:
-			return {"type": NodeMarker.MarkerType.WORK, "seat": i, "icon": ""}
+			return {"type": NodeMarker.MarkerType.WORK, "seat": seat_index, "icon": ""}
+
 	if npc_homes.has(node_vec):
 		return {"type": NodeMarker.MarkerType.NPC_HOME, "seat": 0, "icon": ""}
 	if npc_works.has(node_vec):
@@ -332,30 +337,37 @@ func _on_segment_clicked(link_id: String) -> void:
 ## instead of one crowded blur of every bike on the map at once.
 func play_round_end_animation() -> void:
 	var last_tween: Tween = null
+
 	for i in range(GameManager.human_players.size()):
 		var p: Player = GameManager.human_players[i]
 		var path: Array = p.current_route.get("path", [])
-		var col: Color = Palette.seat_color(i)
-		var t := _spawn_bike(path, col)
-		if t:
-			last_tween = t
+
+		var seat_index: int = i
+		if GameManager.human_players.size() == 1:
+			seat_index = GameManager.home_work_pair
+
+		var col: Color = Palette.seat_color(seat_index)
+		var player_tween := _spawn_bike(path, col)
+		if player_tween:
+			last_tween = player_tween
+
 	if last_tween:
 		await last_tween.finished
 
-	# The residents' commute is the busiest moment on screen, so it is the first
-	# thing the hide toggle drops. The player's own bike above always rides:
-	# there is one of it, and it is how they see what their upgrade did.
 	if hide_resident_visuals:
 		return
 
 	var npc_last_tween: Tween = null
+
 	for commuter in GameManager.ai_commuters:
 		var route: Dictionary = GameManager.network.find_route(
 				commuter["start"], commuter["goal"], commuter["alpha"])
 		var path: Array = route.get("path", [])
-		var t := _spawn_bike(path, Palette.NPC_HOME)
-		if t:
-			npc_last_tween = t
+		var npc_tween := _spawn_bike(path, Palette.NPC_HOME)
+
+		if npc_tween:
+			npc_last_tween = npc_tween
+
 	if npc_last_tween:
 		await npc_last_tween.finished
 
@@ -387,6 +399,10 @@ func _spawn_bike(path: Array, bike_color: Color) -> Tween:
 
 func _on_route_updated(player_id: String, route: Dictionary) -> void:
 	var player_index := _player_id_to_index(player_id)
+
+	if GameManager.human_players.size() == 1:
+		player_index = GameManager.home_work_pair
+
 	if player_index < 0:
 		return
 	for seg: LinkSegment in _segments.values():
