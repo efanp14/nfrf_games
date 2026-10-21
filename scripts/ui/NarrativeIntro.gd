@@ -117,7 +117,14 @@ func _ready() -> void:
 func show_narrative(treatment: int) -> void:
 	_treatment = treatment
 	_reopened = false
-	_page = 0
+
+	# T1 shows the full introduction.
+	# T2 and T3 only show the treatment-specific "Before you begin" page.
+	if _treatment == GameManager.Treatment.INDIVIDUAL:
+		_page = 0
+	else:
+		_page = PAGE_ORDER.find(Page.TREATMENT)
+
 	_show_page()
 	visible = true
 
@@ -127,7 +134,12 @@ func show_narrative(treatment: int) -> void:
 func reopen(treatment: int) -> void:
 	_treatment = treatment
 	_reopened = true
-	_page = 0
+
+	if _treatment == GameManager.Treatment.INDIVIDUAL:
+		_page = 0
+	else:
+		_page = PAGE_ORDER.find(Page.TREATMENT)
+
 	_show_page()
 	visible = true
 
@@ -150,7 +162,10 @@ func _show_page() -> void:
 		continue_button.text = "Continue"
 	# Hidden rather than disabled on the first page: a permanently dead button
 	# reads as something being broken.
-	back_button.visible = _page > 0
+	back_button.visible = (
+	_page > 0
+	and _treatment == GameManager.Treatment.INDIVIDUAL
+)
 
 
 func _on_back_pressed() -> void:

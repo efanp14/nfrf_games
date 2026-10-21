@@ -75,9 +75,12 @@ static func safety_caption(metrics: Dictionary) -> String:
 	var halves := safety_icon_halves(metrics)
 
 	if halves == 0:
-		return "Your upgrades did not make travel safer for any residents"
+		return "Your upgrades did not make travel safer
+		 for any residents"
 
 	if halves == 10:
-		return "Your upgrades made travel safer for all residents"
+		return "Your upgrades made travel safer
+		 for all residents"
 
-	return "Your upgrades made travel safer for about %d in 10 residents" % halves
+	return "Your upgrades made travel safer
+	 for about %d in 10 residents" % halves

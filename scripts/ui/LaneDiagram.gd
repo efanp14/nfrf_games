@@ -1,5 +1,7 @@
 class_name LaneDiagram
 extends Control
+const BIKE_TEXTURE := preload("res://assets/images/bike-white.svg")
+
 ## LaneDiagram.gd
 ## The three infrastructure levels drawn as cross-sections of a street, with a
 ## plain-language caption each. Used on the orientation screens.
@@ -100,17 +102,39 @@ func _road(level: int, y: float) -> void:
 			draw_rect(Rect2(0, y + ROAD_H - strip - divider, ROAD_W, divider),
 					Palette.WHITE_MARKING)
 
-	# A car in the traffic lane on every level, since the point of the three
-	# pictures is what stands between a rider and it.
+			# A car in the traffic lane on every level.
 	var car_w: float = LinkSegment.CAR_LENGTH * k * 0.9
 	var car_h: float = LinkSegment.CAR_WIDTH_HALF * 2.0 * k
 	var car_y: float = y + ROAD_H * 0.5 - car_h * 0.5
-	draw_rect(Rect2(ROAD_W * 0.62, car_y, car_w, car_h), Palette.CAR_COLORS[0])
-	draw_rect(Rect2(ROAD_W * 0.62 + car_w * 0.55, car_y + car_h * 0.2,
-			car_w * 0.28, car_h * 0.6), Color(Palette.CAR_WINDOW, 0.85))
 
-	# And a bike where a rider would actually be: out in the lane with no
-	# infrastructure, tucked into the strip once there is one.
-	var bike_cy: float = y + ROAD_H * 0.5 if level == 0 else y + strip * 0.5 + strip
-	draw_circle(Vector2(ROAD_W * 0.24, bike_cy), 4.5 * k * 0.9,
-			Palette.seat_color(0), true, -1.0, true)
+	draw_rect(
+		Rect2(ROAD_W * 0.62, car_y, car_w, car_h),
+		Palette.CAR_COLORS[0]
+	)
+
+	draw_rect(
+		Rect2(
+			ROAD_W * 0.62 + car_w * 0.55,
+			car_y + car_h * 0.2,
+			car_w * 0.28,
+			car_h * 0.6
+		),
+		Color(Palette.CAR_WINDOW, 0.85)
+	)
+
+	# Bike icon showing where the cyclist rides.
+	var bike_cy: float = y + ROAD_H * 0.5 if level == 0 else y + strip * 1.5
+	var bike_center := Vector2(ROAD_W * 0.24, bike_cy)
+
+	var bike_h: float = 28.0
+	var aspect: float = BIKE_TEXTURE.get_width() / float(BIKE_TEXTURE.get_height())
+	var bike_w: float = bike_h * aspect
+
+	var bike_rect := Rect2(
+		bike_center.x - bike_w * 0.5,
+		bike_center.y - bike_h * 0.5,
+		bike_w,
+		bike_h
+	)
+
+	draw_texture_rect(BIKE_TEXTURE, bike_rect, false, Palette.TEXT_HEADING)

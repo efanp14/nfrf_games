@@ -107,9 +107,9 @@ static func route_color(player_index: int) -> Color:
 ## The arrow colour for a seat: its own colour lifted towards white, so the
 ## arrows stay legible against the band they sit on without introducing a sixth
 ## hue that would have to be kept distinct from everything else on the map.
+## Route arrows use the player's exact seat colour.
 static func route_arrow_color(player_index: int) -> Color:
-	var base: Color = Palette.seat_color(player_index)
-	return base.lerp(Color.WHITE, 0.72)
+	return Palette.seat_color(player_index)
 
 ## Road width encodes BASE stress: the wider the road, the more inherently
 ## stressful it is (10 Aug 2026). This is the always-on stress cue, added
@@ -466,18 +466,25 @@ func _draw() -> void:
 	# In heatmap mode the usage colour is carried by the centre line instead of
 	# a wide band behind the road, so nothing is drawn out here and the player
 	# route highlight stays hidden, keeping the two views distinct.
-	var pulse: float = sin(_anim_t * 2.0) * 2.0
-	var show_route: bool = not _routes_hidden and _heatmap_intensity < 0.0 and not _route_players.is_empty()
-	if show_route:
+	#var pulse: float = sin(_anim_t * 2.0) * 2.0
+	#var show_route: bool = not _routes_hidden and _heatmap_intensity < 0.0 and not _route_players.is_empty()
+	#if show_route:
 		# Dark casing first, so the band separates from the background rather
 		# than relying on whatever art happens to be underneath it.
-		_draw_thick_line(Palette.ROAD_EDGE,
-				_road_width + ROUTE_MARGIN + ROUTE_CASING + pulse)
-		if _route_players.size() == 1:
-			_draw_thick_line(route_color(_route_players[0]),
-					_road_width + ROUTE_MARGIN + pulse)
-		else:
-			_draw_striped_route()
+		#_draw_thick_line(Palette.ROAD_EDGE,
+				#_road_width + ROUTE_MARGIN + ROUTE_CASING + pulse)
+		#if _route_players.size() == 1:
+			#_draw_thick_line(route_color(_route_players[0]),
+					#_road_width + ROUTE_MARGIN + pulse)
+		#else:
+			#_draw_striped_route()
+# Player routes are represented only by directional arrows.
+	# No coloured route band is drawn, so bike-lane markings remain visible.
+	var show_route: bool = (
+		not _routes_hidden
+		and _heatmap_intensity < 0.0
+		and not _route_players.is_empty()
+	)
 
 	# No Bike Lane roads have no curb — a plain, informal street; upgraded
 	# (painted/protected) roads get a defined edge to read as "built".

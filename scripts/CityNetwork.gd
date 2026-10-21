@@ -168,11 +168,10 @@ var river_points: PackedVector2Array  # cosmetic curve drawn by CityGrid
 ## commutes, and it still starts in the original grid and crosses into the West
 ## Extension rather than sitting inside it (37.3 min, was 41.9).
 const HOME_WORK_PAIRS: Array = [
-	[Vector2i(42, 0), Vector2i(6, 0)],   # Player 1: H42 -> W6
-		[Vector2i(31, 0), Vector2i(16, 0)],  # Player 2: H31 -> W16
-	[Vector2i(19, 0), Vector2i(41, 0)],  # was home=7 (clashed with pair 0's work); was work=12
-	[Vector2i(18, 0), Vector2i(1, 0)],
-	[Vector2i(24, 0), Vector2i(45, 0)],  # was work=6; now West Extension node 45
+	[Vector2i(42, 0), Vector2i(6, 0)],    # Player 1: H42 -> W6
+	[Vector2i(31, 0), Vector2i(16, 0)],   # Player 2: H31 -> W16
+	[Vector2i(37, 0), Vector2i(8, 0)],    # Player 3: H37 -> W8
+	[Vector2i(39, 0), Vector2i(10, 0)],   # Player 4: H39 -> W10
 ]
 
 
